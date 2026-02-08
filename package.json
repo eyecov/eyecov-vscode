@@ -1,0 +1,120 @@
+{
+  "name": "covflux-vscode",
+  "displayName": "Covflux",
+  "description": "Display code coverage from Covflux SQLite database in VS Code editor",
+  "version": "0.2.7",
+  "publisher": "covflux",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/covflux/covflux-vscode.git"
+  },
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Testing",
+    "Other"
+  ],
+  "keywords": [
+    "coverage",
+    "testing",
+    "sqlite",
+    "covflux"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "covflux.showCoverage",
+        "title": "Show Coverage"
+      },
+      {
+        "command": "covflux.hideCoverage",
+        "title": "Hide Coverage"
+      },
+      {
+        "command": "covflux.toggleCoverage",
+        "title": "Toggle Coverage"
+      },
+      {
+        "command": "covflux.showCoverageInfo",
+        "title": "Show Coverage Info"
+      }
+    ],
+    "configuration": {
+      "title": "Covflux",
+      "properties": {
+        "covflux.databasePath": {
+          "type": "string",
+          "default": "${workspaceFolder}/coverage.sqlite",
+          "description": "Path to the Covflux SQLite database file. Supports ${workspaceFolder} variable."
+        },
+        "covflux.coverageJsonPath": {
+          "type": "string",
+          "default": "${workspaceFolder}/coverage-json",
+          "description": "Path to the coverage-json folder. Supports ${workspaceFolder}."
+        },
+        "covflux.source": {
+          "type": "string",
+          "enum": ["sqlite", "coverage-json", "auto"],
+          "default": "auto",
+          "description": "Coverage source: sqlite, coverage-json, or auto (try SQLite then coverage-json)."
+        },
+        "covflux.coverageJsonStripPathPrefix": {
+          "type": "string",
+          "default": "app",
+          "description": "When using coverage-json: strip this prefix from workspace-relative paths (e.g. 'app' for Laravel so app/Http/... becomes Http/...). Set to empty to disable."
+        },
+        "covflux.debug": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, write debug logs to the Covflux output channel (View → Output → Covflux)."
+        },
+        "covflux.showCoverageOnOpen": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically show coverage when files are opened"
+        },
+        "covflux.showUncovered": {
+          "type": "boolean",
+          "default": true,
+          "description": "Highlight uncovered lines"
+        },
+        "covflux.showCovered": {
+          "type": "boolean",
+          "default": true,
+          "description": "Highlight covered lines"
+        },
+        "covflux.showLineCoverage": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show coverage by changing background color of lines (default: true)"
+        },
+        "covflux.showGutterCoverage": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show coverage with gutter icons in addition to background colors"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.74.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@vscode/sqlite3": "^5.1.11-vscode"
+  }
+}
