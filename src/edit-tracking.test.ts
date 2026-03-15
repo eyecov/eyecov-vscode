@@ -77,6 +77,18 @@ describe("applyOneChange", () => {
     const result = applyOneChange([10], [], [], change);
     expect(result).toBeNull();
   });
+
+  // Regression: multi-line insert — we count LINES added (split length), not newline count.
+  // Insert "a\nb\nc" = 3 lines; tracked line 20 must shift by +3 → 23 (not +2 → 22).
+  it("insert 3 lines above tracked line: line shifts by 3 to 23", () => {
+    const change = {
+      range: { start: { line: 5 }, end: { line: 5 } },
+      text: "a\nb\nc",
+    };
+    const result = applyOneChange([20], [], [], change);
+    expect(result).not.toBeNull();
+    expect(result!.coveredLines).toEqual([23]);
+  });
 });
 
 describe("applyChanges", () => {
