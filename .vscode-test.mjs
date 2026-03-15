@@ -1,9 +1,9 @@
-import { defineConfig } from '@vscode/test-cli';
+import { defineConfig } from "@vscode/test-cli";
 
 export default defineConfig({
-  files: 'out/test/suite/**/*.test.js',
+  files: "out/test/suite/**/*.test.js",
   mocha: {
-    ui: 'tdd',
+    ui: "tdd",
     timeout: 20_000,
   },
 });

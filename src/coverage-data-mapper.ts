@@ -3,8 +3,8 @@
  * Extracted so recordToCoverageData can be unit tested.
  */
 
-import type { CoverageRecord } from './coverage-resolver';
-import type { CoverageData } from './coverage-types';
+import type { CoverageRecord } from "./coverage-resolver";
+import type { CoverageData } from "./coverage-types";
 
 export function recordToCoverageData(record: CoverageRecord): CoverageData {
   const totalLines = record.coveredLines.size + record.uncoveredLines.size;
@@ -33,7 +33,9 @@ export function recordToCoverageData(record: CoverageRecord): CoverageData {
 }
 
 /** Group line numbers by status code for decoration lookup. Returns Map<statusCode, lineNumbers[]>. */
-export function getLinesByStatusCode(coverage: CoverageData): Map<number, number[]> {
+export function getLinesByStatusCode(
+  coverage: CoverageData,
+): Map<number, number[]> {
   const byStatus = new Map<number, number[]>();
   for (const [line, code] of coverage.lineStatuses) {
     const list = byStatus.get(code) ?? [];

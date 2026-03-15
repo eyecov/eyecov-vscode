@@ -4,12 +4,12 @@
  * Used by MCP coverage_path and coverage_project (step 1).
  */
 
-import path from 'node:path';
-import type { CovfluxConfig } from './covflux-config';
-import type { CoverageCacheWritten } from './coverage-cache';
-import type { CoverageRecord } from './coverage-resolver';
-import { listCoverageHtmlSourcePaths } from './coverage-formats/phpunit-html';
-import { listLcovSourcePaths } from './coverage-formats/lcov';
+import path from "node:path";
+import type { CovfluxConfig } from "./covflux-config";
+import type { CoverageCacheWritten } from "./coverage-cache";
+import type { CoverageRecord } from "./coverage-resolver";
+import { listCoverageHtmlSourcePaths } from "./coverage-formats/phpunit-html";
+import { listLcovSourcePaths } from "./coverage-formats/lcov";
 
 export interface PathAggregateResult {
   aggregateCoveragePercent: number | null;
@@ -38,7 +38,7 @@ export interface AggregateCoverageOptions {
 }
 
 export async function aggregateCoverage(
-  options: AggregateCoverageOptions
+  options: AggregateCoverageOptions,
 ): Promise<PathAggregateResult> {
   const {
     paths,
@@ -54,11 +54,10 @@ export async function aggregateCoverage(
   const covered = records.filter((r): r is CoverageRecord => r !== null);
   const coveredFiles = covered.length;
   const missingCoverageFiles = paths.length - coveredFiles;
-  const totalExecutable =
-    covered.reduce((sum, r) => {
-      const exec = r.coveredLines.size + r.uncoveredLines.size;
-      return sum + exec;
-    }, 0);
+  const totalExecutable = covered.reduce((sum, r) => {
+    const exec = r.coveredLines.size + r.uncoveredLines.size;
+    return sum + exec;
+  }, 0);
   const totalCovered = covered.reduce((sum, r) => sum + r.coveredLines.size, 0);
   const aggregateCoveragePercent =
     totalExecutable > 0
@@ -84,10 +83,12 @@ export async function aggregateCoverage(
     const pb = b.lineCoveragePercent ?? 101;
     return pa - pb;
   });
-  const worstFiles = sortedWorst.slice(0, worstFilesLimit).map(({ filePath, lineCoveragePercent }) => ({
-    filePath,
-    lineCoveragePercent,
-  }));
+  const worstFiles = sortedWorst
+    .slice(0, worstFilesLimit)
+    .map(({ filePath, lineCoveragePercent }) => ({
+      filePath,
+      lineCoveragePercent,
+    }));
 
   const result: PathAggregateResult = {
     aggregateCoveragePercent,
@@ -98,11 +99,13 @@ export async function aggregateCoverage(
     worstFiles,
   };
   if (useCutoff) {
-    result.zeroCoverageFiles = atOrBelowCutoff.slice(0, zeroCoverageFilesLimit!).map((x) => ({
-      filePath: x.filePath,
-      lineCoveragePercent: x.lineCoveragePercent,
-      coveredLines: x.coveredCount,
-    }));
+    result.zeroCoverageFiles = atOrBelowCutoff
+      .slice(0, zeroCoverageFilesLimit!)
+      .map((x) => ({
+        filePath: x.filePath,
+        lineCoveragePercent: x.lineCoveragePercent,
+        coveredLines: x.coveredCount,
+      }));
   }
   return result;
 }
@@ -123,7 +126,7 @@ export interface ListCoveredPathsOptions {
 function underPrefix(
   filePath: string,
   workspaceRoots: string[],
-  prefixNorm: string
+  prefixNorm: string,
 ): boolean {
   const normalized = path.resolve(filePath);
   for (const root of workspaceRoots) {
@@ -143,12 +146,12 @@ export function listCoveredPaths(options: ListCoveredPathsOptions): string[] {
   const seen = new Set<string>();
   for (const entry of config.formats) {
     const paths =
-      entry.type === 'phpunit-html'
+      entry.type === "phpunit-html"
         ? listCoverageHtmlSourcePaths(workspaceRoots, {
             coverageHtmlDir: entry.path,
-            sourceSegment: entry.sourceSegment ?? 'auto',
+            sourceSegment: entry.sourceSegment ?? "auto",
           })
-        : entry.type === 'lcov'
+        : entry.type === "lcov"
           ? listLcovSourcePaths(workspaceRoots, { path: entry.path })
           : [];
     for (const p of paths) {
@@ -159,15 +162,15 @@ export function listCoveredPaths(options: ListCoveredPathsOptions): string[] {
   let result = [...seen].sort();
   const prefixesToUse =
     pathPrefixes != null && pathPrefixes.length > 0
-      ? pathPrefixes.map((p) => p.replace(/\/+$/, ''))
-      : pathPrefix != null && pathPrefix !== ''
-        ? [pathPrefix.replace(/\/+$/, '')]
+      ? pathPrefixes.map((p) => p.replace(/\/+$/, ""))
+      : pathPrefix != null && pathPrefix !== ""
+        ? [pathPrefix.replace(/\/+$/, "")]
         : null;
   if (prefixesToUse != null) {
     result = result.filter((filePath) =>
       prefixesToUse.some((prefixNorm) =>
-        underPrefix(filePath, workspaceRoots, prefixNorm)
-      )
+        underPrefix(filePath, workspaceRoots, prefixNorm),
+      ),
     );
   }
   return result;
@@ -179,23 +182,23 @@ export function listCoveredPaths(options: ListCoveredPathsOptions): string[] {
  */
 export function listCoveredPathsFromFirstFormat(
   workspaceRoots: string[],
-  config: CovfluxConfig
+  config: CovfluxConfig,
 ): { paths: string[]; formatType: string } {
   for (const entry of config.formats) {
     const paths =
-      entry.type === 'phpunit-html'
+      entry.type === "phpunit-html"
         ? listCoverageHtmlSourcePaths(workspaceRoots, {
             coverageHtmlDir: entry.path,
-            sourceSegment: entry.sourceSegment ?? 'auto',
+            sourceSegment: entry.sourceSegment ?? "auto",
           })
-        : entry.type === 'lcov'
+        : entry.type === "lcov"
           ? listLcovSourcePaths(workspaceRoots, { path: entry.path })
           : [];
     if (paths.length > 0) {
       return { paths: [...paths].sort(), formatType: entry.type };
     }
   }
-  const firstType = config.formats[0]?.type ?? '';
+  const firstType = config.formats[0]?.type ?? "";
   return { paths: [], formatType: firstType };
 }
 
@@ -208,9 +211,9 @@ export interface PathAggregateResponse {
   missingCoverageFiles: number;
   staleCoverageFiles: number;
   worstFiles: Array<{ filePath: string; lineCoveragePercent: number | null }>;
-  cacheState: 'on-demand' | 'partial' | 'full';
+  cacheState: "on-demand" | "partial" | "full";
   /** Present when options include zeroCoverageFilesLimit. */
-  zeroCoverageFiles?: PathAggregateResult['zeroCoverageFiles'];
+  zeroCoverageFiles?: PathAggregateResult["zeroCoverageFiles"];
 }
 
 export interface GetPathAggregateResponseOptions {
@@ -231,7 +234,7 @@ export interface GetPathAggregateResponseOptions {
  * Accepts either path (string) or paths (string[]); paths array allows querying multiple prefixes in one call.
  */
 export async function getPathAggregateResponse(
-  options: GetPathAggregateResponseOptions
+  options: GetPathAggregateResponseOptions,
 ): Promise<PathAggregateResponse> {
   const {
     workspaceRoots,
@@ -264,7 +267,7 @@ export async function getPathAggregateResponse(
   return {
     paths: pathsRequested,
     ...aggregate,
-    cacheState: 'on-demand',
+    cacheState: "on-demand",
   };
 }
 
@@ -276,9 +279,9 @@ export interface ProjectAggregateResponse {
   missingCoverageFiles: number;
   staleCoverageFiles: number;
   detectedFormat: string;
-  cacheState: 'on-demand' | 'partial' | 'full';
+  cacheState: "on-demand" | "partial" | "full";
   /** Present when options include zeroCoverageFilesLimit. */
-  zeroCoverageFiles?: PathAggregateResult['zeroCoverageFiles'];
+  zeroCoverageFiles?: PathAggregateResult["zeroCoverageFiles"];
 }
 
 export interface GetProjectAggregateResponseOptions {
@@ -295,7 +298,7 @@ export interface GetProjectAggregateResponseOptions {
  * Workspace-wide: no path filter; includes detectedFormat (first format with data) and cacheState "on-demand".
  */
 export async function getProjectAggregateResponse(
-  options: GetProjectAggregateResponseOptions
+  options: GetProjectAggregateResponseOptions,
 ): Promise<ProjectAggregateResponse> {
   const {
     workspaceRoots,
@@ -307,7 +310,7 @@ export async function getProjectAggregateResponse(
   } = options;
   const { paths: filePaths, formatType } = listCoveredPathsFromFirstFormat(
     workspaceRoots,
-    config
+    config,
   );
   const aggregate = await aggregateCoverage({
     paths: filePaths,
@@ -323,7 +326,7 @@ export async function getProjectAggregateResponse(
     missingCoverageFiles: aggregate.missingCoverageFiles,
     staleCoverageFiles: aggregate.staleCoverageFiles,
     detectedFormat: formatType,
-    cacheState: 'on-demand',
+    cacheState: "on-demand",
     ...(aggregate.zeroCoverageFiles != null && {
       zeroCoverageFiles: aggregate.zeroCoverageFiles,
     }),
@@ -334,7 +337,7 @@ export async function getProjectAggregateResponse(
  * Build project-aggregate response from a valid coverage cache (cacheState: 'full').
  */
 export function projectAggregateFromCache(
-  cache: CoverageCacheWritten
+  cache: CoverageCacheWritten,
 ): ProjectAggregateResponse {
   return {
     aggregateCoveragePercent: cache.aggregateCoveragePercent,
@@ -343,7 +346,7 @@ export function projectAggregateFromCache(
     missingCoverageFiles: cache.missingCoverageFiles,
     staleCoverageFiles: cache.staleCoverageFiles,
     detectedFormat: cache.detectedFormat,
-    cacheState: 'full',
+    cacheState: "full",
   };
 }
 
@@ -355,9 +358,9 @@ export function pathAggregateFromCache(
   cache: CoverageCacheWritten,
   workspaceRoot: string,
   pathPrefixes: string[],
-  worstFilesLimit = 10
+  worstFilesLimit = 10,
 ): PathAggregateResponse {
-  const prefixNorm = pathPrefixes.map((p) => p.replace(/\/+$/, ''));
+  const prefixNorm = pathPrefixes.map((p) => p.replace(/\/+$/, ""));
   const filtered = cache.files.filter((f) => {
     const normalized = path.resolve(f.filePath);
     for (const p of prefixNorm) {
@@ -395,6 +398,6 @@ export function pathAggregateFromCache(
     missingCoverageFiles: 0,
     staleCoverageFiles: 0,
     worstFiles,
-    cacheState: 'full',
+    cacheState: "full",
   };
 }

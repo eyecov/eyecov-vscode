@@ -1,10 +1,13 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import type { PhpUnitHtmlSourceSegment } from './covflux-config';
-import type { CoverageData, FileCoverage } from './coverage-types';
-import { resolveCoverageHtmlPath, parseCoverageHtml } from './coverage-formats/phpunit-html';
+import * as fs from "fs";
+import * as path from "path";
+import type { PhpUnitHtmlSourceSegment } from "./covflux-config";
+import type { CoverageData, FileCoverage } from "./coverage-types";
+import {
+  resolveCoverageHtmlPath,
+  parseCoverageHtml,
+} from "./coverage-formats/phpunit-html";
 
-const DEFAULT_COVERAGE_HTML_DIR = 'coverage-html';
+const DEFAULT_COVERAGE_HTML_DIR = "coverage-html";
 
 export interface CoverageHtmlReaderOptions {
   log?: (msg: string) => void;
@@ -21,11 +24,11 @@ export class CoverageHtmlReader {
 
   constructor(
     private readonly workspaceFolders: string[],
-    options: CoverageHtmlReaderOptions = {}
+    options: CoverageHtmlReaderOptions = {},
   ) {
     this.log = options.log ?? (() => {});
     this.coverageHtmlDir = options.coverageHtmlDir ?? DEFAULT_COVERAGE_HTML_DIR;
-    this.sourceSegment = options.sourceSegment ?? 'auto';
+    this.sourceSegment = options.sourceSegment ?? "auto";
   }
 
   static exists(rootPath: string): boolean {
@@ -37,28 +40,39 @@ export class CoverageHtmlReader {
     }
   }
 
-  static findCoverageRoots(workspaceFolders: string[], coverageHtmlDir: string = DEFAULT_COVERAGE_HTML_DIR): string[] {
+  static findCoverageRoots(
+    workspaceFolders: string[],
+    coverageHtmlDir: string = DEFAULT_COVERAGE_HTML_DIR,
+  ): string[] {
     return workspaceFolders
       .map((workspaceFolder) => path.join(workspaceFolder, coverageHtmlDir))
       .filter((coverageRoot) => CoverageHtmlReader.exists(coverageRoot));
   }
 
   getCoverageRoots(): string[] {
-    return CoverageHtmlReader.findCoverageRoots(this.workspaceFolders, this.coverageHtmlDir);
+    return CoverageHtmlReader.findCoverageRoots(
+      this.workspaceFolders,
+      this.coverageHtmlDir,
+    );
   }
 
   async getFileCoverage(filePath: string): Promise<CoverageData | null> {
     const coverageHtmlPath = resolveCoverageHtmlPath(
       path.resolve(filePath),
       this.workspaceFolders,
-      { coverageHtmlDir: this.coverageHtmlDir, sourceSegment: this.sourceSegment }
+      {
+        coverageHtmlDir: this.coverageHtmlDir,
+        sourceSegment: this.sourceSegment,
+      },
     );
     if (!coverageHtmlPath) {
-      this.log(`[coverage-html] ${path.basename(filePath)}: no matching html report`);
+      this.log(
+        `[coverage-html] ${path.basename(filePath)}: no matching html report`,
+      );
       return null;
     }
 
-    const html = fs.readFileSync(coverageHtmlPath, 'utf8');
+    const html = fs.readFileSync(coverageHtmlPath, "utf8");
     const parsed = parseCoverageHtml(html);
 
     const coveredLines = new Set<number>(parsed.coveredLines);
@@ -76,7 +90,9 @@ export class CoverageHtmlReader {
 
     const executableLines = coveredLines.size + uncoveredLines.size;
     const lineCoveragePercent =
-      executableLines > 0 ? Number(((coveredLines.size / executableLines) * 100).toFixed(2)) : null;
+      executableLines > 0
+        ? Number(((coveredLines.size / executableLines) * 100).toFixed(2))
+        : null;
 
     const file: FileCoverage = {
       fileId: 0,
@@ -87,7 +103,7 @@ export class CoverageHtmlReader {
     };
 
     this.log(
-      `[coverage-html] ${path.basename(filePath)}: ${uncoveredLines.size} uncovered line(s): [${[...uncoveredLines].sort((a, b) => a - b).join(', ')}]`
+      `[coverage-html] ${path.basename(filePath)}: ${uncoveredLines.size} uncovered line(s): [${[...uncoveredLines].sort((a, b) => a - b).join(", ")}]`,
     );
 
     return {

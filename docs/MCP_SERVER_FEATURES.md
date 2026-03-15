@@ -158,7 +158,11 @@ Recommends **where to add tests first** using coverage data only: files with no 
       "priorityScore": 92,
       "lineCoveragePercent": 33.3,
       "uncoveredLines": 48,
-      "reasons": ["low coverage", "many uncovered lines", "fresh coverage available"]
+      "reasons": [
+        "low coverage",
+        "many uncovered lines",
+        "fresh coverage available"
+      ]
     }
   ]
 }
@@ -211,7 +215,6 @@ Returns covering tests for a file and line(s).
 - **lineState:** `"covered"` | `"uncovered"` | `"not-executable"`.
 - **Unsupported format:** When the format does not provide per-line test data (e.g. LCOV), each match includes `lineTestsNotSupported` (e.g. `"Covering tests not supported for the LCOV coverage format."`) and `tests` is `[]`.
 - **coverageHtmlPath:** Omitted when the source is LCOV.
-
 
 ## Verification
 

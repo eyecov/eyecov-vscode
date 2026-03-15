@@ -3,11 +3,11 @@
  * coverage_project can skip re-aggregation when a valid cache exists (Step 5).
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
-import type { CoverageRecord } from './coverage-resolver';
+import fs from "node:fs";
+import path from "node:path";
+import type { CoverageRecord } from "./coverage-resolver";
 
-export const COVERAGE_CACHE_FILENAME = 'coverage-cache.json';
+export const COVERAGE_CACHE_FILENAME = "coverage-cache.json";
 
 export interface CoverageCacheFileEntry {
   filePath: string;
@@ -51,9 +51,9 @@ export interface CoverageCacheWritten {
  */
 export function writeCoverageCache(
   workspaceRoot: string,
-  payload: CoverageCachePayload
+  payload: CoverageCachePayload,
 ): void {
-  const dir = path.join(workspaceRoot, '.covflux');
+  const dir = path.join(workspaceRoot, ".covflux");
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -69,9 +69,11 @@ export function writeCoverageCache(
     missingCoverageFiles: payload.missingCoverageFiles,
     staleCoverageFiles: payload.staleCoverageFiles,
     files: payload.files,
-    ...(payload.missingPaths != null ? { missingPaths: payload.missingPaths } : {}),
+    ...(payload.missingPaths != null
+      ? { missingPaths: payload.missingPaths }
+      : {}),
   };
-  fs.writeFileSync(cachePath, JSON.stringify(written, null, 0), 'utf-8');
+  fs.writeFileSync(cachePath, JSON.stringify(written, null, 0), "utf-8");
 }
 
 export interface BuildCoverageCachePayloadOptions {
@@ -93,9 +95,10 @@ function samePath(a: string, b: string): boolean {
 }
 
 export function buildCoverageCachePayload(
-  options: BuildCoverageCachePayloadOptions
+  options: BuildCoverageCachePayloadOptions,
 ): CoverageCachePayload {
-  const { workspaceRoot, detectedFormat, records, totalPathCount, paths } = options;
+  const { workspaceRoot, detectedFormat, records, totalPathCount, paths } =
+    options;
   const coveredFiles = records.length;
   const missingCoverageFiles = totalPathCount - coveredFiles;
   const missingPaths =
@@ -112,12 +115,12 @@ export function buildCoverageCachePayload(
   let aggregateCoveragePercent: number | null = null;
   const totalExecutable = records.reduce(
     (sum, r) => sum + r.coveredLines.size + r.uncoveredLines.size,
-    0
+    0,
   );
   const totalCovered = records.reduce((sum, r) => sum + r.coveredLines.size, 0);
   if (totalExecutable > 0) {
     aggregateCoveragePercent = Number(
-      ((totalCovered / totalExecutable) * 100).toFixed(2)
+      ((totalCovered / totalExecutable) * 100).toFixed(2),
     );
   }
   return {
@@ -138,19 +141,23 @@ export function buildCoverageCachePayload(
  * Returns null if file is missing, malformed, or has invalid/unsupported version.
  */
 export function readCoverageCache(
-  workspaceRoot: string
+  workspaceRoot: string,
 ): CoverageCacheWritten | null {
-  const cachePath = path.join(workspaceRoot, '.covflux', COVERAGE_CACHE_FILENAME);
+  const cachePath = path.join(
+    workspaceRoot,
+    ".covflux",
+    COVERAGE_CACHE_FILENAME,
+  );
   if (!fs.existsSync(cachePath)) {
     return null;
   }
   let raw: unknown;
   try {
-    raw = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
+    raw = JSON.parse(fs.readFileSync(cachePath, "utf-8"));
   } catch {
     return null;
   }
-  if (raw == null || typeof raw !== 'object') {
+  if (raw == null || typeof raw !== "object") {
     return null;
   }
   const obj = raw as Record<string, unknown>;
@@ -158,12 +165,12 @@ export function readCoverageCache(
     return null;
   }
   if (
-    typeof obj.workspaceRoot !== 'string' ||
-    typeof obj.detectedFormat !== 'string' ||
-    typeof obj.totalFiles !== 'number' ||
-    typeof obj.coveredFiles !== 'number' ||
-    typeof obj.missingCoverageFiles !== 'number' ||
-    typeof obj.staleCoverageFiles !== 'number' ||
+    typeof obj.workspaceRoot !== "string" ||
+    typeof obj.detectedFormat !== "string" ||
+    typeof obj.totalFiles !== "number" ||
+    typeof obj.coveredFiles !== "number" ||
+    typeof obj.missingCoverageFiles !== "number" ||
+    typeof obj.staleCoverageFiles !== "number" ||
     !Array.isArray(obj.files)
   ) {
     return null;
@@ -180,7 +187,11 @@ export function readCoverageCache(
  * No-op if the file does not exist.
  */
 export function deleteCoverageCache(workspaceRoot: string): void {
-  const cachePath = path.join(workspaceRoot, '.covflux', COVERAGE_CACHE_FILENAME);
+  const cachePath = path.join(
+    workspaceRoot,
+    ".covflux",
+    COVERAGE_CACHE_FILENAME,
+  );
   try {
     fs.unlinkSync(cachePath);
   } catch {

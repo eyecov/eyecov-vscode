@@ -4,10 +4,10 @@
  * Adapters live in coverage-formats/; this module re-exports them for convenience.
  */
 
-import path from 'node:path';
-import type { CovfluxConfig } from './covflux-config';
-import { PhpUnitHtmlAdapter } from './coverage-formats/phpunit-html';
-import { LcovAdapter } from './coverage-formats/lcov';
+import path from "node:path";
+import type { CovfluxConfig } from "./covflux-config";
+import { PhpUnitHtmlAdapter } from "./coverage-formats/phpunit-html";
+import { LcovAdapter } from "./coverage-formats/lcov";
 
 /** Normalized coverage for the editor. No vscode or DB types. */
 export interface CoverageRecord {
@@ -28,7 +28,7 @@ export interface CoverageRecord {
 export interface CoverageAdapter {
   getCoverage(
     filePath: string,
-    workspaceRoots: string[]
+    workspaceRoots: string[],
   ): Promise<CoverageRecord | null>;
 }
 
@@ -51,11 +51,13 @@ export class CoverageResolver {
     for (let i = 0; i < adapters.length; i++) {
       const label = adapterLabels?.[i] ?? `adapter ${i}`;
       if (debugLog) {
-        debugLog(`[resolver] trying ${label} for ${path.basename(normalizedPath)}`);
+        debugLog(
+          `[resolver] trying ${label} for ${path.basename(normalizedPath)}`,
+        );
       }
       const record = await adapters[i].getCoverage(
         normalizedPath,
-        this.options.workspaceRoots
+        this.options.workspaceRoots,
       );
       if (record !== null) {
         if (debugLog) {
@@ -70,23 +72,25 @@ export class CoverageResolver {
 }
 
 /** Build adapters from config order and paths; unknown format types are skipped. */
-export function createAdaptersFromConfig(config: CovfluxConfig): CoverageAdapter[] {
+export function createAdaptersFromConfig(
+  config: CovfluxConfig,
+): CoverageAdapter[] {
   const adapters: CoverageAdapter[] = [];
   for (const entry of config.formats) {
-    if (entry.type === 'phpunit-html') {
+    if (entry.type === "phpunit-html") {
       adapters.push(
         new PhpUnitHtmlAdapter({
           coverageHtmlDir: entry.path,
-          sourceSegment: entry.sourceSegment ?? 'auto',
-        })
+          sourceSegment: entry.sourceSegment ?? "auto",
+        }),
       );
-    } else if (entry.type === 'lcov') {
+    } else if (entry.type === "lcov") {
       adapters.push(new LcovAdapter({ path: entry.path }));
     }
   }
   return adapters;
 }
 
-export { PhpUnitHtmlAdapter } from './coverage-formats/phpunit-html';
-export { LcovAdapter } from './coverage-formats/lcov';
-export { FixtureAdapter } from './coverage-formats/fixture';
+export { PhpUnitHtmlAdapter } from "./coverage-formats/phpunit-html";
+export { LcovAdapter } from "./coverage-formats/lcov";
+export { FixtureAdapter } from "./coverage-formats/fixture";

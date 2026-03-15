@@ -3,10 +3,10 @@
  * and returns CoverageRecord when the requested file matches an entry.
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
-import type { CoverageAdapter, CoverageRecord } from '../../coverage-resolver';
-import { parseFixtureCoverage } from './parser';
+import fs from "node:fs";
+import path from "node:path";
+import type { CoverageAdapter, CoverageRecord } from "../../coverage-resolver";
+import { parseFixtureCoverage } from "./parser";
 
 export interface FixtureAdapterOptions {
   /** Path to fixture JSON relative to each workspace root. */
@@ -26,15 +26,18 @@ export class FixtureAdapter implements CoverageAdapter {
 
   async getCoverage(
     filePath: string,
-    workspaceRoots: string[]
+    workspaceRoots: string[],
   ): Promise<CoverageRecord | null> {
     const normalizedPath = path.resolve(filePath);
     for (const root of workspaceRoots) {
       const fullFixturePath = path.join(root, this.fixturePath);
-      if (!fs.existsSync(fullFixturePath) || !fs.statSync(fullFixturePath).isFile()) {
+      if (
+        !fs.existsSync(fullFixturePath) ||
+        !fs.statSync(fullFixturePath).isFile()
+      ) {
         continue;
       }
-      const content = fs.readFileSync(fullFixturePath, 'utf8');
+      const content = fs.readFileSync(fullFixturePath, "utf8");
       const entries = parseFixtureCoverage(content);
       for (const entry of entries) {
         const resolvedSource = path.resolve(root, entry.sourcePath);

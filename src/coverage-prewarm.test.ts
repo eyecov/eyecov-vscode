@@ -1,13 +1,13 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import fs from 'node:fs';
-import path from 'node:path';
-import os from 'node:os';
-import { prewarmCoverageForRoot } from './coverage-prewarm';
-import { readCoverageCache } from './coverage-cache';
-import type { CoverageRecord } from './coverage-resolver';
-import type { CovfluxConfig } from './covflux-config';
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
+import { prewarmCoverageForRoot } from "./coverage-prewarm";
+import { readCoverageCache } from "./coverage-cache";
+import type { CoverageRecord } from "./coverage-resolver";
+import type { CovfluxConfig } from "./covflux-config";
 
-describe('coverage-prewarm', () => {
+describe("coverage-prewarm", () => {
   let tmpDir: string;
   const BATCH_SIZE = 2;
 
@@ -24,12 +24,14 @@ describe('coverage-prewarm', () => {
     }
   });
 
-  it('writes valid cache after listing paths and resolving coverage in batches', async () => {
-    const pathA = path.join(tmpDir, 'app/A.php');
-    const pathB = path.join(tmpDir, 'app/B.php');
-    const pathC = path.join(tmpDir, 'app/C.php');
-    const config: CovfluxConfig = {
-      formats: [{ type: 'phpunit-html', path: path.join(tmpDir, 'coverage-html') }],
+  it("writes valid cache after listing paths and resolving coverage in batches", async () => {
+    const pathA = path.join(tmpDir, "app/A.php");
+    const pathB = path.join(tmpDir, "app/B.php");
+    const pathC = path.join(tmpDir, "app/C.php");
+    const _config: CovfluxConfig = {
+      formats: [
+        { type: "phpunit-html", path: path.join(tmpDir, "coverage-html") },
+      ],
     };
     const recordA: CoverageRecord = {
       sourcePath: pathA,
@@ -47,7 +49,7 @@ describe('coverage-prewarm', () => {
     };
     const listPaths = () => ({
       paths: [pathA, pathB, pathC],
-      formatType: 'phpunit-html' as const,
+      formatType: "phpunit-html" as const,
     });
     const getCoverage = async (p: string): Promise<CoverageRecord | null> => {
       if (p === pathA) return recordA;
@@ -67,17 +69,19 @@ describe('coverage-prewarm', () => {
     expect(cache!.coveredFiles).toBe(2);
     expect(cache!.missingCoverageFiles).toBe(1);
     expect(cache!.files).toHaveLength(2);
-    expect(cache!.detectedFormat).toBe('phpunit-html');
+    expect(cache!.detectedFormat).toBe("phpunit-html");
   });
 
-  it('does not write cache when signal is aborted before completion', async () => {
-    const pathA = path.join(tmpDir, 'app/A.php');
-    const config: CovfluxConfig = {
-      formats: [{ type: 'phpunit-html', path: path.join(tmpDir, 'coverage-html') }],
+  it("does not write cache when signal is aborted before completion", async () => {
+    const pathA = path.join(tmpDir, "app/A.php");
+    const _config: CovfluxConfig = {
+      formats: [
+        { type: "phpunit-html", path: path.join(tmpDir, "coverage-html") },
+      ],
     };
     const listPaths = () => ({
       paths: [pathA],
-      formatType: 'phpunit-html' as const,
+      formatType: "phpunit-html" as const,
     });
     const getCoverage = async (): Promise<CoverageRecord | null> => {
       await new Promise((r) => setTimeout(r, 100));

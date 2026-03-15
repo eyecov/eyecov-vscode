@@ -22,7 +22,7 @@ Coverage appears directly in the editor.
 - uncovered lines
 - uncoverable and warning lines
 
-*(Add a screenshot at `images/coverage-lines.png` for best discoverability.)*
+_(Add a screenshot at `images/coverage-lines.png` for best discoverability.)_
 
 ### Gutter markers
 
@@ -30,13 +30,13 @@ Enable gutter icons for fast scanning:
 
 - **Cmd+Shift+P** → **Covflux: Toggle Gutter Coverage**, or set `covflux.showGutterCoverage` to `true`
 
-*(Add a screenshot at `images/coverage-gutter.png` to show gutter + line highlight.)*
+_(Add a screenshot at `images/coverage-gutter.png` to show gutter + line highlight.)_
 
 ### Status bar
 
 The current file coverage is shown in the editor status bar (e.g. `49.0% (25/51)`). Click to toggle coverage display.
 
-*(Add a screenshot at `images/coverage-statusbar.png` to show the status bar.)*
+_(Add a screenshot at `images/coverage-statusbar.png` to show the status bar.)_
 
 ---
 
@@ -71,7 +71,7 @@ Covflux exposes coverage through a built-in **MCP server**. Available tools:
 - **coverage_project** — project-level coverage (optional same limits; can return zeroCoverageFiles)
 - **coverage_test_priority** — where to add tests first
 
-This lets AI tools answer: *Which files need tests most? Which tests cover this line? What has the lowest coverage?*
+This lets AI tools answer: _Which files need tests most? Which tests cover this line? What has the lowest coverage?_
 
 When the extension is installed, **Covflux Built-in MCP Server** appears in your editor’s MCP list—enable it there.
 
@@ -136,6 +136,7 @@ Formats are tried in order; the first with coverage for the file is used. Paths 
 
 - **VS Code 1.105.0+** or a compatible editor (Cursor, Antigravity)
 - Coverage from at least one supported format in the workspace (PHPUnit HTML folder or LCOV file)
+- **Node.js 22+** for building and development (see [.nvmrc](.nvmrc))
 
 ---
 
@@ -165,7 +166,9 @@ npm install
 npm run compile
 ```
 
-Press **F5** to launch the Extension Development Host.
+`npm run compile` runs ESLint, Prettier check, TypeScript, and the build. Press **F5** to launch the Extension Development Host.
+
+Other commands: `npm run lint`, `npm run lint:fix`, `npm run format`, `npm run format:check`, `npm test`, `npm run test:coverage`, `npm run test:extension`. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
 
 ---
 

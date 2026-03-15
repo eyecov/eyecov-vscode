@@ -50,7 +50,6 @@ Use these to recognize what the user wants and pick the right tool and parameter
 
 **Query format:** `query` can be a full path, a workspace-relative path, a basename, or an alias. Prefer the path the user gave or the resolved path for the current file.
 
-
 ## Self-improvement and maintenance
 
 - **When the capability changes:** If the MCP server tools or response shapes change (e.g. after editing `src/mcp/server.ts` or `docs/MCP_SERVER_FEATURES.md`), update this skill and the features doc so tool names, inputs, response shapes, and example intents stay accurate.

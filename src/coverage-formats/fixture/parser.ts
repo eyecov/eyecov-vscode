@@ -3,17 +3,22 @@
  * Accepts single-entry or multi-file (files array) shape.
  */
 
-import type { FixtureCoverageEntry, FixtureFile } from './types';
+import type { FixtureCoverageEntry, FixtureFile } from "./types";
 
-function computeLineCoveragePercent(covered: number, uncovered: number): number | null {
+function computeLineCoveragePercent(
+  covered: number,
+  uncovered: number,
+): number | null {
   const total = covered + uncovered;
   if (total === 0) return null;
-  return Number((((covered / total) * 100)).toFixed(2));
+  return Number(((covered / total) * 100).toFixed(2));
 }
 
-function normalizeEntry(raw: Partial<FixtureCoverageEntry>): FixtureCoverageEntry | null {
+function normalizeEntry(
+  raw: Partial<FixtureCoverageEntry>,
+): FixtureCoverageEntry | null {
   if (
-    typeof raw.sourcePath !== 'string' ||
+    typeof raw.sourcePath !== "string" ||
     !Array.isArray(raw.coveredLines) ||
     !Array.isArray(raw.uncoveredLines)
   ) {
@@ -46,9 +51,9 @@ export function parseFixtureCoverage(json: string): FixtureCoverageEntry[] {
   try {
     data = JSON.parse(json);
   } catch {
-    throw new Error('Invalid fixture JSON');
+    throw new Error("Invalid fixture JSON");
   }
-  if (data === null || typeof data !== 'object') {
+  if (data === null || typeof data !== "object") {
     return [];
   }
   const root = data as FixtureFile;

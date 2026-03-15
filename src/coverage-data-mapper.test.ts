@@ -1,16 +1,19 @@
-import { describe, it, expect } from 'vitest';
-import { LINE_STATUS } from './coverage-types';
-import { getLinesByStatusCode, recordToCoverageData } from './coverage-data-mapper';
-import type { CoverageRecord } from './coverage-resolver';
-import type { CoverageData } from './coverage-types';
+import { describe, it, expect } from "vitest";
+import { LINE_STATUS } from "./coverage-types";
+import {
+  getLinesByStatusCode,
+  recordToCoverageData,
+} from "./coverage-data-mapper";
+import type { CoverageRecord } from "./coverage-resolver";
+import type { CoverageData } from "./coverage-types";
 
-describe('recordToCoverageData', () => {
-  it('uses record.lineStatuses when present instead of building from sets', () => {
+describe("recordToCoverageData", () => {
+  it("uses record.lineStatuses when present instead of building from sets", () => {
     const lineStatuses = new Map<number, number>();
     lineStatuses.set(1, LINE_STATUS.COVERED_SMALL);
     lineStatuses.set(2, LINE_STATUS.UNCOVERED);
     const record: CoverageRecord = {
-      sourcePath: '/app/Foo.php',
+      sourcePath: "/app/Foo.php",
       coveredLines: new Set([1]),
       uncoveredLines: new Set([2]),
       uncoverableLines: new Set(),
@@ -24,9 +27,9 @@ describe('recordToCoverageData', () => {
     expect(result.lineStatuses.get(2)).toBe(LINE_STATUS.UNCOVERED);
   });
 
-  it('builds lineStatuses from covered/uncovered sets when record has no lineStatuses', () => {
+  it("builds lineStatuses from covered/uncovered sets when record has no lineStatuses", () => {
     const record: CoverageRecord = {
-      sourcePath: '/app/Bar.php',
+      sourcePath: "/app/Bar.php",
       coveredLines: new Set([1, 3]),
       uncoveredLines: new Set([2]),
       uncoverableLines: new Set(),
@@ -41,14 +44,20 @@ describe('recordToCoverageData', () => {
   });
 });
 
-describe('getLinesByStatusCode', () => {
-  it('groups line numbers by status code from coverage.lineStatuses', () => {
+describe("getLinesByStatusCode", () => {
+  it("groups line numbers by status code from coverage.lineStatuses", () => {
     const lineStatuses = new Map<number, number>();
     lineStatuses.set(1, LINE_STATUS.COVERED_SMALL);
     lineStatuses.set(2, LINE_STATUS.UNCOVERED);
     lineStatuses.set(3, LINE_STATUS.COVERED_SMALL);
     const coverage: CoverageData = {
-      file: { fileId: 0, sourceFile: '/x', lineCoveragePercent: 50, totalLines: 3, coveredLines: 2 },
+      file: {
+        fileId: 0,
+        sourceFile: "/x",
+        lineCoveragePercent: 50,
+        totalLines: 3,
+        coveredLines: 2,
+      },
       coveredLines: new Set([1, 3]),
       uncoveredLines: new Set([2]),
       uncoverableLines: new Set(),

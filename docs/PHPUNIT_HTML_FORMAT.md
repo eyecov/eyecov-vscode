@@ -38,19 +38,19 @@ Each row in `#code` is:
 
 **Coverage status** is indicated by the `<tr>` class:
 
-| `<tr>` class contains | Meaning        | Use as        |
-|-----------------------|----------------|---------------|
-| `danger`               | Not covered    | **uncovered** |
-| `success`              | Covered        | **covered**   |
-| `covered-by-large-tests` | Covered (with test list) | **covered** (can distinguish as large) |
-| `covered-by-medium-tests` | Covered (with test list) | **covered** (can distinguish as medium) |
-| `covered-by-small-tests`  | Covered (with test list) | **covered** (can distinguish as small) |
-| `warning`               | Ignored / dead (e.g. @codeCoverageIgnore) | **warning** (neutral, not covered) |
-| (none of the above)    | Not executable (blank, comment, etc.) | **skip** (uncoverable) |
+| `<tr>` class contains     | Meaning                                   | Use as                                  |
+| ------------------------- | ----------------------------------------- | --------------------------------------- |
+| `danger`                  | Not covered                               | **uncovered**                           |
+| `success`                 | Covered                                   | **covered**                             |
+| `covered-by-large-tests`  | Covered (with test list)                  | **covered** (can distinguish as large)  |
+| `covered-by-medium-tests` | Covered (with test list)                  | **covered** (can distinguish as medium) |
+| `covered-by-small-tests`  | Covered (with test list)                  | **covered** (can distinguish as small)  |
+| `warning`                 | Ignored / dead (e.g. @codeCoverageIgnore) | **warning** (neutral, not covered)      |
+| (none of the above)       | Not executable (blank, comment, etc.)     | **skip** (uncoverable)                  |
 
 So:
 
-- **Covered lines**: rows with `class` containing `success`, `covered-by-large-tests`, `covered-by-medium-tests`, or `covered-by-small-tests`. The *-tests classes indicate the smallest test size that hit the line (small / medium / large).
+- **Covered lines**: rows with `class` containing `success`, `covered-by-large-tests`, `covered-by-medium-tests`, or `covered-by-small-tests`. The \*-tests classes indicate the smallest test size that hit the line (small / medium / large).
 - **Uncovered lines**: rows with `class` containing `danger`.
 - **Warning lines**: rows with `class` containing `warning` (executable but ignored or dead).
 - **Other lines**: not executable; treat as uncoverable for line stats.
@@ -68,9 +68,13 @@ Example:
 
 ```html
 <tr class="covered-by-large-tests popin d-flex">
-  <td data-bs-title="1 test covers line 113"
-      data-bs-content="&lt;ul&gt;&lt;li class=&quot;covered-by-large-tests&quot;&gt;P\Tests\Feature\Domain\Automation\Support\Actions\WaitActionTest::__pest_evaluable_it_will_return_the_correct_query_to_only_run_on_subscribers_that_need_to_continue&lt;/li&gt;&lt;/ul&gt;"
-      data-bs-placement="top" data-bs-html="true" class="col-1 text-end">
+  <td
+    data-bs-title="1 test covers line 113"
+    data-bs-content='&lt;ul&gt;&lt;li class="covered-by-large-tests"&gt;P\Tests\Feature\Domain\Automation\Support\Actions\WaitActionTest::__pest_evaluable_it_will_return_the_correct_query_to_only_run_on_subscribers_that_need_to_continue&lt;/li&gt;&lt;/ul&gt;'
+    data-bs-placement="top"
+    data-bs-html="true"
+    class="col-1 text-end"
+  >
     <a id="113" href="#113">113</a>
   </td>
   <td class="col-11 codeLine">...</td>
@@ -81,7 +85,9 @@ Decoded, `data-bs-content` is:
 
 ```html
 <ul>
-  <li class="covered-by-large-tests">P\Tests\Feature\Domain\Automation\Support\Actions\WaitActionTest::__pest_evaluable_it_will_return_the_correct_query_to_only_run_on_subscribers_that_need_to_continue</li>
+  <li class="covered-by-large-tests">
+    P\Tests\Feature\Domain\Automation\Support\Actions\WaitActionTest::__pest_evaluable_it_will_return_the_correct_query_to_only_run_on_subscribers_that_need_to_continue
+  </li>
 </ul>
 ```
 
@@ -101,14 +107,16 @@ If `data-bs-content` or `data-bs-title` is missing, the line is still covered; y
 1. **Locate the code table**: Find `<table id="code">` (or the table that contains rows with `<a id="N">` in the first cell).
 2. **For each `<tr>` in the code table**:
    - **Line number**: From the first `<td>` → `<a id="N">` (or text of that anchor). Parse as integer `N`.
+
 - **Status**:
   - If `tr` class contains `danger` → add `N` to **uncovered**.
   - Else if `tr` class contains `success`, `covered-by-large-tests`, `covered-by-medium-tests`, or `covered-by-small-tests` → add `N` to **covered**.
   - Else → skip (non-executable).
-   - **Tests** (only for covered lines):
-     - From the first `<td>` of that row, read attribute `data-bs-content`.
-     - Decode HTML entities, then extract text from each `<li>...</li>`.
-     - Store `testsByLine[N] = [ "Test\\Class::method", ... ]`.
+  - **Tests** (only for covered lines):
+    - From the first `<td>` of that row, read attribute `data-bs-content`.
+    - Decode HTML entities, then extract text from each `<li>...</li>`.
+    - Store `testsByLine[N] = [ "Test\\Class::method", ... ]`.
+
 3. **Result**:
    - `coveredLines`: set of line numbers that are covered.
    - `uncoveredLines`: set of line numbers that are uncovered (executable but not covered).

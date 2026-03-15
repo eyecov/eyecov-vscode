@@ -1,4 +1,4 @@
-import { LINE_STATUS } from '../../coverage-types';
+import { LINE_STATUS } from "../../coverage-types";
 
 /**
  * Parser for PHPUnit coverage HTML report (e.g. coverage-html/*.php.html).
@@ -38,8 +38,8 @@ export interface NormalizedTest {
   raw: string;
 }
 
-const PEST_PREFIX = '__pest_evaluable_';
-const PEST_DESCRIBE_SEP = '__→_';
+const PEST_PREFIX = "__pest_evaluable_";
+const PEST_DESCRIBE_SEP = "__→_";
 
 /**
  * Parse a raw Pest/PHPUnit test string into class, describe, and description.
@@ -48,19 +48,24 @@ const PEST_DESCRIBE_SEP = '__→_';
  *   P\Tests\Feature\...\ActionTest::__pest_evaluable__completedActionSubscribers__→_it_returns_empty_when_...
  */
 export function parseTestName(raw: string): NormalizedTest {
-  const [fullClass, method] = raw.includes('::') ? raw.split('::', 2) : ['', raw];
-  const nsParts = fullClass ? fullClass.replace(/\\/g, '\u0000').split('\u0000').filter(Boolean) : [];
-  const className = nsParts.length > 0 ? nsParts[nsParts.length - 1]! : '';
-  const namespace = nsParts.length > 1 ? nsParts.slice(0, -1).join('\\') : '';
+  const [fullClass, method] = raw.includes("::")
+    ? raw.split("::", 2)
+    : ["", raw];
+  const nsParts = fullClass
+    ? fullClass.replace(/\\/g, "\u0000").split("\u0000").filter(Boolean)
+    : [];
+  const className = nsParts.length > 0 ? nsParts[nsParts.length - 1]! : "";
+  const namespace = nsParts.length > 1 ? nsParts.slice(0, -1).join("\\") : "";
   // Path: P\Tests\Feature\... → tests/Feature/.../ActionTest.php
   const pathParts = nsParts.length > 0 ? [...nsParts] : [];
-  if (pathParts[0] === 'P' && pathParts[1] === 'Tests') {
+  if (pathParts[0] === "P" && pathParts[1] === "Tests") {
     pathParts.shift(); // drop P
-    pathParts[0] = 'tests';
-  } else if (pathParts[0] === 'Tests') {
-    pathParts[0] = 'tests';
+    pathParts[0] = "tests";
+  } else if (pathParts[0] === "Tests") {
+    pathParts[0] = "tests";
   }
-  const path = pathParts.length > 0 ? pathParts.join('/') + '.php' : `${className}.php`;
+  const path =
+    pathParts.length > 0 ? pathParts.join("/") + ".php" : `${className}.php`;
 
   let describe: string | null = null;
   let description = method;
@@ -70,14 +75,14 @@ export function parseTestName(raw: string): NormalizedTest {
   }
   if (description.includes(PEST_DESCRIBE_SEP)) {
     const idx = description.indexOf(PEST_DESCRIBE_SEP);
-    describe = description.slice(0, idx).replace(/^_+/, '');
+    describe = description.slice(0, idx).replace(/^_+/, "");
     description = description.slice(idx + PEST_DESCRIBE_SEP.length);
   }
-  description = description.replace(/_/g, ' ').trim();
+  description = description.replace(/_/g, " ").trim();
 
   return {
     class: className,
-    classFile: className ? `${className}.php` : '',
+    classFile: className ? `${className}.php` : "",
     namespace,
     path,
     describe,
@@ -99,11 +104,11 @@ const MAX_POPOVER_CONTENT_LENGTH = 512 * 1024;
  */
 function decodeHtmlEntities(s: string): string {
   return s
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, '&');
+    .replace(/&amp;/g, "&");
 }
 
 /**
@@ -116,8 +121,8 @@ function extractListItems(html: string): string[] {
   let m: RegExpExecArray | null;
   while ((m = liRegex.exec(html)) !== null) {
     const text = m[1]
-      .replace(/<[^>]+>/g, '')
-      .replace(/\s+/g, ' ')
+      .replace(/<[^>]+>/g, "")
+      .replace(/\s+/g, " ")
       .trim();
     if (text) items.push(text);
   }
@@ -129,34 +134,39 @@ function extractListItems(html: string): string[] {
  */
 function parseCodeRow(rowHtml: string): {
   line: number;
-  status: 'covered' | 'uncovered' | 'neutral';
+  status: "covered" | "uncovered" | "neutral";
   statusCode: number;
   tests: string[];
 } {
   const lineMatch = rowHtml.match(LINE_ANCHOR);
   const line = lineMatch ? parseInt(lineMatch[1], 10) : 0; // 1-based editor line
   if (!line || !Number.isFinite(line)) {
-    return { line: 0, status: 'neutral', statusCode: LINE_STATUS.UNCOVERABLE, tests: [] };
+    return {
+      line: 0,
+      status: "neutral",
+      statusCode: LINE_STATUS.UNCOVERABLE,
+      tests: [],
+    };
   }
 
   const classMatch = rowHtml.match(TR_CLASS);
-  const trClass = (classMatch && classMatch[1]) || '';
-  let status: 'covered' | 'uncovered' | 'neutral' = 'neutral';
+  const trClass = (classMatch && classMatch[1]) || "";
+  let status: "covered" | "uncovered" | "neutral" = "neutral";
   let statusCode: number = LINE_STATUS.UNCOVERABLE;
   if (/\bdanger\b/.test(trClass)) {
-    status = 'uncovered';
+    status = "uncovered";
     statusCode = LINE_STATUS.UNCOVERED;
   } else if (/\bwarning\b/.test(trClass)) {
-    status = 'neutral';
+    status = "neutral";
     statusCode = LINE_STATUS.WARNING;
   } else if (/\bcovered-by-small-tests\b/.test(trClass)) {
-    status = 'covered';
+    status = "covered";
     statusCode = LINE_STATUS.COVERED_SMALL;
   } else if (/\bcovered-by-medium-tests\b/.test(trClass)) {
-    status = 'covered';
+    status = "covered";
     statusCode = LINE_STATUS.COVERED_MEDIUM;
   } else if (/\b(covered-by-large-tests|success)\b/.test(trClass)) {
-    status = 'covered';
+    status = "covered";
     statusCode = LINE_STATUS.COVERED_LARGE;
   }
 
@@ -190,32 +200,41 @@ export function parseCoverageHtml(html: string): CoverageHtmlResult {
   // We capture only up to the first "<" ([^<]+); anything after that is ignored until </title>.
   // So malformed or unescaped HTML in the title (e.g. path containing "<" or stray tags) is
   // truncated and does not break parsing.
-  const titleMatch = html.match(/<title>Code Coverage for ([^<]+).*?<\/title>/s);
+  const titleMatch = html.match(
+    /<title>Code Coverage for ([^<]+).*?<\/title>/s,
+  );
   const sourcePath = titleMatch ? titleMatch[1].trim() : undefined;
 
   // Find the code table: from <table id="code"> to </table>
   const codeTableStart = html.indexOf(CODE_TABLE_ID);
   if (codeTableStart === -1) {
-    return { coveredLines, uncoveredLines, testsByLine, sourcePath, lineStatuses };
+    return {
+      coveredLines,
+      uncoveredLines,
+      testsByLine,
+      sourcePath,
+      lineStatuses,
+    };
   }
-  const tableStart = html.lastIndexOf('<table', codeTableStart);
-  const tableEnd = html.indexOf('</table>', codeTableStart);
-  const tableHtml = tableEnd > tableStart ? html.slice(tableStart, tableEnd + 8) : '';
+  const tableStart = html.lastIndexOf("<table", codeTableStart);
+  const tableEnd = html.indexOf("</table>", codeTableStart);
+  const tableHtml =
+    tableEnd > tableStart ? html.slice(tableStart, tableEnd + 8) : "";
 
   // Split into <tr>...</tr> segments (simple split; rows may contain newlines)
   const trSegments = tableHtml.split(/<tr\s+/).slice(1);
   for (const segment of trSegments) {
-    const rowHtml = '<tr ' + segment;
+    const rowHtml = "<tr " + segment;
     const { line, status, statusCode, tests } = parseCodeRow(rowHtml);
     if (line < 1) continue;
 
     lineStatuses.set(line, statusCode);
-    if (status === 'covered') {
+    if (status === "covered") {
       coveredLines.push(line);
       if (tests.length > 0) {
         testsByLine.set(line, tests);
       }
-    } else if (status === 'uncovered') {
+    } else if (status === "uncovered") {
       uncoveredLines.push(line);
     }
   }

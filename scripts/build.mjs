@@ -1,32 +1,32 @@
-import { rmSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import esbuild from 'esbuild';
+import { rmSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import esbuild from "esbuild";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const rootDir = path.resolve(__dirname, '..');
-const outDir = path.join(rootDir, 'out');
-const watchMode = process.argv.includes('--watch');
+const rootDir = path.resolve(__dirname, "..");
+const outDir = path.join(rootDir, "out");
+const watchMode = process.argv.includes("--watch");
 
 const sharedOptions = {
   bundle: true,
-  external: ['vscode'],
-  format: 'cjs',
-  platform: 'node',
+  external: ["vscode"],
+  format: "cjs",
+  platform: "node",
   sourcemap: false,
-  target: 'node20',
-  logLevel: 'info',
+  target: "node20",
+  logLevel: "info",
 };
 
 const entryPoints = [
   {
-    entryPoints: [path.join(rootDir, 'src', 'extension.ts')],
-    outfile: path.join(outDir, 'extension.js'),
+    entryPoints: [path.join(rootDir, "src", "extension.ts")],
+    outfile: path.join(outDir, "extension.js"),
   },
   {
-    entryPoints: [path.join(rootDir, 'src', 'mcp', 'server.ts')],
-    outfile: path.join(outDir, 'mcp', 'server.js'),
+    entryPoints: [path.join(rootDir, "src", "mcp", "server.ts")],
+    outfile: path.join(outDir, "mcp", "server.js"),
   },
 ];
 
@@ -35,15 +35,19 @@ async function build() {
 
   if (watchMode) {
     const contexts = await Promise.all(
-      entryPoints.map((config) => esbuild.context({ ...sharedOptions, ...config }))
+      entryPoints.map((config) =>
+        esbuild.context({ ...sharedOptions, ...config }),
+      ),
     );
 
     await Promise.all(contexts.map((context) => context.watch()));
-    console.log('Watching bundled extension build...');
+    console.log("Watching bundled extension build...");
     return;
   }
 
-  await Promise.all(entryPoints.map((config) => esbuild.build({ ...sharedOptions, ...config })));
+  await Promise.all(
+    entryPoints.map((config) => esbuild.build({ ...sharedOptions, ...config })),
+  );
 }
 
 build().catch((error) => {

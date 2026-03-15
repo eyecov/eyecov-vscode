@@ -11,7 +11,7 @@ export interface WorkspaceConfigLike {
  * Whether the MCP server should be registered. Default true when unset.
  */
 export function isMcpServerEnabled(config: WorkspaceConfigLike): boolean {
-  const v = config.get('enableMcpServer');
+  const v = config.get("enableMcpServer");
   return (v ?? true) === true;
 }
 
@@ -19,7 +19,9 @@ export function isMcpServerEnabled(config: WorkspaceConfigLike): boolean {
  * Whether to prewarm the coverage cache in the background (reserved for future use).
  * Default true when unset. Currently a no-op.
  */
-export function isPrewarmCoverageCacheEnabled(config: WorkspaceConfigLike): boolean {
-  const v = config.get('prewarmCoverageCache');
+export function isPrewarmCoverageCacheEnabled(
+  config: WorkspaceConfigLike,
+): boolean {
+  const v = config.get("prewarmCoverageCache");
   return (v ?? true) === true;
 }

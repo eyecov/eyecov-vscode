@@ -53,7 +53,10 @@ This flow should be asynchronous but avoid unnecessary work on repeated opens of
 
 ```ts
 interface CoverageAdapter {
-  getCoverage(filePath: string, workspaceRoots: string[]): Promise<CoverageRecord | null>;
+  getCoverage(
+    filePath: string,
+    workspaceRoots: string[],
+  ): Promise<CoverageRecord | null>;
 }
 ```
 
@@ -68,9 +71,9 @@ interface CoverageRecord {
   uncoveredLines: Set<number>;
   uncoverableLines: Set<number>;
   lineCoveragePercent: number | null;
-  coverageHtmlPath?: string;   // PHPUnit HTML adapter only
-  testsByLine?: Map<number, string[]>;  // PHPUnit HTML adapter only
-  lineStatuses?: Map<number, number>;  // optional: S/M/L, uncovered, warning, uncoverable (see coverage-types.ts)
+  coverageHtmlPath?: string; // PHPUnit HTML adapter only
+  testsByLine?: Map<number, string[]>; // PHPUnit HTML adapter only
+  lineStatuses?: Map<number, number>; // optional: S/M/L, uncovered, warning, uncoverable (see coverage-types.ts)
 }
 ```
 
@@ -96,7 +99,10 @@ Represents one coverage source format. **Current:** Single method `getCoverage(f
 interface CoverageAdapter {
   readonly id: string;
   canHandle(workspace: WorkspaceContext): Promise<boolean>;
-  findCoverageForFile(filePath: string, workspace: WorkspaceContext): Promise<CoverageMatch | null>;
+  findCoverageForFile(
+    filePath: string,
+    workspace: WorkspaceContext,
+  ): Promise<CoverageMatch | null>;
   isFresh(match: CoverageMatch, sourceStat: SourceStat): Promise<boolean>;
   read(match: CoverageMatch): Promise<CoverageRecord | null>;
 }

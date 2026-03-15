@@ -3,11 +3,11 @@
  * yielding to the event loop between batches. Used when covflux.prewarmCoverageCache is true.
  */
 
-import type { CoverageRecord } from './coverage-resolver';
+import type { CoverageRecord } from "./coverage-resolver";
 import {
   buildCoverageCachePayload,
   writeCoverageCache,
-} from './coverage-cache';
+} from "./coverage-cache";
 
 export interface PrewarmCoverageForRootOptions {
   /** Returns paths to resolve and the detected format type. */
@@ -30,7 +30,7 @@ function yieldToEventLoop(): Promise<void> {
  */
 export async function prewarmCoverageForRoot(
   workspaceRoot: string,
-  options: PrewarmCoverageForRootOptions
+  options: PrewarmCoverageForRootOptions,
 ): Promise<void> {
   const { listPaths, getCoverage, signal, batchSize = 20 } = options;
   const { paths, formatType } = listPaths();

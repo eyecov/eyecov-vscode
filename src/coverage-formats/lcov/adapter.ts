@@ -4,13 +4,13 @@
  * Path is configurable (e.g. coverage/lcov.info).
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
-import type { CoverageAdapter, CoverageRecord } from '../../coverage-resolver';
-import { isCoverageStale } from '../../coverage-staleness';
-import { parseLcov, lineCoveragePercent } from './parser';
+import fs from "node:fs";
+import path from "node:path";
+import type { CoverageAdapter, CoverageRecord } from "../../coverage-resolver";
+import { isCoverageStale } from "../../coverage-staleness";
+import { parseLcov, lineCoveragePercent } from "./parser";
 
-const DEFAULT_LCOV_PATH = 'coverage/lcov.info';
+const DEFAULT_LCOV_PATH = "coverage/lcov.info";
 
 /**
  * List all source file paths that appear in lcov.info under the given roots.
@@ -18,7 +18,7 @@ const DEFAULT_LCOV_PATH = 'coverage/lcov.info';
  */
 export function listLcovSourcePaths(
   workspaceRoots: string[],
-  options: LcovAdapterOptions = {}
+  options: LcovAdapterOptions = {},
 ): string[] {
   const lcovPath = options.path ?? DEFAULT_LCOV_PATH;
   const seen = new Set<string>();
@@ -26,7 +26,7 @@ export function listLcovSourcePaths(
   for (const root of workspaceRoots) {
     const fullPath = path.join(root, lcovPath);
     if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) continue;
-    const content = fs.readFileSync(fullPath, 'utf8');
+    const content = fs.readFileSync(fullPath, "utf8");
     const records = parseLcov(content);
     for (const rec of records) {
       const resolved = path.resolve(root, rec.sourceFile);
@@ -52,7 +52,7 @@ export class LcovAdapter implements CoverageAdapter {
 
   async getCoverage(
     filePath: string,
-    workspaceRoots: string[]
+    workspaceRoots: string[],
   ): Promise<CoverageRecord | null> {
     const normalizedPath = path.resolve(filePath);
     for (const root of workspaceRoots) {
@@ -60,7 +60,7 @@ export class LcovAdapter implements CoverageAdapter {
       if (!fs.existsSync(lcovPath) || !fs.statSync(lcovPath).isFile()) {
         continue;
       }
-      const content = fs.readFileSync(lcovPath, 'utf8');
+      const content = fs.readFileSync(lcovPath, "utf8");
       const records = parseLcov(content);
       for (const rec of records) {
         const resolved = path.resolve(root, rec.sourceFile);
@@ -72,7 +72,7 @@ export class LcovAdapter implements CoverageAdapter {
           const uncoveredSet = new Set(rec.uncoveredLines);
           const percent = lineCoveragePercent(
             rec.coveredLines.length,
-            rec.uncoveredLines.length
+            rec.uncoveredLines.length,
           );
           return {
             sourcePath: normalizedPath,

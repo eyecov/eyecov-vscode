@@ -4,22 +4,17 @@
  * format-specific resolution (PHPUnit HTML, LCOV) is delegated to format adapters.
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import type { PhpUnitHtmlSourceSegment } from './covflux-config';
-import {
-  resolveCoverageHtmlPath,
-  buildCoverageFileResult,
-  findCoverageHtmlBasenameMatches,
-  type ParsedCoverageFileResult,
-} from './coverage-formats/phpunit-html';
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import type { PhpUnitHtmlSourceSegment } from "./covflux-config";
+import { findCoverageHtmlBasenameMatches } from "./coverage-formats/phpunit-html";
 
-export type { ParsedCoverageFileResult } from './coverage-formats/phpunit-html';
-export { stripTestsByLine } from './coverage-formats/phpunit-html';
+export type { ParsedCoverageFileResult } from "./coverage-formats/phpunit-html";
+export { stripTestsByLine } from "./coverage-formats/phpunit-html";
 
 export function toFileSystemPath(uriOrPath: string): string {
-  if (uriOrPath.startsWith('file://')) {
+  if (uriOrPath.startsWith("file://")) {
     return fileURLToPath(uriOrPath);
   }
   return uriOrPath;
@@ -28,7 +23,7 @@ export function toFileSystemPath(uriOrPath: string): string {
 export function resolveFilePath(
   filePath: string | undefined,
   workspaceRoots: string[],
-  options: { toFileSystemPath?: (s: string) => string } = {}
+  options: { toFileSystemPath?: (s: string) => string } = {},
 ): string | null {
   if (!filePath) return null;
   const normalize = options.toFileSystemPath ?? toFileSystemPath;
@@ -61,14 +56,20 @@ export interface ResolveCoverageQueryOptions {
 export function getCandidatePathsForQuery(
   query: string,
   workspaceRoots: string[],
-  options: ResolveCoverageQueryOptions = {}
+  options: ResolveCoverageQueryOptions = {},
 ): string[] {
   const resolved = resolveFilePath(query, workspaceRoots, options);
   if (resolved) return [resolved];
   const phpunitOptions = {
-    ...(options.coverageHtmlDir && { coverageHtmlDir: options.coverageHtmlDir }),
+    ...(options.coverageHtmlDir && {
+      coverageHtmlDir: options.coverageHtmlDir,
+    }),
     ...(options.sourceSegment && { sourceSegment: options.sourceSegment }),
   };
-  const matches = findCoverageHtmlBasenameMatches(query, workspaceRoots, phpunitOptions);
+  const matches = findCoverageHtmlBasenameMatches(
+    query,
+    workspaceRoots,
+    phpunitOptions,
+  );
   return matches.map((m) => m.filePath);
 }

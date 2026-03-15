@@ -76,13 +76,13 @@ Architecture details live in:
 
 Line decorations (gutter and/or background) should follow PHPUnit report semantics. The php-code-coverage default theme uses these CSS custom properties (light / dark). The extension may use these hex values for highlighting; see [PHPUNIT_12_HTML_FORMAT.md](PHPUNIT_12_HTML_FORMAT.md) and php-code-coverage `style.css` / `Colors::default()`.
 
-| Semantic              | Light (hex) | Dark (hex) | Use |
-| --------------------- | ----------- | ---------- | --- |
+| Semantic              | Light (hex) | Dark (hex) | Use                                           |
+| --------------------- | ----------- | ---------- | --------------------------------------------- |
 | Covered (small tests) | `#99cb84`   | `#3d5c4e`  | Best coverage: covered by small (fast) tests. |
-| Covered (medium)      | `#c3e3b5`   | `#3c6051`  | Covered by medium or larger. |
-| Covered (large)       | `#dff0d8`   | `#2d4431`  | Covered only by large tests. |
-| Warning               | `#fcf8e3`   | `#3e3408`  | Ignored / dead code, etc. |
-| Uncovered / danger    | `#f2dede`   | `#42221e`  | Executable, not covered. |
+| Covered (medium)      | `#c3e3b5`   | `#3c6051`  | Covered by medium or larger.                  |
+| Covered (large)       | `#dff0d8`   | `#2d4431`  | Covered only by large tests.                  |
+| Warning               | `#fcf8e3`   | `#3e3408`  | Ignored / dead code, etc.                     |
+| Uncovered / danger    | `#f2dede`   | `#42221e`  | Executable, not covered.                      |
 
 Users can override PHPUnit report colors via config; extension defaults should match the report defaults above. Respect editor light/dark theme when choosing which column to use.
 
@@ -94,10 +94,10 @@ PHPUnit HTML distinguishes **covered-by-small-tests**, **covered-by-medium-tests
 
 ### Path/project aggregates (coverage_path)
 
-For `coverage_path` (and `coverage_project`), **worstFiles** is most useful when it shows the lowest-coverage files among those that have *some* coverage. When many files have zero coverage, a single "worst files" list is mostly useless. Therefore:
+For `coverage_path` (and `coverage_project`), **worstFiles** is most useful when it shows the lowest-coverage files among those that have _some_ coverage. When many files have zero coverage, a single "worst files" list is mostly useless. Therefore:
 
 - **worstFiles** — Files with coverage above the cutoff (see below), ordered by lowest coverage first. These are the "worst" among meaningfully covered files.
-- **zeroCoverageFiles** (or equivalent) — Files with zero coverage *or* covered lines ≤ cutoff: treated as "effectively uncovered" so callers see both "worst covered" and "completely / nearly uncovered" in one response.
+- **zeroCoverageFiles** (or equivalent) — Files with zero coverage _or_ covered lines ≤ cutoff: treated as "effectively uncovered" so callers see both "worst covered" and "completely / nearly uncovered" in one response.
 
 **Cutoff:** A configurable threshold (default 0): files with **≤ X covered lines** go into **zeroCoverageFiles**; only files with **> X covered lines** go into **worstFiles**. So with default 0, only truly zero-coverage files are in zeroCoverageFiles; with e.g. 2, files with 0, 1, or 2 covered lines are in zeroCoverageFiles and worstFiles shows only files with at least 3 covered lines. This keeps very-low-coverage files (e.g. one stray hit) out of worstFiles.
 

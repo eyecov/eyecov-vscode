@@ -3,7 +3,7 @@
  * coverage data only (missing paths, low %, high uncovered count). Heuristic and explainable.
  */
 
-import type { CoverageCacheFileEntry } from './coverage-cache';
+import type { CoverageCacheFileEntry } from "./coverage-cache";
 
 const PRIORITY_NO_COVERAGE = 100;
 const THRESHOLD_LOW_COVERAGE_PERCENT = 50;
@@ -30,7 +30,7 @@ export interface ComputeTestPriorityOptions {
  * files with coverage are scored by low % and high uncovered count, then merged and limited.
  */
 export function computeTestPriorityItems(
-  options: ComputeTestPriorityOptions
+  options: ComputeTestPriorityOptions,
 ): TestPriorityItem[] {
   const {
     filesWithCoverage,
@@ -46,20 +46,26 @@ export function computeTestPriorityItems(
         priorityScore: PRIORITY_NO_COVERAGE,
         lineCoveragePercent: null,
         uncoveredLines: 0,
-        reasons: ['no coverage', ...(fromCache ? ['fresh coverage available'] : [])],
+        reasons: [
+          "no coverage",
+          ...(fromCache ? ["fresh coverage available"] : []),
+        ],
       }))
     : [];
 
   const withCoverageItems: TestPriorityItem[] = filesWithCoverage.map((f) => {
     const reasons: string[] = [];
-    if (f.lineCoveragePercent != null && f.lineCoveragePercent < THRESHOLD_LOW_COVERAGE_PERCENT) {
-      reasons.push('low coverage');
+    if (
+      f.lineCoveragePercent != null &&
+      f.lineCoveragePercent < THRESHOLD_LOW_COVERAGE_PERCENT
+    ) {
+      reasons.push("low coverage");
     }
     if (f.uncoveredLines >= THRESHOLD_MANY_UNCOVERED_LINES) {
-      reasons.push('many uncovered lines');
+      reasons.push("many uncovered lines");
     }
     if (fromCache) {
-      reasons.push('fresh coverage available');
+      reasons.push("fresh coverage available");
     }
     const score =
       (f.lineCoveragePercent != null ? 100 - f.lineCoveragePercent : 50) +
@@ -69,12 +75,12 @@ export function computeTestPriorityItems(
       priorityScore: Math.min(99, Math.round(score)),
       lineCoveragePercent: f.lineCoveragePercent,
       uncoveredLines: f.uncoveredLines,
-      reasons: reasons.length > 0 ? reasons : ['has coverage'],
+      reasons: reasons.length > 0 ? reasons : ["has coverage"],
     };
   });
 
   const merged = [...missingItems, ...withCoverageItems].sort(
-    (a, b) => b.priorityScore - a.priorityScore
+    (a, b) => b.priorityScore - a.priorityScore,
   );
   return merged.slice(0, limit);
 }

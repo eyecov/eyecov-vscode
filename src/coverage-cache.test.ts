@@ -1,11 +1,16 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import fs from 'node:fs';
-import path from 'node:path';
-import os from 'node:os';
-import { writeCoverageCache, readCoverageCache, buildCoverageCachePayload, deleteCoverageCache } from './coverage-cache';
-import type { CoverageRecord } from './coverage-resolver';
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
+import {
+  writeCoverageCache,
+  readCoverageCache,
+  buildCoverageCachePayload,
+  deleteCoverageCache,
+} from "./coverage-cache";
+import type { CoverageRecord } from "./coverage-resolver";
 
-describe('coverage-cache', () => {
+describe("coverage-cache", () => {
   let tmpDir: string;
 
   beforeEach(() => {
@@ -21,11 +26,11 @@ describe('coverage-cache', () => {
     }
   });
 
-  describe('writeCoverageCache', () => {
-    it('writes valid JSON at workspaceRoot/.covflux/coverage-cache.json with version, workspaceRoot, generatedAt', () => {
+  describe("writeCoverageCache", () => {
+    it("writes valid JSON at workspaceRoot/.covflux/coverage-cache.json with version, workspaceRoot, generatedAt", () => {
       const payload = {
         workspaceRoot: tmpDir,
-        detectedFormat: 'phpunit-html',
+        detectedFormat: "phpunit-html",
         aggregateCoveragePercent: 81.1,
         totalFiles: 320,
         coveredFiles: 280,
@@ -33,7 +38,7 @@ describe('coverage-cache', () => {
         staleCoverageFiles: 0,
         files: [
           {
-            filePath: path.join(tmpDir, 'app/Domain/Foo.php'),
+            filePath: path.join(tmpDir, "app/Domain/Foo.php"),
             lineCoveragePercent: 85.5,
             coveredLines: 120,
             uncoveredLines: 20,
@@ -44,18 +49,20 @@ describe('coverage-cache', () => {
 
       writeCoverageCache(tmpDir, payload);
 
-      const cachePath = path.join(tmpDir, '.covflux', 'coverage-cache.json');
+      const cachePath = path.join(tmpDir, ".covflux", "coverage-cache.json");
       expect(fs.existsSync(cachePath)).toBe(true);
-      const raw = fs.readFileSync(cachePath, 'utf-8');
+      const raw = fs.readFileSync(cachePath, "utf-8");
       const parsed = JSON.parse(raw);
       expect(parsed.version).toBe(1);
       expect(parsed.workspaceRoot).toBe(tmpDir);
       expect(parsed.generatedAt).toBeDefined();
-      expect(typeof parsed.generatedAt).toBe('string');
-      expect(parsed.detectedFormat).toBe('phpunit-html');
+      expect(typeof parsed.generatedAt).toBe("string");
+      expect(parsed.detectedFormat).toBe("phpunit-html");
       expect(parsed.aggregateCoveragePercent).toBe(81.1);
       expect(parsed.files).toHaveLength(1);
-      expect(parsed.files[0].filePath).toBe(path.join(tmpDir, 'app/Domain/Foo.php'));
+      expect(parsed.files[0].filePath).toBe(
+        path.join(tmpDir, "app/Domain/Foo.php"),
+      );
       expect(parsed.files[0].lineCoveragePercent).toBe(85.5);
       expect(parsed.files[0].coveredLines).toBe(120);
       expect(parsed.files[0].uncoveredLines).toBe(20);
@@ -63,11 +70,11 @@ describe('coverage-cache', () => {
     });
   });
 
-  describe('readCoverageCache', () => {
-    it('returns parsed cache when file exists and is valid', () => {
+  describe("readCoverageCache", () => {
+    it("returns parsed cache when file exists and is valid", () => {
       const payload = {
         workspaceRoot: tmpDir,
-        detectedFormat: 'lcov',
+        detectedFormat: "lcov",
         aggregateCoveragePercent: 90,
         totalFiles: 10,
         coveredFiles: 9,
@@ -75,7 +82,7 @@ describe('coverage-cache', () => {
         staleCoverageFiles: 0,
         files: [
           {
-            filePath: path.join(tmpDir, 'src/bar.ts'),
+            filePath: path.join(tmpDir, "src/bar.ts"),
             lineCoveragePercent: 100,
             coveredLines: 5,
             uncoveredLines: 0,
@@ -90,47 +97,51 @@ describe('coverage-cache', () => {
       expect(result).not.toBeNull();
       expect(result!.version).toBe(1);
       expect(result!.workspaceRoot).toBe(tmpDir);
-      expect(result!.detectedFormat).toBe('lcov');
+      expect(result!.detectedFormat).toBe("lcov");
       expect(result!.aggregateCoveragePercent).toBe(90);
       expect(result!.files).toHaveLength(1);
-      expect(result!.files[0].filePath).toBe(path.join(tmpDir, 'src/bar.ts'));
+      expect(result!.files[0].filePath).toBe(path.join(tmpDir, "src/bar.ts"));
     });
 
-    it('returns null when cache file does not exist', () => {
+    it("returns null when cache file does not exist", () => {
       const result = readCoverageCache(tmpDir);
       expect(result).toBeNull();
     });
 
-    it('returns null when cache file is malformed JSON', () => {
-      const dir = path.join(tmpDir, '.covflux');
-      fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, 'coverage-cache.json'), 'not json', 'utf-8');
-
-      const result = readCoverageCache(tmpDir);
-      expect(result).toBeNull();
-    });
-
-    it('returns null when cache has wrong version or missing required fields', () => {
-      const dir = path.join(tmpDir, '.covflux');
+    it("returns null when cache file is malformed JSON", () => {
+      const dir = path.join(tmpDir, ".covflux");
       fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(
-        path.join(dir, 'coverage-cache.json'),
-        JSON.stringify({ version: 99 }),
-        'utf-8'
+        path.join(dir, "coverage-cache.json"),
+        "not json",
+        "utf-8",
       );
 
       const result = readCoverageCache(tmpDir);
       expect(result).toBeNull();
     });
 
-    it('treats missing missingPaths key as empty array for backward compatibility', () => {
-      const dir = path.join(tmpDir, '.covflux');
+    it("returns null when cache has wrong version or missing required fields", () => {
+      const dir = path.join(tmpDir, ".covflux");
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(
+        path.join(dir, "coverage-cache.json"),
+        JSON.stringify({ version: 99 }),
+        "utf-8",
+      );
+
+      const result = readCoverageCache(tmpDir);
+      expect(result).toBeNull();
+    });
+
+    it("treats missing missingPaths key as empty array for backward compatibility", () => {
+      const dir = path.join(tmpDir, ".covflux");
       fs.mkdirSync(dir, { recursive: true });
       const legacyCache = {
         version: 1,
         generatedAt: new Date().toISOString(),
         workspaceRoot: tmpDir,
-        detectedFormat: 'phpunit-html',
+        detectedFormat: "phpunit-html",
         totalFiles: 0,
         coveredFiles: 0,
         missingCoverageFiles: 0,
@@ -138,9 +149,9 @@ describe('coverage-cache', () => {
         files: [],
       };
       fs.writeFileSync(
-        path.join(dir, 'coverage-cache.json'),
+        path.join(dir, "coverage-cache.json"),
         JSON.stringify(legacyCache),
-        'utf-8'
+        "utf-8",
       );
 
       const result = readCoverageCache(tmpDir);
@@ -149,19 +160,19 @@ describe('coverage-cache', () => {
     });
   });
 
-  describe('buildCoverageCachePayload', () => {
-    it('builds payload from workspaceRoot, detectedFormat, and CoverageRecords with aggregate fields', () => {
-      const workspaceRoot = '/project';
+  describe("buildCoverageCachePayload", () => {
+    it("builds payload from workspaceRoot, detectedFormat, and CoverageRecords with aggregate fields", () => {
+      const workspaceRoot = "/project";
       const records: CoverageRecord[] = [
         {
-          sourcePath: '/project/app/Foo.php',
+          sourcePath: "/project/app/Foo.php",
           coveredLines: new Set([1, 2, 3]),
           uncoveredLines: new Set([4]),
           uncoverableLines: new Set([5]),
           lineCoveragePercent: 75,
         },
         {
-          sourcePath: '/project/app/Bar.php',
+          sourcePath: "/project/app/Bar.php",
           coveredLines: new Set([1, 2]),
           uncoveredLines: new Set([]),
           uncoverableLines: new Set([]),
@@ -172,35 +183,35 @@ describe('coverage-cache', () => {
 
       const payload = buildCoverageCachePayload({
         workspaceRoot,
-        detectedFormat: 'phpunit-html',
+        detectedFormat: "phpunit-html",
         records,
         totalPathCount: pathCount,
       });
 
       expect(payload.workspaceRoot).toBe(workspaceRoot);
-      expect(payload.detectedFormat).toBe('phpunit-html');
+      expect(payload.detectedFormat).toBe("phpunit-html");
       expect(payload.totalFiles).toBe(pathCount);
       expect(payload.coveredFiles).toBe(2);
       expect(payload.missingCoverageFiles).toBe(1);
       expect(payload.staleCoverageFiles).toBe(0);
       expect(payload.aggregateCoveragePercent).toBe(83.33); // 5 covered / 6 executable
       expect(payload.files).toHaveLength(2);
-      expect(payload.files[0].filePath).toBe('/project/app/Foo.php');
+      expect(payload.files[0].filePath).toBe("/project/app/Foo.php");
       expect(payload.files[0].lineCoveragePercent).toBe(75);
       expect(payload.files[0].coveredLines).toBe(3);
       expect(payload.files[0].uncoveredLines).toBe(1);
       expect(payload.files[0].uncoverableLines).toBe(1);
-      expect(payload.files[1].filePath).toBe('/project/app/Bar.php');
+      expect(payload.files[1].filePath).toBe("/project/app/Bar.php");
       expect(payload.files[1].lineCoveragePercent).toBe(100);
       expect(payload.files[1].coveredLines).toBe(2);
       expect(payload.files[1].uncoveredLines).toBe(0);
       expect(payload.files[1].uncoverableLines).toBe(0);
     });
 
-    it('returns null aggregate percent and zero counts when records is empty', () => {
+    it("returns null aggregate percent and zero counts when records is empty", () => {
       const payload = buildCoverageCachePayload({
-        workspaceRoot: '/project',
-        detectedFormat: 'lcov',
+        workspaceRoot: "/project",
+        detectedFormat: "lcov",
         records: [],
         totalPathCount: 0,
       });
@@ -212,23 +223,23 @@ describe('coverage-cache', () => {
       expect(payload.files).toEqual([]);
     });
 
-    it('sets missingPaths to paths that have no record when paths array is provided', () => {
-      const workspaceRoot = '/project';
+    it("sets missingPaths to paths that have no record when paths array is provided", () => {
+      const workspaceRoot = "/project";
       const allPaths = [
-        '/project/app/Foo.php',
-        '/project/app/Bar.php',
-        '/project/app/Missing.php',
+        "/project/app/Foo.php",
+        "/project/app/Bar.php",
+        "/project/app/Missing.php",
       ];
       const records: CoverageRecord[] = [
         {
-          sourcePath: '/project/app/Foo.php',
+          sourcePath: "/project/app/Foo.php",
           coveredLines: new Set([1]),
           uncoveredLines: new Set([]),
           uncoverableLines: new Set([]),
           lineCoveragePercent: 100,
         },
         {
-          sourcePath: '/project/app/Bar.php',
+          sourcePath: "/project/app/Bar.php",
           coveredLines: new Set([1, 2]),
           uncoveredLines: new Set([]),
           uncoverableLines: new Set([]),
@@ -238,21 +249,21 @@ describe('coverage-cache', () => {
 
       const payload = buildCoverageCachePayload({
         workspaceRoot,
-        detectedFormat: 'phpunit-html',
+        detectedFormat: "phpunit-html",
         records,
         totalPathCount: allPaths.length,
         paths: allPaths,
       });
 
-      expect(payload.missingPaths).toEqual(['/project/app/Missing.php']);
+      expect(payload.missingPaths).toEqual(["/project/app/Missing.php"]);
     });
   });
 
-  describe('deleteCoverageCache', () => {
-    it('removes cache file when it exists', () => {
+  describe("deleteCoverageCache", () => {
+    it("removes cache file when it exists", () => {
       writeCoverageCache(tmpDir, {
         workspaceRoot: tmpDir,
-        detectedFormat: 'phpunit-html',
+        detectedFormat: "phpunit-html",
         aggregateCoveragePercent: 50,
         totalFiles: 1,
         coveredFiles: 1,
@@ -267,7 +278,7 @@ describe('coverage-cache', () => {
       expect(readCoverageCache(tmpDir)).toBeNull();
     });
 
-    it('is a no-op when cache file does not exist', () => {
+    it("is a no-op when cache file does not exist", () => {
       expect(() => deleteCoverageCache(tmpDir)).not.toThrow();
     });
   });

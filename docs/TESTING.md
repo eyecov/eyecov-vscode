@@ -31,3 +31,7 @@
 - **Debug:** Use the **Extension Tests** launch config in VS Code (uses `testConfiguration` pointing at `.vscode-test.mjs`).
 
 Current suite: `src/test/suite/extension.test.ts` — asserts the Covflux extension is loaded and `covflux.showCoverage` is registered. Add more tests there or new `*.test.ts` files under `src/test/suite/`.
+
+## CI
+
+On every push and pull request, CI runs `npm run typecheck`, `npm run lint`, `npm run format:check`, and `npm test`.

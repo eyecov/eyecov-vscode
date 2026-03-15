@@ -7,7 +7,7 @@ export {
   parseTestName,
   type CoverageHtmlResult,
   type NormalizedTest,
-} from './parser';
+} from "./parser";
 
 export {
   PhpUnitHtmlAdapter,
@@ -17,6 +17,6 @@ export {
   buildCoverageFileResult,
   stripTestsByLine,
   type PhpUnitHtmlAdapterOptions,
-} from './phpunit-html-adapter';
+} from "./phpunit-html-adapter";
 
-export type { CoverageFileResult, ParsedCoverageFileResult } from './types';
+export type { CoverageFileResult, ParsedCoverageFileResult } from "./types";

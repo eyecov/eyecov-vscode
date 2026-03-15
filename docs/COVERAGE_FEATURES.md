@@ -39,9 +39,9 @@ When a prewarm cache is valid, `coverage_path` and `coverage_project` (and relat
 
 ## Planned and optional
 
-- **Edit-tolerant tracking** — *(Not implemented.)* Optional feature, off by default and gated by a setting (e.g. `covflux.trackCoverageThroughEdits`).
+- **Edit-tolerant tracking** — _(Not implemented.)_ Optional feature, off by default and gated by a setting (e.g. `covflux.trackCoverageThroughEdits`).
   - **`false`** (default): coverage is anchored to original line numbers only; after you edit, highlighting stays on the old lines until coverage is reloaded.
   - **`true`**: attempt to preserve line mapping when the buffer changes (e.g. lightweight line-offset mapping from document change events; simple insert/delete shifts first). If edits become too complex or mapping confidence drops, tracked coverage is invalidated and highlighting is hidden until reloaded.
   - **Non-goals:** perfect semantic remapping, surviving arbitrary refactors, or complex diff algorithms in the hot path. Implementation details: [COVERAGE_ARCHITECTURE.md](COVERAGE_ARCHITECTURE.md#edit-tracking).
 - **Plan settings** — Settings such as `covflux.coverageSource`, `covflux.phpunitHtmlPath`, and `covflux.trackCoverageThroughEdits` from the plan are not yet implemented; format order and paths are currently controlled only by the config file.
-- **PHPUnit HTML verification** — *(Postponed.)* Validate the PHPUnit HTML implementation on a large codebase (path resolution, parsing, highlighting, MCP tools), including version detection and handling of lines with many covering tests. To be done when focusing on the covering-tests feature.
+- **PHPUnit HTML verification** — _(Postponed.)_ Validate the PHPUnit HTML implementation on a large codebase (path resolution, parsing, highlighting, MCP tools), including version detection and handling of lines with many covering tests. To be done when focusing on the covering-tests feature.
