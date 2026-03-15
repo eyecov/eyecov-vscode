@@ -5,6 +5,8 @@ todos: []
 isProject: false
 ---
 
+For the shared runtime model that this format maps into, see [COVERAGE_MODEL.md](COVERAGE_MODEL.md).
+
 # PHPUnit 12.5 HTML coverage format and parsing
 
 ## Where the format is defined

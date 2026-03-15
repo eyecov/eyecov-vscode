@@ -1,6 +1,8 @@
 # MCP Server — Features
 
-The Covflux extension runs an MCP server in supported VS Code/Cursor versions. The server uses the same coverage runtime and adapters as the editor; there is no separate coverage pipeline. When `covflux.prewarmCoverageCache` is true, the extension builds a coverage cache in the background (`.covflux/coverage-cache.json` per workspace root); the MCP server uses that cache for `coverage_path`, `coverage_project`, and `coverage_test_priority` when valid, avoiding re-aggregation.
+For the canonical shared model behind these tools, see [COVERAGE_MODEL.md](COVERAGE_MODEL.md).
+
+The Covflux extension runs an MCP server in supported VS Code/Cursor versions. The server uses the same coverage runtime model and adapters as the editor; there is no separate coverage pipeline. When `covflux.prewarmCoverageCache` is true, the extension builds a coverage cache in the background (`.covflux/coverage-cache.json` per workspace root); the MCP server uses that cache for `coverage_path`, `coverage_project`, and `coverage_test_priority` when valid, avoiding re-aggregation.
 
 ## Workspace roots
 

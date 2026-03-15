@@ -1,6 +1,6 @@
 # Coverage Roadmap
 
-Forward-looking roadmap: done, in progress, planned, and maybe. For technical structure see [COVERAGE_ARCHITECTURE.md](COVERAGE_ARCHITECTURE.md), for user-visible behavior see [COVERAGE_FEATURES.md](COVERAGE_FEATURES.md).
+Forward-looking roadmap: done, in progress, planned, and maybe. For the canonical shared model see [COVERAGE_MODEL.md](COVERAGE_MODEL.md), for technical structure see [COVERAGE_ARCHITECTURE.md](COVERAGE_ARCHITECTURE.md), and for user-visible behavior see [COVERAGE_FEATURES.md](COVERAGE_FEATURES.md).
 
 ## Done
 

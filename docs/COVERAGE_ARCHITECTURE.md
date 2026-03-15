@@ -4,7 +4,7 @@
 
 Define the target architecture for coverage lookup and editor highlighting.
 
-This document describes the technical structure. For a feature-level overview (editor, formats, config, MCP), see [COVERAGE_FEATURES.md](COVERAGE_FEATURES.md). Roadmap and future work live in [COVERAGE_ROADMAP.md](COVERAGE_ROADMAP.md). The **Current implementation** section below reflects the codebase; the **Main Components** and **Freshness Model** sections describe both current shape and possible evolution.
+This document describes the technical structure. For the canonical data flow and shared runtime semantics, see [COVERAGE_MODEL.md](COVERAGE_MODEL.md). For a feature-level overview (editor, formats, config, MCP), see [COVERAGE_FEATURES.md](COVERAGE_FEATURES.md). Roadmap and future work live in [COVERAGE_ROADMAP.md](COVERAGE_ROADMAP.md). The **Current implementation** section below reflects the codebase; the **Main Components** and **Freshness Model** sections describe both current shape and possible evolution.
 
 - [COVERAGE_FEATURES.md](COVERAGE_FEATURES.md)
 - [COVERAGE_ROADMAP.md](COVERAGE_ROADMAP.md)
@@ -16,11 +16,13 @@ This document describes the technical structure. For a feature-level overview (e
 - Optimize for fast file-open highlighting.
 - Prefer fast execution, but not at the expense of bloated memory use.
 - Use version-specific adapters for unstable coverage formats.
-- Normalize all accepted coverage into one editor-oriented internal format.
+- Normalize all accepted coverage into one shared runtime coverage model.
 - Keep the hot path free of unnecessary abstraction and allocation.
 - Prefer direct path resolution and cheap freshness checks before heavy parsing.
 
 ## Runtime Flow
+
+The runtime flow below is the implementation view of the model defined in [COVERAGE_MODEL.md](COVERAGE_MODEL.md).
 
 Target flow when an editor opens a file:
 

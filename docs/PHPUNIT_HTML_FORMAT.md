@@ -1,5 +1,7 @@
 # PHPUnit coverage HTML format
 
+For the shared runtime model that this format maps into, see [COVERAGE_MODEL.md](COVERAGE_MODEL.md).
+
 This document describes how to parse PHPUnit’s HTML coverage report (e.g. `coverage-html/`) to get **covered lines**, **uncovered lines**, and **which tests cover each covered line**.
 
 The sample file used is: `coverage-html/Domain/Automation/Models/Action.php.html` (one HTML file per source file).

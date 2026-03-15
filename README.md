@@ -2,6 +2,10 @@
 
 **Coverage in your editor. Coverage for your AI tools.**
 
+Covflux is built around a shared runtime coverage model. External coverage
+artifacts are parsed into normalized per-file records that power both the
+editor and MCP tools.
+
 Covflux reads coverage artifacts (PHPUnit HTML, LCOV, etc.) and turns them into a runtime coverage model used by:
 
 - the editor
@@ -10,7 +14,35 @@ Covflux reads coverage artifacts (PHPUnit HTML, LCOV, etc.) and turns them into 
 
 Works in **VS Code**, [**Cursor**](https://cursor.com), and [**Antigravity**](https://antigravity.google/).
 
+
+## Documentation map
+
+- [Coverage Model](docs/COVERAGE_MODEL.md) — the canonical data flow and shared runtime model
+- [Coverage Architecture](docs/COVERAGE_ARCHITECTURE.md) — resolver, adapters, runtime, cache, freshness
+- [Coverage Features](docs/COVERAGE_FEATURES.md) — user-visible behavior and supported features
+- [MCP Server](docs/MCP_SERVER.md) — tool behavior and response shapes
+- [Coverage Roadmap](docs/COVERAGE_ROADMAP.md) — done, planned, and possible future work
+- [Testing](docs/TESTING.md) — unit tests, extension-host tests, and CI
+- [PHPUnit HTML Format](docs/PHPUNIT_HTML_FORMAT.md)
+- [PHPUnit 12 HTML Format](docs/PHPUNIT_12_HTML_FORMAT.md)
+
 ---
+
+## Coverage pipeline
+
+Covflux turns external coverage artifacts into a normalized runtime model:
+
+```text
+coverage artifact
+    ↓ parse
+adapter
+    ↓ normalize
+coverage record
+    ↓ aggregate / cache
+editor + MCP consumers
+```
+
+See [docs/COVERAGE_MODEL.md](docs/COVERAGE_MODEL.md) for the canonical model.
 
 ## Coverage in the editor
 

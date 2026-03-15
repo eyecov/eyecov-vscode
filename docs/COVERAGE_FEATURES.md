@@ -1,6 +1,6 @@
 # Coverage Features
 
-This document describes what the Covflux coverage system does from a feature and user perspective. For technical structure (resolver, adapters, flow), see [COVERAGE_ARCHITECTURE.md](COVERAGE_ARCHITECTURE.md). For roadmap and future work, see [COVERAGE_ROADMAP.md](COVERAGE_ROADMAP.md).
+This document describes what the Covflux coverage system does from a feature and user perspective. For the canonical coverage data flow, see [COVERAGE_MODEL.md](COVERAGE_MODEL.md). For technical structure (resolver, adapters, flow), see [COVERAGE_ARCHITECTURE.md](COVERAGE_ARCHITECTURE.md). For roadmap and future work, see [COVERAGE_ROADMAP.md](COVERAGE_ROADMAP.md).
 
 ## Editor coverage
 
@@ -22,7 +22,7 @@ Coverage sources and order are configured via a JSON file in the workspace root:
 
 ## MCP tools
 
-The extension runs an MCP server that exposes coverage to other tools (e.g. Cursor). It uses the same runtime and adapters as the editor.
+The extension runs an MCP server that exposes coverage to other tools (e.g. Cursor). It uses the same runtime coverage model and adapters as the editor.
 
 - **`coverage_file`** — Resolve coverage for one file by path or basename; returns line counts, percentages, and (when available) uncoverable lines and HTML path.
 - **`coverage_line_tests`** — Return which tests cover a given file and line(s); used for “covering tests” workflows.
