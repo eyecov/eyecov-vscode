@@ -10,9 +10,14 @@ import path from 'node:path';
 export const SUPPORTED_FORMAT_TYPES = ['phpunit-html', 'lcov'] as const;
 export type CovfluxFormatType = (typeof SUPPORTED_FORMAT_TYPES)[number];
 
+export const PHPUNIT_HTML_SOURCE_SEGMENTS = ['app', 'src', 'lib', 'auto'] as const;
+export type PhpUnitHtmlSourceSegment = (typeof PHPUNIT_HTML_SOURCE_SEGMENTS)[number];
+
 export interface CovfluxFormatEntry {
   type: string;
   path: string;
+  /** Only for type phpunit-html: source directory segment under workspace (default 'auto'). */
+  sourceSegment?: PhpUnitHtmlSourceSegment;
 }
 
 export interface CovfluxConfig {
@@ -30,6 +35,10 @@ export const DEFAULT_CONFIG: CovfluxConfig = {
 
 function isSupportedFormatType(type: string): type is CovfluxFormatType {
   return SUPPORTED_FORMAT_TYPES.includes(type as CovfluxFormatType);
+}
+
+function isPhpUnitHtmlSourceSegment(val: unknown): val is PhpUnitHtmlSourceSegment {
+  return typeof val === 'string' && PHPUNIT_HTML_SOURCE_SEGMENTS.includes(val as PhpUnitHtmlSourceSegment);
 }
 
 /**
@@ -54,14 +63,18 @@ export function loadCovfluxConfig(workspaceRoot: string): CovfluxConfig {
       if (data === null || typeof data !== 'object' || !Array.isArray((data as { formats?: unknown }).formats)) {
         return DEFAULT_CONFIG;
       }
-      const entries = (data as { formats: Array<{ type?: unknown; path?: unknown }> }).formats;
+      const entries = (data as { formats: Array<{ type?: unknown; path?: unknown; sourceSegment?: unknown }> }).formats;
       const formats: CovfluxFormatEntry[] = [];
       for (const entry of entries) {
         const type = typeof entry.type === 'string' ? entry.type : '';
         const pathVal = typeof entry.path === 'string' ? entry.path : '';
         if (!type || !pathVal) continue;
         if (!isSupportedFormatType(type)) continue;
-        formats.push({ type, path: pathVal });
+        const formatEntry: CovfluxFormatEntry = { type, path: pathVal };
+        if (type === 'phpunit-html' && isPhpUnitHtmlSourceSegment(entry.sourceSegment)) {
+          formatEntry.sourceSegment = entry.sourceSegment;
+        }
+        formats.push(formatEntry);
       }
       if (formats.length === 0) {
         return DEFAULT_CONFIG;
@@ -80,6 +93,15 @@ export function loadCovfluxConfig(workspaceRoot: string): CovfluxConfig {
 export function getPhpUnitHtmlDir(config: CovfluxConfig): string {
   const entry = config.formats.find((f) => f.type === 'phpunit-html');
   return entry?.path ?? DEFAULT_CONFIG.formats[0]!.path;
+}
+
+/**
+ * Return the source segment for the first phpunit-html format in config.
+ * One of 'app' | 'src' | 'lib' | 'auto'. Default is 'auto'.
+ */
+export function getPhpUnitHtmlSourceSegment(config: CovfluxConfig): PhpUnitHtmlSourceSegment {
+  const entry = config.formats.find((f) => f.type === 'phpunit-html');
+  return entry?.sourceSegment ?? 'auto';
 }
 
 /**

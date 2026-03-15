@@ -12,7 +12,7 @@ import {
 } from '../coverage-aggregate';
 import { readCoverageCache } from '../coverage-cache';
 import { computeTestPriorityItems } from '../coverage-test-priority';
-import { loadCovfluxConfig, getPhpUnitHtmlDir } from '../covflux-config';
+import { loadCovfluxConfig, getPhpUnitHtmlDir, getPhpUnitHtmlSourceSegment } from '../covflux-config';
 import type { CoverageFileResult } from '../coverage-formats/phpunit-html';
 import {
   getCandidatePathsForQuery,
@@ -86,6 +86,28 @@ const COVERAGE_PATH_INPUT_SCHEMA = z
       .optional()
       .describe(
         'Multiple path/folder prefixes; coverage is aggregated over the union of files under any prefix.'
+      ),
+    worstFilesLimit: z
+      .number()
+      .int()
+      .nonnegative()
+      .optional()
+      .describe('Max number of worst-coverage files to return (default 10).'),
+    zeroCoverageFilesLimit: z
+      .number()
+      .int()
+      .nonnegative()
+      .optional()
+      .describe(
+        'When set with coveredLinesCutoff, include up to this many files with covered lines <= cutoff in zeroCoverageFiles.'
+      ),
+    coveredLinesCutoff: z
+      .number()
+      .int()
+      .nonnegative()
+      .optional()
+      .describe(
+        'Used with zeroCoverageFilesLimit: files with covered lines <= this go into zeroCoverageFiles.'
       ),
   })
   .refine(
@@ -185,11 +207,15 @@ async function main(): Promise<void> {
       const workspaceRoots = resolveWorkspaceRoots(rootsResponse.roots);
       const config = loadCovfluxConfig(workspaceRoots[0] ?? '');
       const coverageHtmlDir = getPhpUnitHtmlDir(config);
+      const sourceSegment = getPhpUnitHtmlSourceSegment(config);
       const resolver = new CoverageResolver({
         workspaceRoots,
         adapters: createAdaptersFromConfig(config),
       });
-      const candidatePaths = getCandidatePathsForQuery(query, workspaceRoots, { coverageHtmlDir });
+      const candidatePaths = getCandidatePathsForQuery(query, workspaceRoots, {
+        coverageHtmlDir,
+        sourceSegment,
+      });
       const records: CoverageRecord[] = [];
       for (const filePath of candidatePaths) {
         const record = await resolver.getCoverage(filePath);
@@ -279,11 +305,15 @@ async function main(): Promise<void> {
       const workspaceRoots = resolveWorkspaceRoots(rootsResponse.roots);
       const config = loadCovfluxConfig(workspaceRoots[0] ?? '');
       const coverageHtmlDir = getPhpUnitHtmlDir(config);
+      const sourceSegment = getPhpUnitHtmlSourceSegment(config);
       const resolver = new CoverageResolver({
         workspaceRoots,
         adapters: createAdaptersFromConfig(config),
       });
-      const candidatePaths = getCandidatePathsForQuery(query, workspaceRoots, { coverageHtmlDir });
+      const candidatePaths = getCandidatePathsForQuery(query, workspaceRoots, {
+        coverageHtmlDir,
+        sourceSegment,
+      });
       const records: CoverageRecord[] = [];
       for (const filePath of candidatePaths) {
         const record = await resolver.getCoverage(filePath);
@@ -414,6 +444,15 @@ async function main(): Promise<void> {
           })
         ),
         cacheState: z.enum(['on-demand', 'partial', 'full']),
+        zeroCoverageFiles: z
+          .array(
+            z.object({
+              filePath: z.string(),
+              lineCoveragePercent: z.number().nullable(),
+              coveredLines: z.number().optional(),
+            })
+          )
+          .optional(),
       }),
       annotations: {
         readOnlyHint: true,
@@ -430,12 +469,13 @@ async function main(): Promise<void> {
             ? [args.path]
             : [];
       const cache = root ? readCoverageCache(root) : null;
+      const worstFilesLimit = args.worstFilesLimit ?? 10;
       if (cache && pathPrefixes.length > 0) {
         const response = pathAggregateFromCache(
           cache,
           root,
           pathPrefixes,
-          10
+          worstFilesLimit
         );
         return {
           structuredContent: response as unknown as Record<string, unknown>,
@@ -454,6 +494,9 @@ async function main(): Promise<void> {
         config,
         ...pathInput,
         getCoverage: (p) => resolver.getCoverage(p),
+        worstFilesLimit,
+        zeroCoverageFilesLimit: args.zeroCoverageFilesLimit,
+        coveredLinesCutoff: args.coveredLinesCutoff,
       });
       return {
         structuredContent: response as unknown as Record<string, unknown>,
@@ -473,7 +516,30 @@ async function main(): Promise<void> {
       title: 'Coverage Project',
       description:
         'Aggregate workspace-wide coverage. Returns aggregate percent, file counts, detected format, and cache state (full when prewarm cache exists, otherwise on-demand).',
-      inputSchema: z.object({}),
+      inputSchema: z.object({
+        worstFilesLimit: z
+          .number()
+          .int()
+          .nonnegative()
+          .optional()
+          .describe('Max number of worst-coverage files to return (default 0).'),
+        zeroCoverageFilesLimit: z
+          .number()
+          .int()
+          .nonnegative()
+          .optional()
+          .describe(
+            'When set with coveredLinesCutoff, include up to this many files with covered lines <= cutoff in zeroCoverageFiles.'
+          ),
+        coveredLinesCutoff: z
+          .number()
+          .int()
+          .nonnegative()
+          .optional()
+          .describe(
+            'Used with zeroCoverageFilesLimit: files with covered lines <= this go into zeroCoverageFiles.'
+          ),
+      }),
       outputSchema: z.object({
         aggregateCoveragePercent: z.number().nullable(),
         totalFiles: z.number(),
@@ -482,12 +548,21 @@ async function main(): Promise<void> {
         staleCoverageFiles: z.number(),
         detectedFormat: z.string(),
         cacheState: z.enum(['on-demand', 'partial', 'full']),
+        zeroCoverageFiles: z
+          .array(
+            z.object({
+              filePath: z.string(),
+              lineCoveragePercent: z.number().nullable(),
+              coveredLines: z.number().optional(),
+            })
+          )
+          .optional(),
       }),
       annotations: {
         readOnlyHint: true,
       },
     },
-    async () => {
+    async (args) => {
       const rootsResponse = await server.server.listRoots().catch(() => ({ roots: [] }));
       const workspaceRoots = resolveWorkspaceRoots(rootsResponse.roots);
       const root = workspaceRoots[0];
@@ -508,6 +583,9 @@ async function main(): Promise<void> {
         workspaceRoots,
         config,
         getCoverage: (p) => resolver.getCoverage(p),
+        worstFilesLimit: args.worstFilesLimit,
+        zeroCoverageFilesLimit: args.zeroCoverageFilesLimit,
+        coveredLinesCutoff: args.coveredLinesCutoff,
       });
       return {
         structuredContent: response as unknown as Record<string, unknown>,

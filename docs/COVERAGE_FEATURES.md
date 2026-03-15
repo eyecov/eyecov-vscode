@@ -4,7 +4,7 @@ This document describes what the Covflux coverage system does from a feature and
 
 ## Editor coverage
 
-- **Line highlighting** — When you open a file, the extension looks up coverage for that file and highlights lines: covered, uncovered, and (when the format provides it) uncoverable.
+- **Line highlighting** — When you open a file, the extension looks up coverage for that file and highlights lines: covered, uncovered, and (when the format provides it) uncoverable. When the format supplies per-line test size (e.g. PHPUnit HTML), covered lines are shaded by size (small / medium / large); warning and uncoverable lines use distinct decorations.
 - **Gutter and line decorations** — You can toggle gutter coverage, line coverage, and whether covered/uncovered lines are shown via settings (`covflux.showGutterCoverage`, `covflux.showLineCoverage`, `covflux.showCovered`, `covflux.showUncovered`, etc.).
 - **Staleness** — Coverage is only shown if the coverage artifact is not older than the source file. If you’ve edited the file after the last run, coverage is hidden until you regenerate it. If the source or coverage artifact path cannot be read, coverage is not shown (fail-safe).
 - **Single lookup path** — The same resolution path is used for the editor and for MCP: try each configured format in order and use the first that has data for the file.
@@ -26,8 +26,8 @@ The extension runs an MCP server that exposes coverage to other tools (e.g. Curs
 
 - **`coverage_file`** — Resolve coverage for one file by path or basename; returns line counts, percentages, and (when available) uncoverable lines and HTML path.
 - **`coverage_line_tests`** — Return which tests cover a given file and line(s); used for “covering tests” workflows.
-- **`coverage_path`** — Aggregate coverage for one or more path/folder prefixes (totals, worst files).
-- **`coverage_project`** — Project-wide aggregate; “where to add tests first” style summaries.
+- **`coverage_path`** — Aggregate coverage for one or more path/folder prefixes (totals, worst files, optional zero-coverage files). Accepts optional `worstFilesLimit`, `zeroCoverageFilesLimit`, and `coveredLinesCutoff`.
+- **`coverage_project`** — Project-wide aggregate; optional same limits and cutoff; can return `zeroCoverageFiles` when requested.
 - **`coverage_test_priority`** — Prioritize tests by impact on coverage.
 
 When a prewarm cache is valid, `coverage_path` and `coverage_project` (and related aggregates) use it for faster responses. Full tool behavior, inputs, and response shapes are in [MCP_SERVER_FEATURES.md](MCP_SERVER_FEATURES.md).

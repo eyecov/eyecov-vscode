@@ -16,6 +16,7 @@ export {
   listCoverageHtmlSourcePaths,
   buildCoverageFileResult,
   stripTestsByLine,
+  type PhpUnitHtmlAdapterOptions,
 } from './phpunit-html-adapter';
 
 export type { CoverageFileResult, ParsedCoverageFileResult } from './types';

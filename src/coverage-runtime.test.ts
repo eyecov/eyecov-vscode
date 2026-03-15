@@ -94,5 +94,17 @@ describe('coverage-runtime', () => {
       expect(paths).toHaveLength(1);
       expect(paths[0]).toContain('Action.php');
     });
+
+    it('uses sourceSegment when provided so basename search looks under src/', () => {
+      fs.mkdirSync(path.join(workspaceRoot, 'src'), { recursive: true });
+      fs.writeFileSync(path.join(workspaceRoot, 'src', 'Baz.php'), '<?php\n');
+      fs.writeFileSync(
+        path.join(workspaceRoot, 'coverage-html', 'Baz.php.html'),
+        '<table id="code"><tr class="success d-flex"><td></td></tr></table>'
+      );
+      const paths = getCandidatePathsForQuery('Baz.php', [workspaceRoot], { sourceSegment: 'src' });
+      expect(paths).toHaveLength(1);
+      expect(paths[0]).toBe(path.resolve(workspaceRoot, 'src', 'Baz.php'));
+    });
   });
 });

@@ -4,7 +4,7 @@
 
 Define the target architecture for coverage lookup and editor highlighting.
 
-This document describes the technical structure. For a feature-level overview (editor, formats, config, MCP), see [COVERAGE_FEATURES.md](COVERAGE_FEATURES.md). Product scope and related feature tracks live in [COVERAGE_PLAN.md](COVERAGE_PLAN.md). The **Current implementation** section below reflects the codebase as of the last refresh; the **Main Components** and **Freshness Model** sections describe both current shape and possible evolution.
+This document describes the technical structure. For a feature-level overview (editor, formats, config, MCP), see [COVERAGE_FEATURES.md](COVERAGE_FEATURES.md). Product scope and related feature tracks live in [COVERAGE_PLAN.md](COVERAGE_PLAN.md). The **Current implementation** section below reflects the codebase; the **Main Components** and **Freshness Model** sections describe both current shape and possible evolution.
 
 - [COVERAGE_FEATURES.md](COVERAGE_FEATURES.md)
 - [COVERAGE_PLAN.md](COVERAGE_PLAN.md)
@@ -45,7 +45,7 @@ This flow should be asynchronous but avoid unnecessary work on repeated opens of
 - **`src/covflux-config.ts`** — `loadCovfluxConfig(workspaceRoot)`, `DEFAULT_CONFIG`, `getPhpUnitHtmlDir`, `getLcovPath`. Reads `.covflux.json` or `covflux.json`.
 - **`src/coverage-formats/phpunit-html/`** — Parser, adapter (`PhpUnitHtmlAdapter`), types; path/read/parse live here. Default dir `coverage-html/`.
 - **`src/coverage-formats/lcov/`** — Parser, adapter (`LcovAdapter`); default path `coverage/lcov.info`.
-- **`src/coverage-aggregate.ts`** — On-demand path/project aggregation: `listCoveredPaths`, `listCoveredPathsFromFirstFormat`, `aggregateCoverage`, `getPathAggregateResponse`, `getProjectAggregateResponse`. Cache-based helpers: `projectAggregateFromCache`, `pathAggregateFromCache` (used by MCP when a valid cache exists).
+- **`src/coverage-aggregate.ts`** — On-demand path/project aggregation: `listCoveredPaths`, `listCoveredPathsFromFirstFormat`, `aggregateCoverage`, `getPathAggregateResponse`, `getProjectAggregateResponse`. Supports `worstFilesLimit`, `zeroCoverageFilesLimit`, `coveredLinesCutoff`; results include `worstFiles` and optional `zeroCoverageFiles`. Cache-based helpers: `projectAggregateFromCache`, `pathAggregateFromCache` (used by MCP when a valid cache exists).
 - **`src/coverage-cache.ts`** — Coverage cache for path/project tools: `writeCoverageCache`, `readCoverageCache`, `deleteCoverageCache`, `buildCoverageCachePayload`. Cache file: `{workspaceRoot}/.covflux/coverage-cache.json` (per-file entries + pre-aggregated project totals).
 - **`src/coverage-prewarm.ts`** — Background prewarm: `prewarmCoverageForRoot(workspaceRoot, options)` runs `listPaths` + `getCoverage` in batches (with `setImmediate` between batches), then writes the cache. Used by the extension when `covflux.prewarmCoverageCache` is true (fire-and-forget after a short delay).
 
@@ -70,10 +70,11 @@ interface CoverageRecord {
   lineCoveragePercent: number | null;
   coverageHtmlPath?: string;   // PHPUnit HTML adapter only
   testsByLine?: Map<number, string[]>;  // PHPUnit HTML adapter only
+  lineStatuses?: Map<number, number>;  // optional: S/M/L, uncovered, warning, uncoverable (see coverage-types.ts)
 }
 ```
 
-Optimized for fast line lookup and decoration generation. Optional `coverageHtmlPath` and `testsByLine` are set by the PHPUnit HTML adapter for MCP/query use.
+Optimized for fast line lookup and decoration generation. Optional `coverageHtmlPath` and `testsByLine` are set by the PHPUnit HTML adapter. When present, `lineStatuses` encodes per-line state (e.g. covered-small, covered-medium, covered-large, uncovered, warning, uncoverable) in a single compact map used for editor decorations.
 
 **Coverage cache (prewarm):** When `covflux.prewarmCoverageCache` is true, the extension starts a fire-and-forget prewarm after a short delay: for each workspace root it calls `listCoveredPathsFromFirstFormat` and then `getCoverage` in batches, builds a payload with `buildCoverageCachePayload`, and writes `.covflux/coverage-cache.json`. On coverage or config change the extension deletes the cache (invalidation). The MCP server reads the cache when handling `coverage_path` and `coverage_project`; if valid it returns aggregates from the cache with `cacheState: "full"`, otherwise it aggregates on demand and returns `cacheState: "on-demand"`.
 
@@ -105,15 +106,15 @@ Rules: keep `findCoverageForFile` cheap; do heavy parsing in `read` after freshn
 
 ### `CoverageRecord`
 
-**Current shape** (see above): `sourcePath`, `coveredLines`, `uncoveredLines`, `lineCoveragePercent`. Fast `Set<number>` lookup; no `sourceVersion` or `uncoverable` yet.
+**Current shape** (see above): `sourcePath`, `coveredLines`, `uncoveredLines`, `uncoverableLines`, `lineCoveragePercent`, optional `lineStatuses`, `coverageHtmlPath`, `testsByLine`. Fast `Set<number>` lookup for covered/uncovered; optional `lineStatuses` for per-line state (S/M/L, warning, uncoverable) when the adapter supplies it.
 
-**Possible evolution:** Add `sourceVersion` (mtime/size), `uncoverable: Set<number>`, and optional `trackingMap` for edit-tolerant display when that feature is implemented.
+**Possible evolution:** Add `sourceVersion` (mtime/size) and optional `trackingMap` for edit-tolerant display when that feature is implemented.
 
 ## Supported Adapters for Core
 
 ### `PhpUnitHtmlAdapter` (implemented)
 
-**Location:** `src/coverage-formats/phpunit-html/`. Default path `coverage-html/`; overridden by config (`type: "phpunit-html"`, `path`). Resolves source file (under `app/`) to HTML report path; reads and parses; returns `CoverageRecord`. One HTML file per source file. Treated as version-specific for PHPUnit HTML output.
+**Location:** `src/coverage-formats/phpunit-html/`. Default path `coverage-html/`; overridden by config (`type: "phpunit-html"`, `path`). Optional `sourceSegment` in config (`app` | `src` | `lib` | `auto`); when `auto`, tries those segments per workspace root. File discovery excludes `index.html` and `dashboard.html`. Resolves source file to HTML report path; reads and parses; returns `CoverageRecord` with optional `lineStatuses` (S/M/L, uncovered, warning, uncoverable). Popover content above a size limit is skipped to avoid unbounded parsing. One HTML file per source file. Treated as version-specific for PHPUnit HTML output.
 
 ### `LcovAdapter` (implemented)
 

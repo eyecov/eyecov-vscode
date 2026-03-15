@@ -51,12 +51,15 @@ Resolves coverage for one file by path or basename.
 
 Aggregates coverage for one or more path/folder prefixes.
 
-**Input:** Either `path` (string) or `paths` (array of strings). At least one is required.
+**Input:** Either `path` (string) or `paths` (array of strings). At least one is required. Optional:
 
 - **path** — Single path or folder prefix (e.g. `"app/Domain/Automation"`).
 - **paths** — Multiple path/folder prefixes; coverage is aggregated over the **union** of files under any prefix (e.g. `["app/Domain/Automation", "app/Domain/Workspace"]`).
+- **worstFilesLimit** — Max number of worst-coverage files to return (default 10).
+- **zeroCoverageFilesLimit** — When set with **coveredLinesCutoff**, include up to this many files with covered lines ≤ cutoff in **zeroCoverageFiles**.
+- **coveredLinesCutoff** — Used with zeroCoverageFilesLimit: files with covered lines ≤ this go into zeroCoverageFiles (default 0 = only truly zero-coverage).
 
-**Behavior:** When a valid prewarm cache exists, filters the cache by path prefix(es) and returns aggregate stats and worst files. Otherwise discovers all covered files under the given prefix(es) via configured formats (PHPUnit HTML, LCOV), resolves coverage for each, and returns aggregate stats and worst files.
+**Behavior:** When a valid prewarm cache exists, filters the cache by path prefix(es) and returns aggregate stats and worst files (zeroCoverageFiles not from cache). Otherwise discovers all covered files under the given prefix(es) via configured formats (PHPUnit HTML, LCOV), resolves coverage for each, and returns aggregate stats, worst files, and (when options are set) zeroCoverageFiles.
 
 **Response:**
 
@@ -74,12 +77,20 @@ Aggregates coverage for one or more path/folder prefixes.
       "lineCoveragePercent": 33.3
     }
   ],
-  "cacheState": "full"
+  "cacheState": "full",
+  "zeroCoverageFiles": [
+    {
+      "filePath": "/workspace/app/Domain/New/Bar.php",
+      "lineCoveragePercent": 0,
+      "coveredLines": 0
+    }
+  ]
 }
 ```
 
 - **paths** — The prefix(es) requested (single path is returned as a one-element array).
-- **worstFiles** — Files with lowest line coverage first (up to 10).
+- **worstFiles** — Files with coverage above the cutoff, lowest line coverage first (up to worstFilesLimit).
+- **zeroCoverageFiles** — Present when zeroCoverageFilesLimit (and optionally coveredLinesCutoff) were passed; files with covered lines ≤ cutoff, up to the limit.
 - **cacheState** — `"full"` when the response was served from the prewarm cache; `"on-demand"` when aggregated on demand (no cache or cache invalid).
 
 ---
@@ -88,9 +99,13 @@ Aggregates coverage for one or more path/folder prefixes.
 
 Aggregates workspace-wide coverage (no path filter).
 
-**Input:** None.
+**Input:** Optional.
 
-**Behavior:** When a valid prewarm cache exists at `{workspaceRoot}/.covflux/coverage-cache.json`, returns the pre-aggregated project totals from the cache (no resolver calls). Otherwise uses the first configured coverage format that has data: discovers paths, resolves coverage for each, and returns aggregate stats plus that format as detectedFormat and cache state.
+- **worstFilesLimit** — Max number of worst-coverage files to return (default 0).
+- **zeroCoverageFilesLimit** — When set with **coveredLinesCutoff**, include up to this many files with covered lines ≤ cutoff in **zeroCoverageFiles**.
+- **coveredLinesCutoff** — Used with zeroCoverageFilesLimit: files with covered lines ≤ this go into zeroCoverageFiles.
+
+**Behavior:** When a valid prewarm cache exists at `{workspaceRoot}/.covflux/coverage-cache.json`, returns the pre-aggregated project totals from the cache (no resolver calls; zeroCoverageFiles not from cache). Otherwise uses the first configured coverage format that has data: discovers paths, resolves coverage for each, and returns aggregate stats plus that format as detectedFormat and cache state; when options are set, response can include zeroCoverageFiles.
 
 **Response:**
 
@@ -102,12 +117,14 @@ Aggregates workspace-wide coverage (no path filter).
   "missingCoverageFiles": 22,
   "staleCoverageFiles": 0,
   "detectedFormat": "phpunit-html",
-  "cacheState": "full"
+  "cacheState": "full",
+  "zeroCoverageFiles": []
 }
 ```
 
 - **cacheState:** `"full"` when the response was served from the prewarm cache; `"on-demand"` when aggregated on demand (no cache or cache invalid).
 - **detectedFormat:** The format that was used (from cache or first in config order that had coverage data).
+- **zeroCoverageFiles:** Present when zeroCoverageFilesLimit (and optionally coveredLinesCutoff) were passed; files with covered lines ≤ cutoff, up to the limit.
 
 ---
 

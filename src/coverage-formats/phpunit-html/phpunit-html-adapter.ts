@@ -6,40 +6,72 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import type { PhpUnitHtmlSourceSegment } from '../../covflux-config';
 import type { CoverageAdapter, CoverageRecord } from '../../coverage-resolver';
 import { isCoverageStale } from '../../coverage-staleness';
 import { parseCoverageHtml } from './parser';
 import type { CoverageFileResult, ParsedCoverageFileResult } from './types';
 
 const DEFAULT_COVERAGE_HTML_DIR = 'coverage-html';
-const APP_SEGMENT = 'app';
+const AUTO_SEGMENTS = ['app', 'src', 'lib'] as const;
+/** PHPUnit 12 coverage-html directory/dashboard pages – excluded from source file discovery. */
+const EXCLUDED_HTML_BASENAMES = ['index.html', 'dashboard.html'];
+
+export type PhpUnitHtmlAdapterOptions = {
+  coverageHtmlDir?: string;
+  sourceSegment?: PhpUnitHtmlSourceSegment;
+};
+
+function getSourceSegmentForRoot(workspaceRoot: string, sourceSegment: PhpUnitHtmlSourceSegment): string {
+  if (sourceSegment !== 'auto') {
+    return sourceSegment;
+  }
+  const root = path.resolve(workspaceRoot);
+  for (const seg of AUTO_SEGMENTS) {
+    if (fs.existsSync(path.join(root, seg))) {
+      return seg;
+    }
+  }
+  return 'app';
+}
 
 export function resolveCoverageHtmlPath(
   sourceFilePath: string,
   workspaceRoots: string[],
-  options: { coverageHtmlDir?: string } = {}
+  options: PhpUnitHtmlAdapterOptions = {}
 ): string | null {
   const dir = options.coverageHtmlDir ?? DEFAULT_COVERAGE_HTML_DIR;
+  const segmentOpt = options.sourceSegment ?? 'auto';
   const normalizedSourceFilePath = path.resolve(sourceFilePath);
+  const segmentsToTry = segmentOpt === 'auto' ? AUTO_SEGMENTS : [segmentOpt];
   for (const workspaceRoot of workspaceRoots) {
-    const appRoot = path.join(path.resolve(workspaceRoot), APP_SEGMENT);
-    if (!normalizedSourceFilePath.startsWith(appRoot + path.sep)) {
-      continue;
-    }
-    const relativeToApp = path.relative(appRoot, normalizedSourceFilePath);
-    const coverageHtmlPath = path.join(workspaceRoot, dir, `${relativeToApp}.html`);
-    if (fs.existsSync(coverageHtmlPath)) {
-      return path.resolve(coverageHtmlPath);
+    const root = path.resolve(workspaceRoot);
+    for (const segment of segmentsToTry) {
+      const segmentRoot = path.join(root, segment);
+      if (!normalizedSourceFilePath.startsWith(segmentRoot + path.sep)) {
+        continue;
+      }
+      const relativeToSegment = path.relative(segmentRoot, normalizedSourceFilePath);
+      const coverageHtmlPath = path.join(root, dir, `${relativeToSegment}.html`);
+      if (fs.existsSync(coverageHtmlPath)) {
+        return path.resolve(coverageHtmlPath);
+      }
     }
   }
-  const appSegment = `${path.sep}${APP_SEGMENT}${path.sep}`;
-  const appIndex = sourceFilePath.indexOf(appSegment);
-  if (appIndex !== -1) {
-    const workspaceRoot = sourceFilePath.slice(0, appIndex);
-    const relativeToApp = sourceFilePath.slice(appIndex + appSegment.length);
-    const coverageHtmlPath = path.join(workspaceRoot, dir, `${relativeToApp}.html`);
-    if (fs.existsSync(coverageHtmlPath)) {
-      return path.resolve(coverageHtmlPath);
+  for (const seg of AUTO_SEGMENTS) {
+    const segmentSep = `${path.sep}${seg}${path.sep}`;
+    const segIndex = sourceFilePath.indexOf(segmentSep);
+    if (segIndex !== -1) {
+      const workspaceRoot = sourceFilePath.slice(0, segIndex);
+      if (workspaceRoots.some((r) => path.resolve(r) === path.resolve(workspaceRoot))) {
+        const allowed = segmentOpt === 'auto' ? AUTO_SEGMENTS : [segmentOpt];
+        if (!allowed.includes(seg)) continue;
+        const relativeToSegment = sourceFilePath.slice(segIndex + segmentSep.length);
+        const coverageHtmlPath = path.join(workspaceRoot, dir, `${relativeToSegment}.html`);
+        if (fs.existsSync(coverageHtmlPath)) {
+          return path.resolve(coverageHtmlPath);
+        }
+      }
     }
   }
   return null;
@@ -65,33 +97,36 @@ export function buildCoverageFileResult(
     uncoveredLineNumbers: parsed.uncoveredLines,
     coveredLineNumbers: parsed.coveredLines,
     testsByLine: parsed.testsByLine,
+    lineStatuses: new Map(parsed.lineStatuses),
   };
 }
 
 export function findCoverageHtmlBasenameMatches(
   query: string,
   workspaceRoots: string[],
-  options: { coverageHtmlDir?: string } = {}
+  options: PhpUnitHtmlAdapterOptions = {}
 ): ParsedCoverageFileResult[] {
   const dir = options.coverageHtmlDir ?? DEFAULT_COVERAGE_HTML_DIR;
+  const segmentOpt = options.sourceSegment ?? 'auto';
   const basename = path.basename(query);
   const targetFileName = basename.endsWith('.html') ? basename : `${basename}.html`;
   const matches: ParsedCoverageFileResult[] = [];
   const seen = new Set<string>();
 
-  const visit = (workspaceRoot: string, currentDir: string) => {
+  const visit = (workspaceRoot: string, currentDir: string, segment: string) => {
     for (const entry of fs.readdirSync(currentDir, { withFileTypes: true })) {
       if (entry.name === '_css' || entry.name === '_js' || entry.name === '_icons') continue;
       const fullPath = path.join(currentDir, entry.name);
       if (entry.isDirectory()) {
-        visit(workspaceRoot, fullPath);
+        visit(workspaceRoot, fullPath, segment);
         continue;
       }
       if (!entry.isFile() || entry.name !== targetFileName) continue;
+      if (EXCLUDED_HTML_BASENAMES.includes(entry.name)) continue;
       const coverageHtmlRoot = path.join(workspaceRoot, dir);
       const relativeHtmlPath = path.relative(coverageHtmlRoot, fullPath);
       if (relativeHtmlPath.startsWith('..')) continue;
-      const sourceFilePath = path.join(workspaceRoot, APP_SEGMENT, relativeHtmlPath.replace(/\.html$/, ''));
+      const sourceFilePath = path.join(workspaceRoot, segment, relativeHtmlPath.replace(/\.html$/, ''));
       if (!fs.existsSync(sourceFilePath)) continue;
       const dedupeKey = path.resolve(sourceFilePath);
       if (seen.has(dedupeKey)) continue;
@@ -103,7 +138,8 @@ export function findCoverageHtmlBasenameMatches(
   for (const workspaceRoot of workspaceRoots) {
     const coverageHtmlRoot = path.join(workspaceRoot, dir);
     if (!fs.existsSync(coverageHtmlRoot) || !fs.statSync(coverageHtmlRoot).isDirectory()) continue;
-    visit(workspaceRoot, coverageHtmlRoot);
+    const segment = getSourceSegmentForRoot(workspaceRoot, segmentOpt);
+    visit(workspaceRoot, coverageHtmlRoot, segment);
   }
   return matches.sort((a, b) => a.filePath.localeCompare(b.filePath));
 }
@@ -114,27 +150,29 @@ export function findCoverageHtmlBasenameMatches(
  */
 export function listCoverageHtmlSourcePaths(
   workspaceRoots: string[],
-  options: { coverageHtmlDir?: string } = {}
+  options: PhpUnitHtmlAdapterOptions = {}
 ): string[] {
   const dir = options.coverageHtmlDir ?? DEFAULT_COVERAGE_HTML_DIR;
+  const segmentOpt = options.sourceSegment ?? 'auto';
   const seen = new Set<string>();
   const paths: string[] = [];
 
-  const visit = (workspaceRoot: string, currentDir: string) => {
+  const visit = (workspaceRoot: string, currentDir: string, segment: string) => {
     for (const entry of fs.readdirSync(currentDir, { withFileTypes: true })) {
       if (entry.name === '_css' || entry.name === '_js' || entry.name === '_icons') continue;
       const fullPath = path.join(currentDir, entry.name);
       if (entry.isDirectory()) {
-        visit(workspaceRoot, fullPath);
+        visit(workspaceRoot, fullPath, segment);
         continue;
       }
       if (!entry.isFile() || !entry.name.endsWith('.html')) continue;
+      if (EXCLUDED_HTML_BASENAMES.includes(entry.name)) continue;
       const coverageHtmlRoot = path.join(workspaceRoot, dir);
       const relativeHtmlPath = path.relative(coverageHtmlRoot, fullPath);
       if (relativeHtmlPath.startsWith('..')) continue;
       const sourceFilePath = path.join(
         workspaceRoot,
-        APP_SEGMENT,
+        segment,
         relativeHtmlPath.replace(/\.html$/, '')
       );
       if (!fs.existsSync(sourceFilePath)) continue;
@@ -148,7 +186,8 @@ export function listCoverageHtmlSourcePaths(
   for (const workspaceRoot of workspaceRoots) {
     const coverageHtmlRoot = path.join(workspaceRoot, dir);
     if (!fs.existsSync(coverageHtmlRoot) || !fs.statSync(coverageHtmlRoot).isDirectory()) continue;
-    visit(workspaceRoot, coverageHtmlRoot);
+    const segment = getSourceSegmentForRoot(workspaceRoot, segmentOpt);
+    visit(workspaceRoot, coverageHtmlRoot, segment);
   }
   return paths.sort();
 }
@@ -160,7 +199,7 @@ export function stripTestsByLine(result: ParsedCoverageFileResult): CoverageFile
 
 /** PHPUnit HTML coverage adapter: resolves path, reads HTML, returns CoverageRecord. */
 export class PhpUnitHtmlAdapter implements CoverageAdapter {
-  constructor(private readonly options: { coverageHtmlDir?: string } = {}) {}
+  constructor(private readonly options: PhpUnitHtmlAdapterOptions = {}) {}
 
   async getCoverage(
     filePath: string,
@@ -182,6 +221,7 @@ export class PhpUnitHtmlAdapter implements CoverageAdapter {
       lineCoveragePercent: result.lineCoveragePercent,
       coverageHtmlPath,
       testsByLine: result.testsByLine,
+      lineStatuses: result.lineStatuses,
     };
   }
 }

@@ -128,6 +128,28 @@ describe('CoverageResolver', () => {
     expect(adapters[0]).toBeInstanceOf(LcovAdapter);
   });
 
+  it('createAdaptersFromConfig passes sourceSegment so resolver finds files under src/', async () => {
+    fs.mkdirSync(path.join(workspaceRoot, 'src', 'Service'), { recursive: true });
+    fs.mkdirSync(path.join(workspaceRoot, 'coverage-html', 'Service'), { recursive: true });
+    fs.writeFileSync(path.join(workspaceRoot, 'src', 'Service', 'Foo.php'), '<?php\n');
+    fs.writeFileSync(
+      path.join(workspaceRoot, 'coverage-html', 'Service', 'Foo.php.html'),
+      '<table id="code"><tr class="success d-flex"><td><a id="1" href="#1">1</a></td></tr></table>'
+    );
+    const config = {
+      formats: [{ type: 'phpunit-html', path: 'coverage-html', sourceSegment: 'src' as const }],
+    };
+    const adapters = createAdaptersFromConfig(config);
+    const resolver = new CoverageResolver({ workspaceRoots: [workspaceRoot], adapters });
+    const sourcePath = path.join(workspaceRoot, 'src', 'Service', 'Foo.php');
+
+    const record = await resolver.getCoverage(sourcePath);
+
+    expect(record).not.toBeNull();
+    expect(record!.sourcePath).toBe(sourcePath);
+    expect(record!.lineCoveragePercent).toBe(100);
+  });
+
   it('returns coverage from FixtureAdapter when fixture matches file', async () => {
     fs.mkdirSync(path.join(workspaceRoot, 'src'), { recursive: true });
     fs.mkdirSync(path.join(workspaceRoot, 'coverage'), { recursive: true });

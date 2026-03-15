@@ -42,16 +42,18 @@ Each row in `#code` is:
 |-----------------------|----------------|---------------|
 | `danger`               | Not covered    | **uncovered** |
 | `success`              | Covered        | **covered**   |
-| `covered-by-large-tests` | Covered (with test list) | **covered** |
-| `covered-by-medium-tests` | Covered (with test list) | **covered** |
-| `covered-by-small-tests`  | Covered (with test list) | **covered** |
-| (none of the above)    | Not executable (blank, comment, etc.) | **skip** (neither covered nor uncovered) |
+| `covered-by-large-tests` | Covered (with test list) | **covered** (can distinguish as large) |
+| `covered-by-medium-tests` | Covered (with test list) | **covered** (can distinguish as medium) |
+| `covered-by-small-tests`  | Covered (with test list) | **covered** (can distinguish as small) |
+| `warning`               | Ignored / dead (e.g. @codeCoverageIgnore) | **warning** (neutral, not covered) |
+| (none of the above)    | Not executable (blank, comment, etc.) | **skip** (uncoverable) |
 
 So:
 
-- **Covered lines**: rows with `class` containing `success`, `covered-by-large-tests`, `covered-by-medium-tests`, or `covered-by-small-tests`.
+- **Covered lines**: rows with `class` containing `success`, `covered-by-large-tests`, `covered-by-medium-tests`, or `covered-by-small-tests`. The *-tests classes indicate the smallest test size that hit the line (small / medium / large).
 - **Uncovered lines**: rows with `class` containing `danger`.
-- **Other lines**: no need to treat as covered or uncovered for line coverage stats.
+- **Warning lines**: rows with `class` containing `warning` (executable but ignored or dead).
+- **Other lines**: not executable; treat as uncoverable for line stats.
 
 ---
 
@@ -129,5 +131,5 @@ These are redundant if you compute totals from the code table, but useful for a 
 
 - **Encoding**: Attributes are HTML-entity encoded (`&lt;`, `&quot;`, etc.). Decode before parsing as HTML.
 - **Pest**: Test names may look like `P\Tests\Feature\...\SomeTest::__pest_evaluable_it_does_something`. The `P\` is the Pest namespace; the rest is class and “method” (description).
-- **Large test lists**: Some lines have many tests; `data-bs-content` can be very long. Streaming or chunked parsing may help for huge files.
+- **Large test lists**: Some lines have many tests; `data-bs-content` can be very long. Parsers may skip popover parsing when the decoded content exceeds a size limit and still classify the line from the `tr` class.
 - **No test list**: Some reports or lines may not have `data-bs-content`; covered lines are still identified by the `success` or `covered-by-*-tests` class (large/medium/small).

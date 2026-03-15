@@ -87,6 +87,43 @@ describe('coverage-aggregate', () => {
       expect(result.worstFiles[0].lineCoveragePercent).toBe(33.33);
       expect(result.worstFiles[1].lineCoveragePercent).toBe(75);
     });
+
+    it('returns zeroCoverageFiles for files with coveredLines <= cutoff when options specify zeroCoverageFilesLimit and coveredLinesCutoff', async () => {
+      const pathZero = '/workspace/app/Zero.php';
+      const pathSome = '/workspace/app/Some.php';
+      const recordZero: CoverageRecord = {
+        sourcePath: pathZero,
+        coveredLines: new Set([]),
+        uncoveredLines: new Set([1, 2]),
+        uncoverableLines: new Set([]),
+        lineCoveragePercent: 0,
+      };
+      const recordSome: CoverageRecord = {
+        sourcePath: pathSome,
+        coveredLines: new Set([1, 2, 3]),
+        uncoveredLines: new Set([4]),
+        uncoverableLines: new Set([]),
+        lineCoveragePercent: 75,
+      };
+      const getCoverage = async (p: string) => {
+        if (p === pathZero) return recordZero;
+        if (p === pathSome) return recordSome;
+        return null;
+      };
+
+      const result = await aggregateCoverage({
+        paths: [pathZero, pathSome],
+        getCoverage,
+        coveredLinesCutoff: 0,
+        zeroCoverageFilesLimit: 10,
+      });
+
+      expect(result.zeroCoverageFiles).toBeDefined();
+      expect(result.zeroCoverageFiles).toHaveLength(1);
+      expect(result.zeroCoverageFiles![0].filePath).toBe(pathZero);
+      expect(result.zeroCoverageFiles![0].lineCoveragePercent).toBe(0);
+      expect(result.zeroCoverageFiles![0].coveredLines).toBe(0);
+    });
   });
 
   describe('listCoveredPaths', () => {
@@ -252,6 +289,51 @@ describe('coverage-aggregate', () => {
       expect(response.coveredFiles).toBe(2);
       expect(response.aggregateCoveragePercent).toBe(100);
       expect(response.worstFiles).toHaveLength(2);
+    });
+
+    it('getPathAggregateResponse returns zeroCoverageFiles when zeroCoverageFilesLimit and coveredLinesCutoff are passed', async () => {
+      fs.mkdirSync(path.join(workspaceRoot, 'app', 'Domain', 'Bar'), {
+        recursive: true,
+      });
+      fs.mkdirSync(path.join(workspaceRoot, 'coverage-html', 'Domain', 'Bar'), {
+        recursive: true,
+      });
+      fs.writeFileSync(
+        path.join(workspaceRoot, 'app', 'Domain', 'Bar', 'Other.php'),
+        '<?php\n'
+      );
+      fs.writeFileSync(
+        path.join(
+          workspaceRoot,
+          'coverage-html',
+          'Domain',
+          'Bar',
+          'Other.php.html'
+        ),
+        '<table id="code"></table>'
+      );
+      const { CoverageResolver, createAdaptersFromConfig } = await import(
+        './coverage-resolver'
+      );
+      const resolver = new CoverageResolver({
+        workspaceRoots: [workspaceRoot],
+        adapters: createAdaptersFromConfig(config),
+      });
+      const response = await getPathAggregateResponse({
+        workspaceRoots: [workspaceRoot],
+        config,
+        paths: ['app/Domain/Foo', 'app/Domain/Bar'],
+        getCoverage: (p) => resolver.getCoverage(p),
+        zeroCoverageFilesLimit: 10,
+        coveredLinesCutoff: 0,
+      });
+      expect(response.zeroCoverageFiles).toBeDefined();
+      expect(response.zeroCoverageFiles!.length).toBeGreaterThanOrEqual(1);
+      const zeroFile = response.zeroCoverageFiles!.find(
+        (f) => f.coveredLines === 0 || f.lineCoveragePercent === 0
+      );
+      expect(zeroFile).toBeDefined();
+      expect(zeroFile!.filePath).toContain('Bar');
     });
 
     it('getProjectAggregateResponse returns project shape with detectedFormat and cacheState on-demand', async () => {

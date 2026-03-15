@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { LINE_STATUS } from '../../coverage-types';
 import {
   resolveCoverageHtmlPath,
   buildCoverageFileResult,
@@ -51,6 +52,36 @@ describe('phpunit-html adapter', () => {
     it('returns null when source is not under app/', () => {
       expect(resolveCoverageHtmlPath('/tmp/other/file.php', [workspaceRoot])).toBeNull();
     });
+
+    it('resolves when sourceSegment is "src" and source file is under src/', () => {
+      fs.mkdirSync(path.join(workspaceRoot, 'src', 'Service'), { recursive: true });
+      fs.mkdirSync(path.join(workspaceRoot, 'coverage-html', 'Service'), { recursive: true });
+      fs.writeFileSync(path.join(workspaceRoot, 'src', 'Service', 'Foo.php'), '<?php\n');
+      fs.writeFileSync(
+        path.join(workspaceRoot, 'coverage-html', 'Service', 'Foo.php.html'),
+        '<table id="code"><tr class="success d-flex"><td></td></tr></table>'
+      );
+      const sourcePath = path.join(workspaceRoot, 'src', 'Service', 'Foo.php');
+      const expected = path.join(workspaceRoot, 'coverage-html', 'Service', 'Foo.php.html');
+      expect(
+        resolveCoverageHtmlPath(sourcePath, [workspaceRoot], { sourceSegment: 'src' })
+      ).toBe(path.resolve(expected));
+    });
+
+    it('with sourceSegment "auto", resolves using src/ when file exists under src but not app', () => {
+      fs.mkdirSync(path.join(workspaceRoot, 'src', 'Lib'), { recursive: true });
+      fs.mkdirSync(path.join(workspaceRoot, 'coverage-html', 'Lib'), { recursive: true });
+      fs.writeFileSync(path.join(workspaceRoot, 'src', 'Lib', 'Helper.php'), '<?php\n');
+      fs.writeFileSync(
+        path.join(workspaceRoot, 'coverage-html', 'Lib', 'Helper.php.html'),
+        '<table id="code"><tr class="success d-flex"><td></td></tr></table>'
+      );
+      const sourcePath = path.join(workspaceRoot, 'src', 'Lib', 'Helper.php');
+      const expected = path.join(workspaceRoot, 'coverage-html', 'Lib', 'Helper.php.html');
+      expect(
+        resolveCoverageHtmlPath(sourcePath, [workspaceRoot], { sourceSegment: 'auto' })
+      ).toBe(path.resolve(expected));
+    });
   });
 
   describe('buildCoverageFileResult', () => {
@@ -65,6 +96,8 @@ describe('phpunit-html adapter', () => {
       expect(result.lineCoveragePercent).toBe(100);
       expect(result.coveredLineNumbers).toEqual([1]);
       expect(result.testsByLine).toBeInstanceOf(Map);
+      expect(result.lineStatuses).toBeInstanceOf(Map);
+      expect(result.lineStatuses.get(1)).toBe(LINE_STATUS.COVERED_LARGE);
     });
   });
 
@@ -99,6 +132,30 @@ describe('phpunit-html adapter', () => {
       fs.mkdirSync(emptyRoot);
       expect(findCoverageHtmlBasenameMatches('Action.php', [emptyRoot])).toEqual([]);
     });
+
+    it('excludes index.html and dashboard.html from basename search', () => {
+      fs.writeFileSync(path.join(workspaceRoot, 'coverage-html', 'index.html'), '<html></html>');
+      fs.writeFileSync(path.join(workspaceRoot, 'coverage-html', 'dashboard.html'), '<html></html>');
+      fs.writeFileSync(path.join(workspaceRoot, 'app', 'index'), '');
+      fs.writeFileSync(path.join(workspaceRoot, 'app', 'dashboard'), '');
+
+      expect(findCoverageHtmlBasenameMatches('index', [workspaceRoot])).toEqual([]);
+      expect(findCoverageHtmlBasenameMatches('index.html', [workspaceRoot])).toEqual([]);
+      expect(findCoverageHtmlBasenameMatches('dashboard', [workspaceRoot])).toEqual([]);
+      expect(findCoverageHtmlBasenameMatches('dashboard.html', [workspaceRoot])).toEqual([]);
+    });
+
+    it('with sourceSegment "src", finds matches under src/', () => {
+      fs.mkdirSync(path.join(workspaceRoot, 'src'), { recursive: true });
+      fs.writeFileSync(path.join(workspaceRoot, 'src', 'Baz.php'), '<?php\n');
+      fs.writeFileSync(
+        path.join(workspaceRoot, 'coverage-html', 'Baz.php.html'),
+        '<table id="code"><tr class="success d-flex"><td></td></tr></table>'
+      );
+      const matches = findCoverageHtmlBasenameMatches('Baz.php', [workspaceRoot], { sourceSegment: 'src' });
+      expect(matches).toHaveLength(1);
+      expect(matches[0].filePath).toBe(path.resolve(workspaceRoot, 'src', 'Baz.php'));
+    });
   });
 
   describe('listCoverageHtmlSourcePaths', () => {
@@ -108,14 +165,51 @@ describe('phpunit-html adapter', () => {
       expect(paths[0]).toBe(path.resolve(workspaceRoot, 'app', 'Domain', 'Foo', 'Action.php'));
     });
 
+    it('excludes index.html and dashboard.html from discovery at any depth', () => {
+      fs.writeFileSync(path.join(workspaceRoot, 'coverage-html', 'index.html'), '<html></html>');
+      fs.writeFileSync(path.join(workspaceRoot, 'coverage-html', 'dashboard.html'), '<html></html>');
+      // Source paths inferred by adapter: app/index, app/dashboard (basename without .html)
+      fs.writeFileSync(path.join(workspaceRoot, 'app', 'index'), '');
+      fs.writeFileSync(path.join(workspaceRoot, 'app', 'dashboard'), '');
+
+      const paths = listCoverageHtmlSourcePaths([workspaceRoot]);
+
+      expect(paths).toHaveLength(1);
+      expect(paths[0]).toBe(path.resolve(workspaceRoot, 'app', 'Domain', 'Foo', 'Action.php'));
+      expect(paths).not.toContain(path.resolve(workspaceRoot, 'app', 'index'));
+      expect(paths).not.toContain(path.resolve(workspaceRoot, 'app', 'dashboard'));
+    });
+
     it('returns empty when coverage-html root does not exist', () => {
       const emptyRoot = path.join(tmpDir, 'empty');
       fs.mkdirSync(emptyRoot);
       expect(listCoverageHtmlSourcePaths([emptyRoot])).toEqual([]);
     });
+
+    it('with sourceSegment "src", discovers only source paths under src/', () => {
+      fs.mkdirSync(path.join(workspaceRoot, 'src', 'Service'), { recursive: true });
+      fs.mkdirSync(path.join(workspaceRoot, 'coverage-html', 'Service'), { recursive: true });
+      fs.writeFileSync(path.join(workspaceRoot, 'src', 'Service', 'Bar.php'), '<?php\n');
+      fs.writeFileSync(
+        path.join(workspaceRoot, 'coverage-html', 'Service', 'Bar.php.html'),
+        '<table id="code"><tr class="success d-flex"><td></td></tr></table>'
+      );
+      const paths = listCoverageHtmlSourcePaths([workspaceRoot], { sourceSegment: 'src' });
+      expect(paths).toContain(path.resolve(workspaceRoot, 'src', 'Service', 'Bar.php'));
+      expect(paths).not.toContain(path.resolve(workspaceRoot, 'app', 'Domain', 'Foo', 'Action.php'));
+    });
   });
 
-  describe('PhpUnitHtmlAdapter (staleness)', () => {
+  describe('PhpUnitHtmlAdapter', () => {
+    it('populates record.lineStatuses from parser when coverage is found', async () => {
+      const adapter = new PhpUnitHtmlAdapter();
+      const sourcePath = path.join(workspaceRoot, 'app', 'Domain', 'Foo', 'Action.php');
+      const record = await adapter.getCoverage(sourcePath, [workspaceRoot]);
+      expect(record).not.toBeNull();
+      expect(record!.lineStatuses).toBeDefined();
+      expect(record!.lineStatuses!.get(1)).toBe(LINE_STATUS.COVERED_LARGE);
+    });
+
     it('returns null when source file is newer than coverage HTML (stale)', async () => {
       const sourcePath = path.join(workspaceRoot, 'app', 'Domain', 'Foo', 'Action.php');
       const htmlPath = path.join(workspaceRoot, 'coverage-html', 'Domain', 'Foo', 'Action.php.html');

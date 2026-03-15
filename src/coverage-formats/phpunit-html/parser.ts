@@ -1,3 +1,5 @@
+import { LINE_STATUS } from '../../coverage-types';
+
 /**
  * Parser for PHPUnit coverage HTML report (e.g. coverage-html/*.php.html).
  * Extracts covered lines, uncovered lines, and which tests cover each covered line.
@@ -14,6 +16,8 @@ export interface CoverageHtmlResult {
   testsByLine: Map<number, string[]>;
   /** Optional: source file path from <title> */
   sourcePath?: string;
+  /** Per-line status codes (LINE_STATUS.*): covered-small/medium/large, uncovered, warning, uncoverable */
+  lineStatuses: Map<number, number>;
 }
 
 /** Normalized shape for one test (class, describe, description). */
@@ -87,6 +91,9 @@ const TR_CLASS = /<tr\s+class="([^"]*)"/;
 const LINE_ANCHOR = /<a\s+[^>]*id="(\d+)"[^>]*>/;
 const DATA_BS_CONTENT = /data-bs-content="([^"]*)"/;
 
+/** Max decoded data-bs-content length; larger content is skipped to avoid parsing huge/malformed popovers. */
+const MAX_POPOVER_CONTENT_LENGTH = 512 * 1024;
+
 /**
  * Decode common HTML entities in a string.
  */
@@ -118,36 +125,52 @@ function extractListItems(html: string): string[] {
 }
 
 /**
- * Parse a single code table row: line number, coverage status, and optional test list.
+ * Parse a single code table row: line number, coverage status, status code, and optional test list.
  */
 function parseCodeRow(rowHtml: string): {
   line: number;
   status: 'covered' | 'uncovered' | 'neutral';
+  statusCode: number;
   tests: string[];
 } {
   const lineMatch = rowHtml.match(LINE_ANCHOR);
   const line = lineMatch ? parseInt(lineMatch[1], 10) : 0; // 1-based editor line
   if (!line || !Number.isFinite(line)) {
-    return { line: 0, status: 'neutral', tests: [] };
+    return { line: 0, status: 'neutral', statusCode: LINE_STATUS.UNCOVERABLE, tests: [] };
   }
 
   const classMatch = rowHtml.match(TR_CLASS);
   const trClass = (classMatch && classMatch[1]) || '';
   let status: 'covered' | 'uncovered' | 'neutral' = 'neutral';
+  let statusCode: number = LINE_STATUS.UNCOVERABLE;
   if (/\bdanger\b/.test(trClass)) {
     status = 'uncovered';
-  } else if (/\b(success|covered-by-large-tests|covered-by-medium-tests|covered-by-small-tests)\b/.test(trClass)) {
+    statusCode = LINE_STATUS.UNCOVERED;
+  } else if (/\bwarning\b/.test(trClass)) {
+    status = 'neutral';
+    statusCode = LINE_STATUS.WARNING;
+  } else if (/\bcovered-by-small-tests\b/.test(trClass)) {
     status = 'covered';
+    statusCode = LINE_STATUS.COVERED_SMALL;
+  } else if (/\bcovered-by-medium-tests\b/.test(trClass)) {
+    status = 'covered';
+    statusCode = LINE_STATUS.COVERED_MEDIUM;
+  } else if (/\b(covered-by-large-tests|success)\b/.test(trClass)) {
+    status = 'covered';
+    statusCode = LINE_STATUS.COVERED_LARGE;
   }
 
   let tests: string[] = [];
   const contentMatch = rowHtml.match(DATA_BS_CONTENT);
   if (contentMatch && contentMatch[1]) {
     const decoded = decodeHtmlEntities(contentMatch[1]);
-    tests = extractListItems(decoded);
+    if (decoded.length <= MAX_POPOVER_CONTENT_LENGTH) {
+      tests = extractListItems(decoded);
+    }
+    // Oversized content: skip popover parsing; line status still from tr class above.
   }
 
-  return { line, status, tests };
+  return { line, status, statusCode, tests };
 }
 
 /**
@@ -161,15 +184,19 @@ export function parseCoverageHtml(html: string): CoverageHtmlResult {
   const coveredLines: number[] = [];
   const uncoveredLines: number[] = [];
   const testsByLine = new Map<number, string[]>();
+  const lineStatuses = new Map<number, number>();
 
-  // Optional: source path from title
-  const titleMatch = html.match(/<title>Code Coverage for ([^<]+)<\/title>/);
+  // Optional: source path from <title>Code Coverage for ...</title>.
+  // We capture only up to the first "<" ([^<]+); anything after that is ignored until </title>.
+  // So malformed or unescaped HTML in the title (e.g. path containing "<" or stray tags) is
+  // truncated and does not break parsing.
+  const titleMatch = html.match(/<title>Code Coverage for ([^<]+).*?<\/title>/s);
   const sourcePath = titleMatch ? titleMatch[1].trim() : undefined;
 
   // Find the code table: from <table id="code"> to </table>
   const codeTableStart = html.indexOf(CODE_TABLE_ID);
   if (codeTableStart === -1) {
-    return { coveredLines, uncoveredLines, testsByLine, sourcePath };
+    return { coveredLines, uncoveredLines, testsByLine, sourcePath, lineStatuses };
   }
   const tableStart = html.lastIndexOf('<table', codeTableStart);
   const tableEnd = html.indexOf('</table>', codeTableStart);
@@ -179,9 +206,10 @@ export function parseCoverageHtml(html: string): CoverageHtmlResult {
   const trSegments = tableHtml.split(/<tr\s+/).slice(1);
   for (const segment of trSegments) {
     const rowHtml = '<tr ' + segment;
-    const { line, status, tests } = parseCodeRow(rowHtml);
+    const { line, status, statusCode, tests } = parseCodeRow(rowHtml);
     if (line < 1) continue;
 
+    lineStatuses.set(line, statusCode);
     if (status === 'covered') {
       coveredLines.push(line);
       if (tests.length > 0) {
@@ -197,5 +225,6 @@ export function parseCoverageHtml(html: string): CoverageHtmlResult {
     uncoveredLines: [...new Set(uncoveredLines)].sort((a, b) => a - b),
     testsByLine,
     sourcePath,
+    lineStatuses,
   };
 }

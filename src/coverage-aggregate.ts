@@ -18,6 +18,12 @@ export interface PathAggregateResult {
   missingCoverageFiles: number;
   staleCoverageFiles: number;
   worstFiles: Array<{ filePath: string; lineCoveragePercent: number | null }>;
+  /** Files with coveredLines <= cutoff; only present when options include zeroCoverageFilesLimit. */
+  zeroCoverageFiles?: Array<{
+    filePath: string;
+    lineCoveragePercent: number | null;
+    coveredLines?: number;
+  }>;
 }
 
 export interface AggregateCoverageOptions {
@@ -25,12 +31,22 @@ export interface AggregateCoverageOptions {
   getCoverage: (path: string) => Promise<CoverageRecord | null>;
   /** Max entries in worstFiles (default 10). */
   worstFilesLimit?: number;
+  /** Max entries in zeroCoverageFiles (default 10 when cutoff/limit used). */
+  zeroCoverageFilesLimit?: number;
+  /** Files with coveredLines.size <= this go into zeroCoverageFiles; files above go into worstFiles (default 0). */
+  coveredLinesCutoff?: number;
 }
 
 export async function aggregateCoverage(
   options: AggregateCoverageOptions
 ): Promise<PathAggregateResult> {
-  const { paths, getCoverage, worstFilesLimit = 10 } = options;
+  const {
+    paths,
+    getCoverage,
+    worstFilesLimit = 10,
+    zeroCoverageFilesLimit,
+    coveredLinesCutoff = 0,
+  } = options;
   const records: (CoverageRecord | null)[] = [];
   for (const p of paths) {
     records.push(await getCoverage(p));
@@ -49,18 +65,31 @@ export async function aggregateCoverage(
       ? Number(((totalCovered / totalExecutable) * 100).toFixed(2))
       : null;
 
-  const withPercent = covered.map((r) => ({
+  const withPercentAndCovered = covered.map((r) => ({
     filePath: r.sourcePath,
     lineCoveragePercent: r.lineCoveragePercent,
+    coveredCount: r.coveredLines.size,
   }));
-  const sorted = [...withPercent].sort((a, b) => {
+
+  const useCutoff = zeroCoverageFilesLimit !== undefined;
+  const aboveCutoff = useCutoff
+    ? withPercentAndCovered.filter((x) => x.coveredCount > coveredLinesCutoff)
+    : withPercentAndCovered;
+  const atOrBelowCutoff = useCutoff
+    ? withPercentAndCovered.filter((x) => x.coveredCount <= coveredLinesCutoff)
+    : [];
+
+  const sortedWorst = [...aboveCutoff].sort((a, b) => {
     const pa = a.lineCoveragePercent ?? 101;
     const pb = b.lineCoveragePercent ?? 101;
     return pa - pb;
   });
-  const worstFiles = sorted.slice(0, worstFilesLimit);
+  const worstFiles = sortedWorst.slice(0, worstFilesLimit).map(({ filePath, lineCoveragePercent }) => ({
+    filePath,
+    lineCoveragePercent,
+  }));
 
-  return {
+  const result: PathAggregateResult = {
     aggregateCoveragePercent,
     totalFiles: paths.length,
     coveredFiles,
@@ -68,6 +97,14 @@ export async function aggregateCoverage(
     staleCoverageFiles: 0,
     worstFiles,
   };
+  if (useCutoff) {
+    result.zeroCoverageFiles = atOrBelowCutoff.slice(0, zeroCoverageFilesLimit!).map((x) => ({
+      filePath: x.filePath,
+      lineCoveragePercent: x.lineCoveragePercent,
+      coveredLines: x.coveredCount,
+    }));
+  }
+  return result;
 }
 
 export interface ListCoveredPathsOptions {
@@ -107,7 +144,10 @@ export function listCoveredPaths(options: ListCoveredPathsOptions): string[] {
   for (const entry of config.formats) {
     const paths =
       entry.type === 'phpunit-html'
-        ? listCoverageHtmlSourcePaths(workspaceRoots, { coverageHtmlDir: entry.path })
+        ? listCoverageHtmlSourcePaths(workspaceRoots, {
+            coverageHtmlDir: entry.path,
+            sourceSegment: entry.sourceSegment ?? 'auto',
+          })
         : entry.type === 'lcov'
           ? listLcovSourcePaths(workspaceRoots, { path: entry.path })
           : [];
@@ -144,7 +184,10 @@ export function listCoveredPathsFromFirstFormat(
   for (const entry of config.formats) {
     const paths =
       entry.type === 'phpunit-html'
-        ? listCoverageHtmlSourcePaths(workspaceRoots, { coverageHtmlDir: entry.path })
+        ? listCoverageHtmlSourcePaths(workspaceRoots, {
+            coverageHtmlDir: entry.path,
+            sourceSegment: entry.sourceSegment ?? 'auto',
+          })
         : entry.type === 'lcov'
           ? listLcovSourcePaths(workspaceRoots, { path: entry.path })
           : [];
@@ -166,6 +209,8 @@ export interface PathAggregateResponse {
   staleCoverageFiles: number;
   worstFiles: Array<{ filePath: string; lineCoveragePercent: number | null }>;
   cacheState: 'on-demand' | 'partial' | 'full';
+  /** Present when options include zeroCoverageFilesLimit. */
+  zeroCoverageFiles?: PathAggregateResult['zeroCoverageFiles'];
 }
 
 export interface GetPathAggregateResponseOptions {
@@ -177,6 +222,8 @@ export interface GetPathAggregateResponseOptions {
   paths?: string[];
   getCoverage: (path: string) => Promise<CoverageRecord | null>;
   worstFilesLimit?: number;
+  zeroCoverageFilesLimit?: number;
+  coveredLinesCutoff?: number;
 }
 
 /**
@@ -193,6 +240,8 @@ export async function getPathAggregateResponse(
     paths: pathArray,
     getCoverage,
     worstFilesLimit,
+    zeroCoverageFilesLimit,
+    coveredLinesCutoff,
   } = options;
   const pathsRequested =
     pathArray != null && pathArray.length > 0
@@ -209,6 +258,8 @@ export async function getPathAggregateResponse(
     paths: filePaths,
     getCoverage,
     worstFilesLimit,
+    zeroCoverageFilesLimit,
+    coveredLinesCutoff,
   });
   return {
     paths: pathsRequested,
@@ -226,12 +277,17 @@ export interface ProjectAggregateResponse {
   staleCoverageFiles: number;
   detectedFormat: string;
   cacheState: 'on-demand' | 'partial' | 'full';
+  /** Present when options include zeroCoverageFilesLimit. */
+  zeroCoverageFiles?: PathAggregateResult['zeroCoverageFiles'];
 }
 
 export interface GetProjectAggregateResponseOptions {
   workspaceRoots: string[];
   config: CovfluxConfig;
   getCoverage: (path: string) => Promise<CoverageRecord | null>;
+  worstFilesLimit?: number;
+  zeroCoverageFilesLimit?: number;
+  coveredLinesCutoff?: number;
 }
 
 /**
@@ -241,7 +297,14 @@ export interface GetProjectAggregateResponseOptions {
 export async function getProjectAggregateResponse(
   options: GetProjectAggregateResponseOptions
 ): Promise<ProjectAggregateResponse> {
-  const { workspaceRoots, config, getCoverage } = options;
+  const {
+    workspaceRoots,
+    config,
+    getCoverage,
+    worstFilesLimit = 0,
+    zeroCoverageFilesLimit,
+    coveredLinesCutoff,
+  } = options;
   const { paths: filePaths, formatType } = listCoveredPathsFromFirstFormat(
     workspaceRoots,
     config
@@ -249,7 +312,9 @@ export async function getProjectAggregateResponse(
   const aggregate = await aggregateCoverage({
     paths: filePaths,
     getCoverage,
-    worstFilesLimit: 0,
+    worstFilesLimit,
+    zeroCoverageFilesLimit,
+    coveredLinesCutoff,
   });
   return {
     aggregateCoveragePercent: aggregate.aggregateCoveragePercent,
@@ -259,6 +324,9 @@ export async function getProjectAggregateResponse(
     staleCoverageFiles: aggregate.staleCoverageFiles,
     detectedFormat: formatType,
     cacheState: 'on-demand',
+    ...(aggregate.zeroCoverageFiles != null && {
+      zeroCoverageFiles: aggregate.zeroCoverageFiles,
+    }),
   };
 }
 

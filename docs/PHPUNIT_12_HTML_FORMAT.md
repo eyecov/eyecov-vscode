@@ -186,3 +186,13 @@ Colors are defined in [style.css](vendor/phpunit/php-code-coverage/src/Report/Ht
 - `**data-bs-content` is entity-encoded**: The popover body HTML is passed through `htmlspecialchars()` before being written into the `data-bs-content` attribute. In the stored HTML file, the attribute value therefore contains `<`, `>`, `"`, `&` etc. A parser reading the raw file must decode HTML entities to recover the inner `<ul>...</ul>` structure (or parse the escaped markup directly).
 - **Empty or minimal reports**: Root index/dashboard always exist. A report with no files still has `index.html` and `dashboard.html`; directory listing may have only the “Total” row. File pages for 0-line files yield an empty `#code` tbody. Parser should handle empty tables and missing rows.
 - **Custom CSS**: Users can supply a custom CSS file. It can override `.popover-body`, table styles, or layout. Do not rely on specific dimensions or visibility; rely on structure (elements, classes, IDs) and content.
+
+### 7. Covflux parser behavior
+
+The Covflux PHPUnit HTML adapter implements the above with these specifics:
+
+- **File discovery:** Only per-file HTML pages (`{file_id}.html`) are considered; `index.html` and `dashboard.html` (root and per-directory) are excluded from the list of coverage source files.
+- **Source segment:** Config can set `sourceSegment` to `app`, `src`, `lib`, or `auto`. When `auto`, the adapter tries those segments per workspace root to resolve source paths under the coverage root.
+- **Title / path:** If the `<title>` contains unescaped `<` or malformed markup, the parser truncates at the first `<` when deriving the source path.
+- **Popover size:** Decoded `data-bs-content` above a maximum length is not parsed for tests-by-line; the line is still classified from the `tr` class (covered/uncovered/warning/uncoverable).
+- **Line statuses:** Each line is mapped to an internal status code: covered-by-small, covered-by-medium, covered-by-large, uncovered, warning, or uncoverable. The adapter exposes these in `CoverageRecord.lineStatuses` for editor decorations (S/M/L shading and warning/uncoverable styling).

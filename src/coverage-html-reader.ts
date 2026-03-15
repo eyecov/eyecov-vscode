@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import type { PhpUnitHtmlSourceSegment } from './covflux-config';
 import type { CoverageData, FileCoverage } from './coverage-types';
 import { resolveCoverageHtmlPath, parseCoverageHtml } from './coverage-formats/phpunit-html';
 
@@ -9,11 +10,14 @@ export interface CoverageHtmlReaderOptions {
   log?: (msg: string) => void;
   /** PHPUnit HTML folder relative to workspace root (e.g. "coverage-html"). From config when present. */
   coverageHtmlDir?: string;
+  /** PHPUnit HTML source segment under workspace ('app' | 'src' | 'lib' | 'auto'). From config when present. */
+  sourceSegment?: PhpUnitHtmlSourceSegment;
 }
 
 export class CoverageHtmlReader {
   private readonly log: (msg: string) => void;
   private readonly coverageHtmlDir: string;
+  private readonly sourceSegment: PhpUnitHtmlSourceSegment;
 
   constructor(
     private readonly workspaceFolders: string[],
@@ -21,6 +25,7 @@ export class CoverageHtmlReader {
   ) {
     this.log = options.log ?? (() => {});
     this.coverageHtmlDir = options.coverageHtmlDir ?? DEFAULT_COVERAGE_HTML_DIR;
+    this.sourceSegment = options.sourceSegment ?? 'auto';
   }
 
   static exists(rootPath: string): boolean {
@@ -46,7 +51,7 @@ export class CoverageHtmlReader {
     const coverageHtmlPath = resolveCoverageHtmlPath(
       path.resolve(filePath),
       this.workspaceFolders,
-      { coverageHtmlDir: this.coverageHtmlDir }
+      { coverageHtmlDir: this.coverageHtmlDir, sourceSegment: this.sourceSegment }
     );
     if (!coverageHtmlPath) {
       this.log(`[coverage-html] ${path.basename(filePath)}: no matching html report`);

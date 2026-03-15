@@ -7,6 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { PhpUnitHtmlSourceSegment } from './covflux-config';
 import {
   resolveCoverageHtmlPath,
   buildCoverageFileResult,
@@ -48,6 +49,8 @@ export interface ResolveCoverageQueryOptions {
   toFileSystemPath?: (s: string) => string;
   /** PHPUnit HTML folder relative to workspace root (e.g. "coverage-html"). From config when present. */
   coverageHtmlDir?: string;
+  /** PHPUnit HTML source segment under workspace ('app' | 'src' | 'lib' | 'auto'). From config when present. */
+  sourceSegment?: PhpUnitHtmlSourceSegment;
 }
 
 /**
@@ -62,7 +65,10 @@ export function getCandidatePathsForQuery(
 ): string[] {
   const resolved = resolveFilePath(query, workspaceRoots, options);
   if (resolved) return [resolved];
-  const phpunitOptions = options.coverageHtmlDir ? { coverageHtmlDir: options.coverageHtmlDir } : {};
+  const phpunitOptions = {
+    ...(options.coverageHtmlDir && { coverageHtmlDir: options.coverageHtmlDir }),
+    ...(options.sourceSegment && { sourceSegment: options.sourceSegment }),
+  };
   const matches = findCoverageHtmlBasenameMatches(query, workspaceRoots, phpunitOptions);
   return matches.map((m) => m.filePath);
 }

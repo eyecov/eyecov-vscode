@@ -18,9 +18,9 @@ Works in **VS Code**, [**Cursor**](https://cursor.com), and [**Antigravity**](ht
 
 Coverage appears directly in the editor.
 
-- covered lines
+- covered lines (when the format supplies it, shaded by test size: small / medium / large)
 - uncovered lines
-- uncoverable lines
+- uncoverable and warning lines
 
 *(Add a screenshot at `images/coverage-lines.png` for best discoverability.)*
 
@@ -67,8 +67,8 @@ Covflux exposes coverage through a built-in **MCP server**. Available tools:
 
 - **coverage_file** — file-level coverage, uncovered lines
 - **coverage_line_tests** — which tests cover given line(s) (PHPUnit HTML)
-- **coverage_path** — aggregate coverage for a path
-- **coverage_project** — project-level coverage
+- **coverage_path** — aggregate coverage for a path (optional worstFilesLimit, zeroCoverageFilesLimit, coveredLinesCutoff; can return zeroCoverageFiles)
+- **coverage_project** — project-level coverage (optional same limits; can return zeroCoverageFiles)
 - **coverage_test_priority** — where to add tests first
 
 This lets AI tools answer: *Which files need tests most? Which tests cover this line? What has the lowest coverage?*

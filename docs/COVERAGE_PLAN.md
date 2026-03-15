@@ -1,16 +1,8 @@
 # Covflux Coverage Plan
 
-## Current state (last refreshed 2026-03-14)
+## Current state
 
-**Still open:**
-
-- **Plan settings** — `covflux.phpunitHtmlPath`, `covflux.trackCoverageThroughEdits`, and the plan's exact `coverageSource` values are not implemented; current settings differ.
-- **Edit-tolerant tracking** — Not implemented; remains optional/future.
-- **PHPUnit HTML verification** — *(Postponed.)* Verify the PHPUnit HTML implementation against a large codebase with coverage; mostly relevant for the covering-tests feature. To be done when focusing on that.
-
-**Suggested next steps:** (1) Optional edit tracking only after the core path is stable. (2) Use the extracted feature plans for covering tests and MCP after the core runtime is stable.
-
-**Note:** SQLite and coverage-json have been removed as coverage sources; supported inputs are PHPUnit HTML and LCOV only.
+Supported coverage inputs are PHPUnit HTML and LCOV only. The extension discovers coverage per format (e.g. PHPUnit HTML at `coverage-html/`), resolves per file, and normalizes into one internal format. Path and project aggregates support worstFiles, zeroCoverageFiles, and configurable limits/cutoff; MCP tools pass these options through and return zeroCoverageFiles when requested. PHPUnit HTML provides per-line test size (small/medium/large), warning and uncoverable states; the internal format encodes them in a single compact structure and the editor applies matching decorations. Optional edit-tolerant tracking and plan-level settings (e.g. `covflux.phpunitHtmlPath`, `covflux.trackCoverageThroughEdits`) remain not implemented or differ from the plan; PHPUnit HTML verification on large codebases is postponed.
 
 ---
 
@@ -121,7 +113,7 @@ Optional later: staleness strategy override; see feature plans for feature-speci
 
 ## Configuration file
 
-Implemented in `src/covflux-config.ts`: `.covflux.json` / `covflux.json` with `formats` array (type + path); defaults when absent. Extension and MCP use `loadCovfluxConfig` and `createAdaptersFromConfig`.
+Implemented in `src/covflux-config.ts`: `.covflux.json` / `covflux.json` with `formats` array (type + path); phpunit-html entries can include `sourceSegment` (`app` | `src` | `lib` | `auto`). Defaults when absent. Extension and MCP use `loadCovfluxConfig` and `createAdaptersFromConfig`.
 
 ## Delivery Phases
 

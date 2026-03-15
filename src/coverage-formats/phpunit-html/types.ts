@@ -17,4 +17,6 @@ export type CoverageFileResult = {
 
 export type ParsedCoverageFileResult = CoverageFileResult & {
   testsByLine: Map<number, string[]>;
+  /** Per-line status codes (LINE_STATUS.*) from parser. */
+  lineStatuses: Map<number, number>;
 };

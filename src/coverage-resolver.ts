@@ -20,6 +20,8 @@ export interface CoverageRecord {
   coverageHtmlPath?: string;
   /** Set by PHPUnit HTML adapter for per-line test data; omitted for LCOV. */
   testsByLine?: Map<number, string[]>;
+  /** Per-line status codes (LINE_STATUS.*); set by PHPUnit HTML adapter, omitted for LCOV. */
+  lineStatuses?: Map<number, number>;
 }
 
 /** Adapter: given a file path and workspace roots, return a record or null. */
@@ -72,7 +74,12 @@ export function createAdaptersFromConfig(config: CovfluxConfig): CoverageAdapter
   const adapters: CoverageAdapter[] = [];
   for (const entry of config.formats) {
     if (entry.type === 'phpunit-html') {
-      adapters.push(new PhpUnitHtmlAdapter({ coverageHtmlDir: entry.path }));
+      adapters.push(
+        new PhpUnitHtmlAdapter({
+          coverageHtmlDir: entry.path,
+          sourceSegment: entry.sourceSegment ?? 'auto',
+        })
+      );
     } else if (entry.type === 'lcov') {
       adapters.push(new LcovAdapter({ path: entry.path }));
     }

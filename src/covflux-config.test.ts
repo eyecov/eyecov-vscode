@@ -6,6 +6,7 @@ import {
   loadCovfluxConfig,
   DEFAULT_CONFIG,
   getPhpUnitHtmlDir,
+  getPhpUnitHtmlSourceSegment,
   getLcovPath,
   getLcovPathsToWatch,
   type CovfluxConfig,
@@ -58,6 +59,21 @@ describe('covflux-config', () => {
       expect(config.formats).toHaveLength(2);
       expect(config.formats[0]).toEqual({ type: 'phpunit-html', path: 'build/coverage-html' });
       expect(config.formats[1]).toEqual({ type: 'lcov', path: 'out/lcov.info' });
+    });
+
+    it('parses sourceSegment for phpunit-html entry when valid', () => {
+      fs.writeFileSync(
+        path.join(workspaceRoot, '.covflux.json'),
+        JSON.stringify({
+          formats: [
+            { type: 'phpunit-html', path: 'coverage-html', sourceSegment: 'src' },
+            { type: 'lcov', path: 'coverage/lcov.info' },
+          ],
+        })
+      );
+      const config = loadCovfluxConfig(workspaceRoot);
+      expect(config.formats[0]).toMatchObject({ type: 'phpunit-html', path: 'coverage-html', sourceSegment: 'src' });
+      expect(getPhpUnitHtmlSourceSegment(config)).toBe('src');
     });
 
     it('loads covflux.json when .covflux.json is absent', () => {
@@ -131,6 +147,25 @@ describe('covflux-config', () => {
     it('returns path from first phpunit-html entry', () => {
       const config = { formats: [{ type: 'phpunit-html', path: 'build/html' }] };
       expect(getPhpUnitHtmlDir(config)).toBe('build/html');
+    });
+  });
+
+  describe('getPhpUnitHtmlSourceSegment', () => {
+    it('returns "auto" when no phpunit-html in config', () => {
+      const config = { formats: [{ type: 'lcov', path: 'coverage/lcov.info' }] };
+      expect(getPhpUnitHtmlSourceSegment(config)).toBe('auto');
+    });
+
+    it('returns "auto" when phpunit-html entry has no sourceSegment', () => {
+      const config = { formats: [{ type: 'phpunit-html', path: 'coverage-html' }] };
+      expect(getPhpUnitHtmlSourceSegment(config)).toBe('auto');
+    });
+
+    it('returns sourceSegment from first phpunit-html entry when set', () => {
+      const config = {
+        formats: [{ type: 'phpunit-html', path: 'coverage-html', sourceSegment: 'src' as const }],
+      };
+      expect(getPhpUnitHtmlSourceSegment(config)).toBe('src');
     });
   });
 
