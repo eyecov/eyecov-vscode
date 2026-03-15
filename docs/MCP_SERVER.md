@@ -224,3 +224,72 @@ Returns covering tests for a file and line(s).
 2. Start the extension in Extension Development Host (VS Code 1.101+).
 3. Open **MCP: List Servers** and confirm the covflux server appears.
 4. Call `coverage_file`, `coverage_path`, `coverage_project`, `coverage_test_priority`, or `coverage_line_tests` from chat/agent and confirm responses match workspace coverage.
+
+## AI Workflow: Generate tests for uncovered code
+
+When working in the editor, developers may notice uncovered lines highlighted
+by Covflux. AI assistants can use this information to generate tests that
+target those gaps.
+
+Typical workflow:
+
+1. The developer sees uncovered (red) lines in the editor.
+2. The developer asks the AI assistant to generate tests covering those lines.
+3. The AI queries Covflux for coverage information for the file.
+4. The AI inspects the surrounding code and identifies the uncovered branches.
+5. The AI generates targeted tests designed to execute those branches.
+6. The developer runs the tests and coverage is updated.
+
+Example prompt to an AI assistant:
+
+> Generate tests that cover the uncovered lines in this file.
+
+Example MCP query used by the AI:
+
+```json
+{
+  "tool": "coverage_file",
+  "arguments": { "query": "src/html-parser.ts" }
+}
+```
+
+Example response:
+
+```json
+{
+  "query": "src/html-parser.ts",
+  "resolved": true,
+  "workspaceRoots": ["/path/to/workspace"],
+  "message": "Resolved one file match from coverage-html.",
+  "matchCount": 1,
+  "matches": [
+    {
+      "filePath": "src/html-parser.ts",
+      "lineCoveragePercent": 68,
+      "coveredLines": 45,
+      "uncoveredLines": 21,
+      "coveredLineNumbers": [1, 2, 3, 5, 6, 7],
+      "uncoveredLineNumbers": [41, 42, 43, 77, 102]
+    }
+  ]
+}
+```
+
+The AI uses `matches[0].uncoveredLineNumbers` (and optionally
+`matches[0].lineCoveragePercent`) to identify gaps, then inspects the code
+around those lines and generates tests that exercise the missing branches.
+
+Example generated test:
+
+```ts
+it("returns null when node has no children", () => {
+  const node = { children: [] }
+
+  const result = parseNode(node)
+
+  expect(result).toBeNull()
+})
+```
+
+After running the new tests, coverage can be queried again to verify that the
+uncovered lines are now executed.

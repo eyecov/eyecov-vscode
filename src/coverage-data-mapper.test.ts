@@ -38,9 +38,9 @@ describe("recordToCoverageData", () => {
 
     const result = recordToCoverageData(record);
 
-    expect(result.lineStatuses.get(1)).toBe(1);
-    expect(result.lineStatuses.get(2)).toBe(2);
-    expect(result.lineStatuses.get(3)).toBe(1);
+    expect(result.lineStatuses.get(1)).toBe(LINE_STATUS.COVERED_SMALL);
+    expect(result.lineStatuses.get(2)).toBe(LINE_STATUS.UNCOVERED);
+    expect(result.lineStatuses.get(3)).toBe(LINE_STATUS.COVERED_SMALL);
   });
 });
 

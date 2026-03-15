@@ -5,6 +5,7 @@
 
 import type { CoverageRecord } from "./coverage-resolver";
 import type { CoverageData } from "./coverage-types";
+import { LINE_STATUS } from "./coverage-types";
 
 export function recordToCoverageData(record: CoverageRecord): CoverageData {
   const totalLines = record.coveredLines.size + record.uncoveredLines.size;
@@ -13,8 +14,10 @@ export function recordToCoverageData(record: CoverageRecord): CoverageData {
       ? new Map(record.lineStatuses)
       : (() => {
           const m = new Map<number, number>();
-          for (const line of record.coveredLines) m.set(line, 1);
-          for (const line of record.uncoveredLines) m.set(line, 2);
+          for (const line of record.coveredLines)
+            m.set(line, LINE_STATUS.COVERED_SMALL);
+          for (const line of record.uncoveredLines)
+            m.set(line, LINE_STATUS.UNCOVERED);
           return m;
         })();
   return {
