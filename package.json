@@ -2,7 +2,7 @@
   "name": "covflux-vscode",
   "displayName": "Covflux",
   "description": "Display code coverage in VS Code editor",
-  "version": "0.2.12",
+  "version": "0.2.13",
   "publisher": "covflux",
   "icon": "images/covflux-logo-256.png",
   "repository": {
@@ -58,6 +58,10 @@
       {
         "command": "covflux.toggleLineCoverage",
         "title": "Toggle Line Coverage"
+      },
+      {
+        "command": "covflux.toggleTrackCoverageThroughEdits",
+        "title": "Toggle Track Coverage Through Edits"
       }
     ],
     "configuration": {
@@ -102,6 +106,11 @@
           "type": "boolean",
           "default": true,
           "description": "Reserved for future use. When implemented, enables a low-priority background crawl to pre-index coverage for faster path/project queries."
+        },
+        "covflux.trackCoverageThroughEdits": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true, coverage line numbers are shifted in memory when you insert or delete lines, so highlighting stays aligned. When false, coverage is not tracked through edits; after editing, use coverage refresh or reopen the file to realign."
         }
       }
     }

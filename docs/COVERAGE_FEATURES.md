@@ -37,11 +37,15 @@ When a prewarm cache is valid, `coverage_path` and `coverage_project` (and relat
 - **Optional prewarm** — If `covflux.prewarmCoverageCache` is enabled, the extension builds a coverage cache in the background (`.covflux/coverage-cache.json` per workspace root). That cache is used by MCP for path/project aggregates when valid, so those tools avoid re-scanning and re-parsing on every call.
 - **Invalidation** — The cache is dropped when coverage artifacts or the config change, so results stay consistent with the current workspace state.
 
+## Edit-tolerant tracking
+
+When **`covflux.trackCoverageThroughEdits`** is **`true`** (default), the extension keeps coverage line numbers in sync with simple edits: insert/delete lines shift the mapping in memory so highlighting stays aligned. When you edit a covered line directly (overlap) or make very large or numerous edits, tracked state is invalidated and decorations are cleared until coverage is reloaded. Reload happens automatically when coverage artifacts change or when you turn the feature off.
+
+- **Setting** — `covflux.trackCoverageThroughEdits` (default: `true`). When `false`, coverage is not tracked through edits; after you change the file, highlighting stays on the original line numbers until you refresh coverage or reopen the file.
+- **Toggle** — Command **“Covflux: Toggle Track Coverage Through Edits”** (Command Palette) flips the setting and refreshes editors.
+- **Non-goals:** perfect semantic remapping, surviving arbitrary refactors, or complex diff algorithms. Implementation details: [COVERAGE_ARCHITECTURE.md](COVERAGE_ARCHITECTURE.md#edit-tracking).
+
 ## Planned and optional
 
-- **Edit-tolerant tracking** — _(Not implemented.)_ Optional feature, off by default and gated by a setting (e.g. `covflux.trackCoverageThroughEdits`).
-  - **`false`** (default): coverage is anchored to original line numbers only; after you edit, highlighting stays on the old lines until coverage is reloaded.
-  - **`true`**: attempt to preserve line mapping when the buffer changes (e.g. lightweight line-offset mapping from document change events; simple insert/delete shifts first). If edits become too complex or mapping confidence drops, tracked coverage is invalidated and highlighting is hidden until reloaded.
-  - **Non-goals:** perfect semantic remapping, surviving arbitrary refactors, or complex diff algorithms in the hot path. Implementation details: [COVERAGE_ARCHITECTURE.md](COVERAGE_ARCHITECTURE.md#edit-tracking).
-- **Plan settings** — Settings such as `covflux.coverageSource`, `covflux.phpunitHtmlPath`, and `covflux.trackCoverageThroughEdits` from the plan are not yet implemented; format order and paths are currently controlled only by the config file.
+- **Plan settings** — Settings such as `covflux.coverageSource` and `covflux.phpunitHtmlPath` from the plan are not yet implemented; format order and paths are currently controlled only by the config file.
 - **PHPUnit HTML verification** — _(Postponed.)_ Validate the PHPUnit HTML implementation on a large codebase (path resolution, parsing, highlighting, MCP tools), including version detection and handling of lines with many covering tests. To be done when focusing on the covering-tests feature.

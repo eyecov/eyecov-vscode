@@ -116,7 +116,7 @@ Rules: keep `findCoverageForFile` cheap; do heavy parsing in `read` after freshn
 
 **Current shape** (see above): `sourcePath`, `coveredLines`, `uncoveredLines`, `uncoverableLines`, `lineCoveragePercent`, optional `lineStatuses`, `coverageHtmlPath`, `testsByLine`. Fast `Set<number>` lookup for covered/uncovered; optional `lineStatuses` for per-line state (S/M/L, warning, uncoverable) when the adapter supplies it.
 
-**Possible evolution:** Add `sourceVersion` (mtime/size) and optional `trackingMap` for edit-tolerant display when that feature is implemented.
+**Note:** Edit-tolerant display is implemented via `TrackedCoverageState` and line-delta mapping in `src/edit-tracking.ts`; see [COVERAGE_FEATURES.md](COVERAGE_FEATURES.md#edit-tolerant-tracking).
 
 ## Supported Adapters for Core
 
@@ -138,7 +138,7 @@ Rules: keep `findCoverageForFile` cheap; do heavy parsing in `read` after freshn
 
 ## Edit Tracking
 
-Optional advanced feature; behavior and non-goals are in [COVERAGE_FEATURES.md](COVERAGE_FEATURES.md#planned-and-optional). **Implementation:** maintain a lightweight line-offset mapping from document change events; support simple insert/delete shifts first; invalidate and fall back to no highlighting when mapping confidence drops.
+**Implemented.** When `covflux.trackCoverageThroughEdits` is true (default), the extension keeps coverage line numbers in sync with simple edits via a lightweight line-offset mapping from document change events; insert/delete shifts are applied first. When edits overlap coverage lines or exceed size/count thresholds, tracked state is invalidated and highlighting is cleared until coverage is reloaded. Behavior, setting, and toggle command are documented in [COVERAGE_FEATURES.md](COVERAGE_FEATURES.md#edit-tolerant-tracking). Implementation: `src/edit-tracking.ts` (pure mapping) and extension state in `src/extension.ts`.
 
 ## Caching
 

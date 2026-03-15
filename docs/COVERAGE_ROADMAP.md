@@ -7,6 +7,7 @@ Forward-looking roadmap: done, in progress, planned, and maybe. For the canonica
 - PHPUnit HTML adapter
 - LCOV adapter
 - editor highlighting
+- edit-tolerant coverage tracking (setting `covflux.trackCoverageThroughEdits`, toggle command)
 - MCP server
 - coverage_file
 - coverage_path
@@ -20,7 +21,6 @@ Forward-looking roadmap: done, in progress, planned, and maybe. For the canonica
 
 ## Planned
 
-- edit-tracking
 - additional adapters
 - coverage diff
 - test recommendation improvements

@@ -2,7 +2,8 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
 import {
-  getLinesByStatusCode,
+  getDecorationPlan,
+  getStatusBarContent,
   recordToCoverageData,
 } from "./coverage-data-mapper";
 import { CoverageData, LINE_STATUS } from "./coverage-types";
@@ -17,6 +18,7 @@ import { listCoveredPathsFromFirstFormat } from "./coverage-aggregate";
 import { deleteCoverageCache } from "./coverage-cache";
 import { prewarmCoverageForRoot } from "./coverage-prewarm";
 import {
+  type CoverageRecord,
   CoverageResolver,
   createAdaptersFromConfig,
 } from "./coverage-resolver";
@@ -24,6 +26,12 @@ import {
   isMcpServerEnabled,
   isPrewarmCoverageCacheEnabled,
 } from "./mcp/settings";
+import {
+  TrackedCoverageState,
+  applyChanges,
+  recordToTrackedState,
+  trackedStateToCoverageData,
+} from "./edit-tracking";
 
 /** PHPUnit report colors: light then dark (docs). */
 const COVERAGE_COLORS = {
@@ -177,6 +185,8 @@ class CovfluxExtension {
   private currentCoverage: CoverageData | null = null;
   private workspaceFolder: string | undefined;
   private outputChannel: vscode.OutputChannel;
+  private trackedCoverageByUri = new Map<string, TrackedCoverageState>();
+  private editCountByUri = new Map<string, number>();
 
   constructor(context: vscode.ExtensionContext) {
     this.decorations = new CoverageDecorations(
@@ -263,14 +273,15 @@ class CovfluxExtension {
 
         const filePath = editor.document.uri.fsPath;
         this.getFileCoverage(filePath)
-          .then((coverage) => {
-            if (!coverage) {
+          .then((result) => {
+            if (!result) {
               vscode.window.showInformationMessage(
                 `Covflux: No coverage data found for ${path.basename(filePath)}`,
               );
               return;
             }
 
+            const coverage = result.coverage;
             const percent = coverage.file.lineCoveragePercent;
             const covered =
               coverage.file.coveredLines ?? coverage.coveredLines.size;
@@ -329,6 +340,72 @@ class CovfluxExtension {
       },
     );
 
+    const toggleTrackCoverageThroughEditsCommand =
+      vscode.commands.registerCommand(
+        "covflux.toggleTrackCoverageThroughEdits",
+        async () => {
+          const config = vscode.workspace.getConfiguration("covflux");
+          const current = config.get<boolean>(
+            "trackCoverageThroughEdits",
+            true,
+          );
+          await config.update(
+            "trackCoverageThroughEdits",
+            !current,
+            vscode.ConfigurationTarget.Global,
+          );
+          if (current) {
+            this.clearAllTrackedState();
+          }
+          if (this.coverageEnabled) this.updateAllEditors();
+          vscode.window.showInformationMessage(
+            `Covflux: Track coverage through edits ${!current ? "on" : "off"}`,
+          );
+        },
+      );
+
+    const debugGetTrackedStateCommand = vscode.commands.registerCommand(
+      "covflux._debugGetTrackedState",
+      () => Array.from(this.trackedCoverageByUri.keys()),
+    );
+
+    const debugGetTrackedStateDetailsCommand = vscode.commands.registerCommand(
+      "covflux._debugGetTrackedStateDetails",
+      () => {
+        const result: Record<
+          string,
+          {
+            coveredLines: number[];
+            uncoveredLines: number[];
+            uncoverableLines: number[];
+          }
+        > = {};
+        for (const [uri, state] of this.trackedCoverageByUri.entries()) {
+          if (!state.isValid) continue;
+          result[uri] = {
+            coveredLines: state.coveredLines.slice(),
+            uncoveredLines: state.uncoveredLines.slice(),
+            uncoverableLines: state.uncoverableLines.slice(),
+          };
+        }
+        return result;
+      },
+    );
+
+    const debugClearTrackedStateForUriCommand = vscode.commands.registerCommand(
+      "covflux._debugClearTrackedStateForUri",
+      (uriString: string) => {
+        if (typeof uriString === "string") {
+          this.clearTrackedStateForUri(uriString);
+        }
+      },
+    );
+
+    const debugReloadCoverageCommand = vscode.commands.registerCommand(
+      "covflux._debugReloadCoverage",
+      () => this.reloadCoverage(),
+    );
+
     context.subscriptions.push(
       showCommand,
       hideCommand,
@@ -336,6 +413,11 @@ class CovfluxExtension {
       showInfoCommand,
       toggleGutterCommand,
       toggleLineCommand,
+      toggleTrackCoverageThroughEditsCommand,
+      debugGetTrackedStateCommand,
+      debugGetTrackedStateDetailsCommand,
+      debugClearTrackedStateForUriCommand,
+      debugReloadCoverageCommand,
     );
 
     // Watch for editor changes
@@ -349,21 +431,134 @@ class CovfluxExtension {
 
     // Watch for document changes
     const onDidChangeTextDocument = vscode.workspace.onDidChangeTextDocument(
-      () => {
-        if (vscode.window.activeTextEditor && this.coverageEnabled) {
-          // Debounce updates
-          setTimeout(() => {
-            if (vscode.window.activeTextEditor) {
-              this.updateEditor(vscode.window.activeTextEditor);
-            }
-          }, 500);
+      (event) => {
+        const trackThroughEdits = vscode.workspace
+          .getConfiguration("covflux")
+          .get<boolean>("trackCoverageThroughEdits", true);
+        if (!trackThroughEdits) {
+          if (
+            vscode.window.activeTextEditor &&
+            event.document === vscode.window.activeTextEditor.document &&
+            this.coverageEnabled
+          ) {
+            this.updateEditor(vscode.window.activeTextEditor);
+          }
+          return;
         }
+
+        const uriKey = event.document.uri.toString();
+        const existingState = this.trackedCoverageByUri.get(uriKey);
+
+        if (!this.coverageEnabled || !existingState || !existingState.isValid) {
+          if (
+            vscode.window.activeTextEditor &&
+            event.document === vscode.window.activeTextEditor.document &&
+            this.coverageEnabled
+          ) {
+            this.updateEditor(vscode.window.activeTextEditor);
+          }
+          return;
+        }
+
+        const editor = vscode.window.visibleTextEditors.find(
+          (e) => e.document.uri.toString() === uriKey,
+        );
+        if (!editor) {
+          return;
+        }
+
+        const editCountBefore = this.editCountByUri.get(uriKey) ?? 0;
+        const contentChanges = event.contentChanges.map((change) => {
+          const start0 = change.range.start.line;
+          const end0 = change.range.end.line;
+          const endChar = change.range.end.character;
+          const isEmpty = change.range.isEmpty;
+          const exclusiveEnd = isEmpty
+            ? start0
+            : start0 === end0
+              ? start0 + 1
+              : endChar === 0
+                ? end0
+                : end0 + 1;
+          return {
+            range: {
+              start: { line: start0 },
+              end: { line: exclusiveEnd },
+            },
+            text: change.text,
+          };
+        });
+        const mapped = applyChanges(
+          existingState.coveredLines,
+          existingState.uncoveredLines,
+          existingState.uncoverableLines,
+          contentChanges,
+          {
+            maxEditRange: 200,
+            maxEdits: 200,
+            editCountBefore,
+          },
+        );
+
+        if (!mapped) {
+          this.trackedCoverageByUri.delete(uriKey);
+          this.editCountByUri.delete(uriKey);
+          editor.setDecorations(this.decorations.coveredLine, []);
+          editor.setDecorations(this.decorations.uncoveredLine, []);
+          editor.setDecorations(this.decorations.uncoverableLine, []);
+          editor.setDecorations(this.decorations.coveredLineWithBackground, []);
+          editor.setDecorations(
+            this.decorations.uncoveredLineWithBackground,
+            [],
+          );
+          editor.setDecorations(
+            this.decorations.uncoverableLineWithBackground,
+            [],
+          );
+          editor.setDecorations(
+            this.decorations.coveredSmallWithBackground,
+            [],
+          );
+          editor.setDecorations(
+            this.decorations.coveredMediumWithBackground,
+            [],
+          );
+          editor.setDecorations(
+            this.decorations.coveredLargeWithBackground,
+            [],
+          );
+          editor.setDecorations(this.decorations.warningWithBackground, []);
+          return;
+        }
+
+        const updatedState: TrackedCoverageState = {
+          ...existingState,
+          coveredLines: mapped.coveredLines,
+          uncoveredLines: mapped.uncoveredLines,
+          uncoverableLines: mapped.uncoverableLines,
+        };
+        this.trackedCoverageByUri.set(uriKey, updatedState);
+        this.editCountByUri.set(
+          uriKey,
+          editCountBefore + event.contentChanges.length,
+        );
+
+        const coverage = trackedStateToCoverageData(updatedState);
+        this.currentCoverage = coverage;
+        this.applyDecorations(editor, coverage);
+      },
+    );
+
+    const onDidCloseTextDocument = vscode.workspace.onDidCloseTextDocument(
+      (document) => {
+        this.clearTrackedStateForUri(document.uri.toString());
       },
     );
 
     context.subscriptions.push(
       onDidChangeActiveEditor,
       onDidChangeTextDocument,
+      onDidCloseTextDocument,
     );
 
     this.watchCoverage();
@@ -391,6 +586,18 @@ class CovfluxExtension {
 
   private hasCoverageSource(): boolean {
     return this.resolver !== null;
+  }
+
+  /** Remove tracked coverage state for a document (e.g. on close). */
+  private clearTrackedStateForUri(uriKey: string): void {
+    this.trackedCoverageByUri.delete(uriKey);
+    this.editCountByUri.delete(uriKey);
+  }
+
+  /** Clear all tracked coverage state (e.g. on coverage reload). */
+  private clearAllTrackedState(): void {
+    this.trackedCoverageByUri.clear();
+    this.editCountByUri.clear();
   }
 
   private registerMcpServer(context: vscode.ExtensionContext): void {
@@ -444,18 +651,21 @@ class CovfluxExtension {
   }
 
   /**
-   * Get coverage for a file from the resolver (PHPUnit HTML).
+   * Get coverage record and mapped CoverageData for a file from the resolver.
    */
   private async getFileCoverage(
     filePath: string,
-  ): Promise<CoverageData | null> {
+  ): Promise<{ record: CoverageRecord; coverage: CoverageData } | null> {
     if (!this.resolver) return null;
     const record = await this.resolver.getCoverage(filePath);
     if (!record) return null;
     this.log(
       `[coverage-html] ${path.basename(filePath)}: ${record.uncoveredLines.size} uncovered line(s): [${[...record.uncoveredLines].sort((a, b) => a - b).join(", ")}]`,
     );
-    return recordToCoverageData(record);
+    return {
+      record,
+      coverage: recordToCoverageData(record),
+    };
   }
 
   /**
@@ -571,6 +781,7 @@ class CovfluxExtension {
   }
 
   private async reloadCoverage(): Promise<void> {
+    this.clearAllTrackedState();
     this.coverageHtml = null;
     this.resolver = null;
     await this.initializeCoverage();
@@ -613,7 +824,34 @@ class CovfluxExtension {
     }
 
     try {
-      const coverage = await this.getFileCoverage(filePath);
+      const uriKey = editor.document.uri.toString();
+      const trackThroughEdits = vscode.workspace
+        .getConfiguration("covflux")
+        .get<boolean>("trackCoverageThroughEdits", true);
+      const existingState = this.trackedCoverageByUri.get(uriKey);
+
+      let coverage: CoverageData | null = null;
+
+      if (trackThroughEdits && existingState && existingState.isValid) {
+        coverage = trackedStateToCoverageData(existingState);
+      } else {
+        const result = await this.getFileCoverage(filePath);
+        if (!result) {
+          this.updateCoverageStatus(null);
+          this.log(`[update] No coverage for ${path.basename(filePath)}`);
+          return;
+        }
+
+        const state = recordToTrackedState(
+          result.record,
+          editor.document.version,
+        );
+        if (trackThroughEdits) {
+          this.trackedCoverageByUri.set(uriKey, state);
+        }
+        coverage = trackedStateToCoverageData(state);
+      }
+
       if (!coverage) {
         this.updateCoverageStatus(null);
         this.log(`[update] No coverage for ${path.basename(filePath)}`);
@@ -649,43 +887,17 @@ class CovfluxExtension {
    * Update coverage status bar
    */
   private updateCoverageStatus(coverage: CoverageData | null): void {
-    if (!coverage || !this.coverageEnabled) {
-      this.statusBarCoverage.text = "$(test-view-icon) Coverage";
-      this.statusBarCoverage.backgroundColor = undefined;
-      this.statusBarCoverage.hide();
-      return;
-    }
-
-    const percent = coverage.file.lineCoveragePercent;
-    if (percent === null || percent === undefined) {
-      this.statusBarCoverage.text = "$(test-view-icon) Coverage: N/A";
-      this.statusBarCoverage.backgroundColor = undefined;
+    const content = getStatusBarContent(coverage, this.coverageEnabled);
+    this.statusBarCoverage.text = content.text;
+    this.statusBarCoverage.tooltip = content.tooltip;
+    this.statusBarCoverage.backgroundColor = content.backgroundColor
+      ? new vscode.ThemeColor(content.backgroundColor)
+      : undefined;
+    if (content.show) {
+      this.statusBarCoverage.show();
     } else {
-      const covered = coverage.file.coveredLines ?? coverage.coveredLines.size;
-      const total = coverage.file.totalLines ?? 0;
-
-      // Color based on coverage percentage
-      if (percent >= 80) {
-        this.statusBarCoverage.backgroundColor = new vscode.ThemeColor(
-          "statusBarItem.prominentBackground",
-        );
-      } else if (percent >= 50) {
-        this.statusBarCoverage.backgroundColor = new vscode.ThemeColor(
-          "statusBarItem.warningBackground",
-        );
-      } else {
-        this.statusBarCoverage.backgroundColor = new vscode.ThemeColor(
-          "statusBarItem.errorBackground",
-        );
-      }
-
-      this.statusBarCoverage.text = `$(test-view-icon) ${percent.toFixed(1)}% (${covered}/${total})`;
+      this.statusBarCoverage.hide();
     }
-
-    const coveredCount =
-      coverage.file.coveredLines ?? coverage.coveredLines.size;
-    this.statusBarCoverage.tooltip = `Coverage: ${percent?.toFixed(1)}%\nCovered lines: ${coveredCount}\nTotal lines: ${coverage.file.totalLines}\nClick to toggle coverage display`;
-    this.statusBarCoverage.show();
   }
 
   /**
@@ -709,91 +921,61 @@ class CovfluxExtension {
     const showUncovered = config.get<boolean>("showUncovered", true);
     const showLineCoverage = config.get<boolean>("showLineCoverage", true);
     const showGutterCoverage = config.get<boolean>("showGutterCoverage", true);
-
-    const byStatus = getLinesByStatusCode(coverage);
-    const statusKeys = [...byStatus.keys()];
-    const useGranular =
-      statusKeys.some(
-        (k) =>
-          k === LINE_STATUS.COVERED_LARGE ||
-          k === LINE_STATUS.WARNING ||
-          k === LINE_STATUS.UNCOVERABLE,
-      ) || statusKeys.length > 2;
-
     const totalLines = editor.document.lineCount;
 
-    if (useGranular && showLineCoverage) {
-      const lineNumToRanges = (lineNums: number[]) =>
-        lineNums
-          .filter((n) => n >= 1 && n <= totalLines)
-          .map((n) => editor.document.lineAt(n - 1).range);
+    const plan = getDecorationPlan(coverage, {
+      showCovered,
+      showUncovered,
+      showLineCoverage,
+      showGutterCoverage,
+      totalLines,
+    });
+
+    const toRanges = (lineNums: number[]) =>
+      lineNums.map((n) => editor.document.lineAt(n - 1).range);
+
+    if (plan.useGranular && showLineCoverage && plan.byStatus) {
       editor.setDecorations(
         this.decorations.coveredSmallWithBackground,
-        showCovered
-          ? lineNumToRanges(byStatus.get(LINE_STATUS.COVERED_SMALL) ?? [])
-          : [],
+        toRanges(plan.byStatus.get(LINE_STATUS.COVERED_SMALL) ?? []),
       );
       editor.setDecorations(
         this.decorations.coveredMediumWithBackground,
-        showCovered
-          ? lineNumToRanges(byStatus.get(LINE_STATUS.COVERED_MEDIUM) ?? [])
-          : [],
+        toRanges(plan.byStatus.get(LINE_STATUS.COVERED_MEDIUM) ?? []),
       );
       editor.setDecorations(
         this.decorations.coveredLargeWithBackground,
-        showCovered
-          ? lineNumToRanges(byStatus.get(LINE_STATUS.COVERED_LARGE) ?? [])
-          : [],
+        toRanges(plan.byStatus.get(LINE_STATUS.COVERED_LARGE) ?? []),
       );
       editor.setDecorations(
         this.decorations.warningWithBackground,
-        showUncovered
-          ? lineNumToRanges(byStatus.get(LINE_STATUS.WARNING) ?? [])
-          : [],
+        toRanges(plan.byStatus.get(LINE_STATUS.WARNING) ?? []),
       );
       editor.setDecorations(
         this.decorations.uncoveredLineWithBackground,
-        showUncovered
-          ? lineNumToRanges(byStatus.get(LINE_STATUS.UNCOVERED) ?? [])
-          : [],
+        toRanges(plan.byStatus.get(LINE_STATUS.UNCOVERED) ?? []),
       );
       editor.setDecorations(
         this.decorations.uncoverableLineWithBackground,
-        showUncovered
-          ? lineNumToRanges(byStatus.get(LINE_STATUS.UNCOVERABLE) ?? [])
-          : [],
+        toRanges(plan.byStatus.get(LINE_STATUS.UNCOVERABLE) ?? []),
       );
       editor.setDecorations(this.decorations.coveredLineWithBackground, []);
     } else {
-      const coveredRanges: vscode.Range[] = [];
-      const uncoveredRanges: vscode.Range[] = [];
-      const uncoverableRanges: vscode.Range[] = [];
-      for (let i = 0; i < totalLines; i++) {
-        const line = editor.document.lineAt(i);
-        const lineNumber = i + 1;
-        if (coverage.coveredLines.has(lineNumber)) {
-          if (showCovered) coveredRanges.push(line.range);
-        } else if (coverage.uncoveredLines.has(lineNumber)) {
-          if (showUncovered) uncoveredRanges.push(line.range);
-        } else if (coverage.uncoverableLines.has(lineNumber)) {
-          if (showUncovered) uncoverableRanges.push(line.range);
-        }
-      }
       this.log(
-        `[decorations] ${path.basename(editor.document.uri.fsPath)}: docLines=${totalLines} → covered=${coveredRanges.length} uncovered=${uncoveredRanges.length}`,
+        `[decorations] ${path.basename(editor.document.uri.fsPath)}: docLines=${totalLines} → covered=${plan.covered.length} uncovered=${plan.uncovered.length}`,
       );
       if (showLineCoverage) {
         editor.setDecorations(
           this.decorations.coveredLineWithBackground,
-          coveredRanges,
+          toRanges(plan.covered),
         );
         editor.setDecorations(
           this.decorations.uncoveredLineWithBackground,
-          uncoveredRanges,
+          toRanges(plan.uncovered),
         );
         editor.setDecorations(
           this.decorations.uncoverableLineWithBackground,
-          uncoverableRanges,
+          toRanges(plan.uncoverable),
         );
         editor.setDecorations(this.decorations.coveredSmallWithBackground, []);
         editor.setDecorations(this.decorations.coveredMediumWithBackground, []);
@@ -814,25 +996,17 @@ class CovfluxExtension {
     }
 
     if (showGutterCoverage) {
-      const coveredRanges: vscode.Range[] = [];
-      const uncoveredRanges: vscode.Range[] = [];
-      const uncoverableRanges: vscode.Range[] = [];
-      for (let i = 0; i < totalLines; i++) {
-        const line = editor.document.lineAt(i);
-        const lineNumber = i + 1;
-        if (coverage.coveredLines.has(lineNumber)) {
-          if (showCovered) coveredRanges.push(line.range);
-        } else if (coverage.uncoveredLines.has(lineNumber)) {
-          if (showUncovered) uncoveredRanges.push(line.range);
-        } else if (coverage.uncoverableLines.has(lineNumber)) {
-          if (showUncovered) uncoverableRanges.push(line.range);
-        }
-      }
-      editor.setDecorations(this.decorations.coveredLine, coveredRanges);
-      editor.setDecorations(this.decorations.uncoveredLine, uncoveredRanges);
+      editor.setDecorations(
+        this.decorations.coveredLine,
+        toRanges(plan.covered),
+      );
+      editor.setDecorations(
+        this.decorations.uncoveredLine,
+        toRanges(plan.uncovered),
+      );
       editor.setDecorations(
         this.decorations.uncoverableLine,
-        uncoverableRanges,
+        toRanges(plan.uncoverable),
       );
     } else {
       editor.setDecorations(this.decorations.coveredLine, []);

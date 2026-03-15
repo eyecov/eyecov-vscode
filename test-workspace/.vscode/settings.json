@@ -1,3 +1,4 @@
 {
-    "covflux.showGutterCoverage": true
+    "covflux.showGutterCoverage": true,
+    "covflux.trackCoverageThroughEdits": true
 }

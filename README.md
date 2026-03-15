@@ -63,6 +63,10 @@ Enable gutter icons for fast scanning:
 
 _(Add a screenshot at `images/coverage-gutter.png` to show gutter + line highlight.)_
 
+### Track coverage through edits (default on)
+
+When you insert or delete lines, coverage highlighting stays aligned. Turn off with **Covflux: Toggle Track Coverage Through Edits** or set `covflux.trackCoverageThroughEdits` to `false`. See [docs/COVERAGE_FEATURES.md](docs/COVERAGE_FEATURES.md#edit-tolerant-tracking).
+
 ### Status bar
 
 The current file coverage is shown in the editor status bar (e.g. `49.0% (25/51)`). Click to toggle coverage display.
