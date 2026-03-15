@@ -14,7 +14,6 @@ Covflux reads coverage artifacts (PHPUnit HTML, LCOV, etc.) and turns them into 
 
 Works in **VS Code**, [**Cursor**](https://cursor.com), and [**Antigravity**](https://antigravity.google/).
 
-
 ## Documentation map
 
 - [Coverage Model](docs/COVERAGE_MODEL.md) — the canonical data flow and shared runtime model

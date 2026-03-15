@@ -35,7 +35,8 @@ const COVERAGE_COLORS = {
 } as const;
 
 /**
- * Coverage decoration types
+ * Coverage decoration types. mediaDir is the extension's media folder path
+ * (e.g. from context.asAbsolutePath("media")) so gutter icons resolve in all run contexts.
  */
 class CoverageDecorations {
   readonly coveredLine: vscode.TextEditorDecorationType;
@@ -49,10 +50,15 @@ class CoverageDecorations {
   readonly coveredLargeWithBackground: vscode.TextEditorDecorationType;
   readonly warningWithBackground: vscode.TextEditorDecorationType;
 
-  constructor(private darkTheme: boolean) {
+  constructor(
+    private darkTheme: boolean,
+    mediaDir: string,
+  ) {
+    const gutter = (color: string) =>
+      vscode.Uri.file(path.join(mediaDir, `gutter-${color}.svg`));
     // Covered line decoration - with gutter icon only
     this.coveredLine = vscode.window.createTextEditorDecorationType({
-      gutterIconPath: this.createGutterIcon("green"),
+      gutterIconPath: gutter("green"),
       gutterIconSize: "contain",
       isWholeLine: false,
       overviewRulerColor: new vscode.ThemeColor(
@@ -63,7 +69,7 @@ class CoverageDecorations {
 
     // Uncovered line decoration - with gutter icon only
     this.uncoveredLine = vscode.window.createTextEditorDecorationType({
-      gutterIconPath: this.createGutterIcon("red"),
+      gutterIconPath: gutter("red"),
       gutterIconSize: "contain",
       isWholeLine: false,
       overviewRulerColor: new vscode.ThemeColor(
@@ -74,7 +80,7 @@ class CoverageDecorations {
 
     // Uncoverable line decoration - with gutter icon only
     this.uncoverableLine = vscode.window.createTextEditorDecorationType({
-      gutterIconPath: this.createGutterIcon("yellow"),
+      gutterIconPath: gutter("yellow"),
       gutterIconSize: "contain",
       isWholeLine: false,
       overviewRulerColor: new vscode.ThemeColor("editorGutter.addedBackground"),
@@ -140,26 +146,6 @@ class CoverageDecorations {
     });
   }
 
-  private createGutterIcon(color: "green" | "red" | "yellow"): vscode.Uri {
-    // Create a simple colored square SVG
-    const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14">
-        <circle cx="7" cy="7" r="4" fill="${color}" opacity="0.8"/>
-      </svg>
-    `;
-
-    // Write to a temporary file (in extension context)
-    const tempDir = path.join(__dirname, "../temp");
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-
-    const iconPath = path.join(tempDir, `gutter-${color}.svg`);
-    fs.writeFileSync(iconPath, svg);
-
-    return vscode.Uri.file(iconPath);
-  }
-
   dispose() {
     this.coveredLine.dispose();
     this.uncoveredLine.dispose();
@@ -192,8 +178,11 @@ class CovfluxExtension {
   private workspaceFolder: string | undefined;
   private outputChannel: vscode.OutputChannel;
 
-  constructor() {
-    this.decorations = new CoverageDecorations(this.isDarkTheme());
+  constructor(context: vscode.ExtensionContext) {
+    this.decorations = new CoverageDecorations(
+      this.isDarkTheme(),
+      context.asAbsolutePath("media"),
+    );
     this.outputChannel = vscode.window.createOutputChannel("Covflux");
 
     // Create status bar items
@@ -896,7 +885,7 @@ class CovfluxExtension {
 let extension: CovfluxExtension | null = null;
 
 export function activate(context: vscode.ExtensionContext): void {
-  extension = new CovfluxExtension();
+  extension = new CovfluxExtension(context);
   extension.activate(context);
 }
 

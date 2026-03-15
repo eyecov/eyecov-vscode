@@ -32,6 +32,18 @@
 
 Current suite: `src/test/suite/extension.test.ts` — asserts the Covflux extension is loaded and `covflux.showCoverage` is registered. Add more tests there or new `*.test.ts` files under `src/test/suite/`.
 
+## Manual testing (gutter icons and UI)
+
+To verify the extension UI (gutter icons, line highlighting, status bar) without a real coverage run:
+
+1. **Run Extension** (F5 or **Run > Start Debugging**; use the **Run Extension** launch config).
+2. In the Extension Development Host window: **File > Open Folder…** and open the **`test-workspace`** folder (in this repo).
+3. Open `src/demo.ts`. Coverage is loaded from `test-workspace/coverage/lcov.info`.
+4. **Gutter icons:** If needed, **Cmd+Shift+P** → **Covflux: Toggle Gutter Coverage**. You should see green dots on covered lines (1, 3, 5) and red on uncovered (2, 4).
+5. Use **Covflux: Toggle Line Coverage** and the status bar to confirm line highlighting and file coverage.
+
+See `test-workspace/README.md` for more detail.
+
 ## CI
 
 On every push and pull request, CI runs `npm run typecheck`, `npm run lint`, `npm run format:check`, and `npm test`.

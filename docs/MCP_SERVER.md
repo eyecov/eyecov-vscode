@@ -283,12 +283,12 @@ Example generated test:
 
 ```ts
 it("returns null when node has no children", () => {
-  const node = { children: [] }
+  const node = { children: [] };
 
-  const result = parseNode(node)
+  const result = parseNode(node);
 
-  expect(result).toBeNull()
-})
+  expect(result).toBeNull();
+});
 ```
 
 After running the new tests, coverage can be queried again to verify that the

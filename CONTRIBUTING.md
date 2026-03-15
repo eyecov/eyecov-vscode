@@ -31,6 +31,7 @@ Before committing, run:
 **Editor**
 
 Recommended:
+
 - Install [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) and [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode).
 - Turn on **Format on Save** and set the default formatter to Prettier.
 - Optional: **ESLint: Fix on Save** for consistent style.
