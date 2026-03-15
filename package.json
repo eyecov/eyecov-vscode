@@ -122,7 +122,8 @@
     "compile:tests": "tsc -p tsconfig.test.json",
     "compile:all": "npm run compile && npm run compile:tests",
     "test:extension": "npm run compile:all && vscode-test",
-    "package": "vsce package"
+    "package": "vsce package",
+    "export:zip": "git archive --format=zip --prefix=covflux-vscode/ -o covflux-vscode.zip HEAD"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
