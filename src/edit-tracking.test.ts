@@ -18,7 +18,7 @@ describe("computeLineDelta", () => {
     const result = computeLineDelta(change);
     expect(result.removedLines).toBe(0);
     expect(result.addedLines).toBe(3);
-    expect(result.delta).toBe(3);
+    expect(result.lineDelta).toBe(3);
   });
 
   it("delete 2 lines: removedLines 2, addedLines 0, delta -2", () => {
@@ -29,7 +29,7 @@ describe("computeLineDelta", () => {
     const result = computeLineDelta(change);
     expect(result.removedLines).toBe(2);
     expect(result.addedLines).toBe(0);
-    expect(result.delta).toBe(-2);
+    expect(result.lineDelta).toBe(-2);
   });
 
   it("replace 1 line with 1 line: delta 0", () => {
@@ -40,7 +40,7 @@ describe("computeLineDelta", () => {
     const result = computeLineDelta(change);
     expect(result.removedLines).toBe(1);
     expect(result.addedLines).toBe(1);
-    expect(result.delta).toBe(0);
+    expect(result.lineDelta).toBe(0);
   });
 });
 

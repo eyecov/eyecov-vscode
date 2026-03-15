@@ -16,20 +16,20 @@ export interface ContentChange {
 export interface LineDelta {
   removedLines: number;
   addedLines: number;
-  delta: number;
+  lineDelta: number;
 }
 
 /**
  * Line delta for one change.
  * removedLines = range.end.line - range.start.line
  * addedLines = number of lines in text (empty text → 0)
- * delta = addedLines - removedLines
+ * lineDelta = addedLines - removedLines
  */
 export function computeLineDelta(change: ContentChange): LineDelta {
   const removedLines = change.range.end.line - change.range.start.line;
   const addedLines = change.text === "" ? 0 : change.text.split("\n").length;
-  const delta = addedLines - removedLines;
-  return { removedLines, addedLines, delta };
+  const lineDelta = addedLines - removedLines;
+  return { removedLines, addedLines, lineDelta };
 }
 
 /** Result of applying one change: updated line arrays, or null if overlap. */
@@ -51,28 +51,28 @@ export function applyOneChange(
 ): ApplyOneChangeResult | null {
   const editStart = change.range.start.line;
   const editEnd = change.range.end.line;
-  const { delta } = computeLineDelta(change);
+  const { lineDelta } = computeLineDelta(change);
 
-  const mapLines = (lines: number[]): number[] | null => {
-    const out: number[] = [];
-    for (const L of lines) {
-      if (L >= editStart && L <= editEnd) return null;
-      out.push(L > editEnd ? L + delta : L);
-    }
-    return out;
+  const inRange = (L: number) => L >= editStart && L <= editEnd;
+  if (
+    coveredLines.some(inRange) ||
+    uncoveredLines.some(inRange) ||
+    uncoverableLines.some(inRange)
+  ) {
+    return null;
+  }
+  if (lineDelta === 0) {
+    return { coveredLines, uncoveredLines, uncoverableLines };
+  }
+
+  const mapLines = (lines: number[]): number[] => {
+    return lines.map((L) => (L > editEnd ? L + lineDelta : L));
   };
 
-  const newCovered = mapLines(coveredLines);
-  if (newCovered === null) return null;
-  const newUncovered = mapLines(uncoveredLines);
-  if (newUncovered === null) return null;
-  const newUncoverable = mapLines(uncoverableLines);
-  if (newUncoverable === null) return null;
-
   return {
-    coveredLines: newCovered,
-    uncoveredLines: newUncovered,
-    uncoverableLines: newUncoverable,
+    coveredLines: mapLines(coveredLines),
+    uncoveredLines: mapLines(uncoveredLines),
+    uncoverableLines: mapLines(uncoverableLines),
   };
 }
 
