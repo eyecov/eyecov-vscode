@@ -1,8 +1,14 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { CoverageDatabase, CoverageData } from './database';
-import { CoverageJsonReader } from './coverage-json';
+import { CoverageData } from './coverage-types';
+import { CoverageHtmlReader } from './coverage-html-reader';
+import { loadCovfluxConfig, getPhpUnitHtmlDir, getLcovPathsToWatch } from './covflux-config';
+import { listCoveredPathsFromFirstFormat } from './coverage-aggregate';
+import { deleteCoverageCache } from './coverage-cache';
+import { prewarmCoverageForRoot } from './coverage-prewarm';
+import { CoverageResolver, createAdaptersFromConfig, type CoverageRecord } from './coverage-resolver';
+import { isMcpServerEnabled, isPrewarmCoverageCacheEnabled } from './mcp/settings';
 
 /**
  * Coverage decoration types
@@ -104,11 +110,11 @@ class CoverageDecorations {
 /**
  * Main extension class
  */
-type CoverageSource = 'sqlite' | 'coverage-json' | 'auto';
+const MCP_SERVER_DEFINITION_PROVIDER_ID = 'covflux.builtin';
 
 class CovfluxExtension {
-  private database: CoverageDatabase | null = null;
-  private coverageJson: CoverageJsonReader | null = null;
+  private coverageHtml: CoverageHtmlReader | null = null;
+  private resolver: CoverageResolver | null = null;
   private decorations: CoverageDecorations;
   private coverageEnabled: boolean = true;
   private fileWatcher: vscode.FileSystemWatcher | null = null;
@@ -143,8 +149,8 @@ class CovfluxExtension {
    */
   async activate(context: vscode.ExtensionContext): Promise<void> {
     this.log('Covflux activated. Open a file to see coverage; output will appear here.');
-    // Initialize database
-    await this.initializeDatabase();
+    this.registerMcpServer(context);
+    await this.initializeCoverage();
 
     // Register commands
     const showCommand = vscode.commands.registerCommand('covflux.showCoverage', () => {
@@ -173,7 +179,7 @@ class CovfluxExtension {
 
     const showInfoCommand = vscode.commands.registerCommand('covflux.showCoverageInfo', () => {
       if (!this.hasCoverageSource()) {
-        vscode.window.showWarningMessage('Covflux: No coverage source connected (SQLite or coverage-json)');
+        vscode.window.showWarningMessage('Covflux: No coverage source (no PHPUnit HTML or LCOV coverage found in workspace)');
         return;
       }
 
@@ -209,7 +215,23 @@ class CovfluxExtension {
       });
     });
 
-    context.subscriptions.push(showCommand, hideCommand, toggleCommand, showInfoCommand);
+    const toggleGutterCommand = vscode.commands.registerCommand('covflux.toggleGutterCoverage', async () => {
+      const config = vscode.workspace.getConfiguration('covflux');
+      const current = config.get<boolean>('showGutterCoverage', true);
+      await config.update('showGutterCoverage', !current, vscode.ConfigurationTarget.Global);
+      if (this.coverageEnabled) this.updateAllEditors();
+      vscode.window.showInformationMessage(`Covflux: Gutter coverage ${!current ? 'on' : 'off'}`);
+    });
+
+    const toggleLineCommand = vscode.commands.registerCommand('covflux.toggleLineCoverage', async () => {
+      const config = vscode.workspace.getConfiguration('covflux');
+      const current = config.get<boolean>('showLineCoverage', true);
+      await config.update('showLineCoverage', !current, vscode.ConfigurationTarget.Global);
+      if (this.coverageEnabled) this.updateAllEditors();
+      vscode.window.showInformationMessage(`Covflux: Line highlight ${!current ? 'on' : 'off'}`);
+    });
+
+    context.subscriptions.push(showCommand, hideCommand, toggleCommand, showInfoCommand, toggleGutterCommand, toggleLineCommand);
 
     // Watch for editor changes
     const onDidChangeActiveEditor = vscode.window.onDidChangeActiveTextEditor((editor) => {
@@ -232,8 +254,9 @@ class CovfluxExtension {
 
     context.subscriptions.push(onDidChangeActiveEditor, onDidChangeTextDocument);
 
-    // Watch database file for changes
-    this.watchDatabase();
+    this.watchCoverage();
+
+    this.startPrewarmIfEnabled();
 
     // Show status bar items
     this.statusBarCoverage.show();
@@ -252,162 +275,193 @@ class CovfluxExtension {
     this.disposables.push(...context.subscriptions);
   }
 
-  /**
-   * Whether any coverage source (SQLite or coverage-json) is available
-   */
   private hasCoverageSource(): boolean {
-    return this.database !== null || this.coverageJson !== null;
+    return this.resolver !== null;
+  }
+
+  private registerMcpServer(context: vscode.ExtensionContext): void {
+    const covfluxConfig = vscode.workspace.getConfiguration('covflux');
+    if (!isMcpServerEnabled(covfluxConfig)) {
+      this.log('MCP server is disabled by setting covflux.enableMcpServer.');
+      return;
+    }
+    const registerProvider = vscode.lm?.registerMcpServerDefinitionProvider;
+    if (typeof registerProvider !== 'function') {
+      this.log('MCP server definition API is unavailable in this VS Code host.');
+      return;
+    }
+
+    const serverScriptPath = context.asAbsolutePath(path.join('out', 'mcp', 'server.js'));
+    if (!fs.existsSync(serverScriptPath)) {
+      this.log(`MCP server script not found at ${serverScriptPath}`);
+      return;
+    }
+
+    const extensionVersion = String((context.extension.packageJSON as { version?: string }).version ?? '0.0.0');
+    const provider = registerProvider(MCP_SERVER_DEFINITION_PROVIDER_ID, {
+      provideMcpServerDefinitions: () => {
+        const serverDefinition = new vscode.McpStdioServerDefinition(
+          'Covflux Hello Server',
+          process.execPath,
+          [serverScriptPath],
+          {
+            COVFLUX_EXTENSION_VERSION: extensionVersion,
+          },
+          extensionVersion
+        );
+
+        serverDefinition.cwd = context.extensionUri;
+
+        return [serverDefinition];
+      },
+      resolveMcpServerDefinition: (serverDefinition) => {
+        return serverDefinition;
+      },
+    });
+
+    context.subscriptions.push(provider);
   }
 
   /**
-   * Get coverage for a file from the configured source(s)
+   * Get coverage for a file from the resolver (PHPUnit HTML).
    */
   private async getFileCoverage(filePath: string): Promise<CoverageData | null> {
-    const config = vscode.workspace.getConfiguration('covflux');
-    const source = config.get<CoverageSource>('source', 'auto');
-
-    if (source === 'sqlite' && this.database) {
-      return this.database.getFileCoverage(filePath);
-    }
-
-    if (source === 'coverage-json' && this.coverageJson) {
-      const data = await this.coverageJson.getFileCoverage(filePath);
-      if (data) {
-        this.log(
-          `[coverage-json] ${path.basename(filePath)}: ${data.uncoveredLines.size} uncovered line(s): [${[...data.uncoveredLines].sort((a, b) => a - b).join(', ')}]`
-        );
-      } else {
-        this.log(`[coverage-json] ${path.basename(filePath)}: no data (path not found or not under workspace)`);
-      }
-      return data ?? null;
-    }
-
-    // auto: prefer source that has line-level data so highlighting works
-    let fromDb: CoverageData | null = null;
-    if (this.database) {
-      fromDb = await this.database.getFileCoverage(filePath);
-      if (fromDb) {
-        const hasLineData =
-          fromDb.coveredLines.size > 0 ||
-          fromDb.uncoveredLines.size > 0 ||
-          fromDb.uncoverableLines.size > 0;
-        if (hasLineData) return fromDb;
-      }
-    }
-    if (this.coverageJson) {
-      const data = await this.coverageJson.getFileCoverage(filePath);
-      if (data) {
-        this.log(
-          `[coverage-json] ${path.basename(filePath)}: ${data.uncoveredLines.size} uncovered: [${[...data.uncoveredLines].sort((a, b) => a - b).join(', ')}]`
-        );
-        return data;
-      }
-    }
-    if (fromDb) this.log(`[auto] Using SQLite (no line data from coverage-json) for ${path.basename(filePath)}`);
-    return fromDb;
+    if (!this.resolver) return null;
+    const record = await this.resolver.getCoverage(filePath);
+    if (!record) return null;
+    this.log(
+      `[coverage-html] ${path.basename(filePath)}: ${record.uncoveredLines.size} uncovered line(s): [${[...record.uncoveredLines].sort((a, b) => a - b).join(', ')}]`
+    );
+    return this.recordToCoverageData(record);
   }
 
   /**
-   * Initialize database and/or coverage-json
+   * Initialize coverage from config (.covflux.json / covflux.json) or defaults.
    */
-  private async initializeDatabase(): Promise<void> {
-    const config = vscode.workspace.getConfiguration('covflux');
+  private async initializeCoverage(): Promise<void> {
     this.workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const workspaceFolders = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) ?? [];
+    const config = loadCovfluxConfig(this.workspaceFolder ?? '');
+    const adapters = createAdaptersFromConfig(config);
+    const coverageHtmlDir = getPhpUnitHtmlDir(config);
+    const coverageRoots = CoverageHtmlReader.findCoverageRoots(workspaceFolders, coverageHtmlDir);
 
-    const rawDbPath = config.get<string>('databasePath', '${workspaceFolder}/coverage.sqlite');
-    const dbPath = CoverageDatabase.resolvePath(rawDbPath, this.workspaceFolder);
-    const source = config.get<CoverageSource>('source', 'auto');
+    const covfluxConfig = vscode.workspace.getConfiguration('covflux');
+    const debug = covfluxConfig.get<boolean>('debug', false);
+    this.resolver = new CoverageResolver({
+      workspaceRoots: workspaceFolders,
+      adapters,
+      ...(debug && {
+        debugLog: (msg) => this.log(msg),
+        adapterLabels: config.formats.map((f) => f.type),
+      }),
+    });
 
-    // SQLite
-    if (source === 'sqlite' || source === 'auto') {
-      if (CoverageDatabase.exists(dbPath)) {
-        try {
-          this.database = new CoverageDatabase(dbPath);
-          await this.database.open();
-          this.updateDatabaseStatus('$(database) Connected', 'Database connected successfully');
-          console.log(`[Covflux] ✓ Connected to database at ${dbPath}`);
-          vscode.window.setStatusBarMessage('Covflux: Database connected', 3000);
-        } catch (error: any) {
-          this.updateDatabaseStatus('$(error) DB Error', `Failed to open database: ${error.message}`);
-          vscode.window.showErrorMessage(`Covflux: Failed to open database: ${error.message}`);
-          console.error(`[Covflux] ✗ Failed to open database:`, error);
-        }
-      } else if (source === 'sqlite') {
-        this.updateDatabaseStatus('$(error) No DB', 'Database not found');
-        vscode.window.showWarningMessage(
-          `Covflux: Coverage database not found at ${dbPath}. Please ensure the database path is correct in settings.`
-        );
-        console.log(`[Covflux] Database not found at: ${dbPath}`);
-      }
+    if (debug && config.formats.length > 0) {
+      this.log(`[resolver] adapters detected: ${config.formats.map((f) => `${f.type} (${f.path})`).join(', ')}`);
     }
 
-    // Coverage-JSON
-    const rawJsonPath = config.get<string>('coverageJsonPath', '${workspaceFolder}/coverage-json');
-    const jsonPath = CoverageJsonReader.resolvePath(rawJsonPath, this.workspaceFolder);
-    if (source === 'coverage-json' || source === 'auto') {
-      if (CoverageJsonReader.exists(jsonPath) && this.workspaceFolder) {
-        const stripPrefix = config.get<string>('coverageJsonStripPathPrefix', 'app');
-        this.coverageJson = new CoverageJsonReader(jsonPath, this.workspaceFolder, {
-          stripPathPrefix: stripPrefix || undefined,
-          log: (msg) => this.log(msg),
-        });
-        if (!this.database) {
-          this.updateDatabaseStatus('$(file-code) Coverage-JSON', 'Using coverage-json folder');
-        }
-        console.log(`[Covflux] ✓ Using coverage-json at ${jsonPath}`);
-      } else if (source === 'coverage-json') {
-        this.updateDatabaseStatus('$(error) No JSON', 'Coverage-JSON folder not found');
-        vscode.window.showWarningMessage(
-          `Covflux: coverage-json folder not found at ${jsonPath}. Set covflux.coverageJsonPath in settings.`
-        );
-      }
+    if (coverageRoots.length > 0) {
+      this.coverageHtml = new CoverageHtmlReader(workspaceFolders, {
+        log: (msg) => this.log(msg),
+        coverageHtmlDir,
+      });
+      console.log(`[Covflux] ✓ coverage-html at ${coverageRoots.join(', ')}`);
     }
-
-    if (!this.hasCoverageSource()) {
-      this.updateDatabaseStatus('$(error) No source', 'No coverage source (SQLite or coverage-json)');
-    }
+    this.updateSourceStatus(
+      '$(file-code) Coverage',
+      'Auto-discover coverage (PHPUnit HTML, LCOV) — uses whatever is available for the open file'
+    );
   }
 
   /**
-   * Watch database file and/or coverage-json for changes
+   * Watch coverage artifacts for changes (PHPUnit HTML folder and LCOV file(s)).
+   * When any watched file changes, reload coverage and update editors.
    */
-  private watchDatabase(): void {
-    const config = vscode.workspace.getConfiguration('covflux');
-    const rawDbPath = config.get<string>('databasePath', '${workspaceFolder}/coverage.sqlite');
-    const dbPath = CoverageDatabase.resolvePath(rawDbPath, this.workspaceFolder);
-    const rawJsonPath = config.get<string>('coverageJsonPath', '${workspaceFolder}/coverage-json');
-    const jsonPath = CoverageJsonReader.resolvePath(rawJsonPath, this.workspaceFolder);
-
+  private watchCoverage(): void {
+    const workspaceFolders = vscode.workspace.workspaceFolders?.map((f) => f.uri.fsPath) ?? [];
+    const config = loadCovfluxConfig(this.workspaceFolder ?? '');
     const onChanged = () => {
-      this.reloadDatabase().then(() => {
-        if (this.coverageEnabled) {
-          this.updateAllEditors();
-        }
+      for (const root of workspaceFolders) {
+        deleteCoverageCache(root);
+      }
+      this.reloadCoverage().then(() => {
+        if (this.coverageEnabled) this.updateAllEditors();
       });
     };
 
-    this.fileWatcher = vscode.workspace.createFileSystemWatcher(dbPath);
-    this.fileWatcher.onDidChange(onChanged);
-    this.disposables.push(this.fileWatcher);
+    // Watch PHPUnit HTML coverage folder
+    const htmlRoots = this.coverageHtml?.getCoverageRoots() ?? [];
+    for (const htmlRoot of htmlRoots) {
+      const htmlGlob = `${htmlRoot.replace(/\\/g, '/')}/**/*.html`;
+      const htmlWatcher = vscode.workspace.createFileSystemWatcher(htmlGlob);
+      htmlWatcher.onDidChange(onChanged);
+      this.disposables.push(htmlWatcher);
+    }
 
-    if (jsonPath) {
-      const jsonGlob = `${jsonPath.replace(/\\/g, '/')}/**/*.json`;
-      const jsonWatcher = vscode.workspace.createFileSystemWatcher(jsonGlob);
-      jsonWatcher.onDidChange(onChanged);
-      this.disposables.push(jsonWatcher);
+    // Watch LCOV file path(s) per workspace root
+    const lcovPaths = getLcovPathsToWatch(config, workspaceFolders);
+    for (const lcovPath of lcovPaths) {
+      const lcovWatcher = vscode.workspace.createFileSystemWatcher(lcovPath);
+      lcovWatcher.onDidChange(onChanged);
+      lcovWatcher.onDidCreate(onChanged);
+      this.disposables.push(lcovWatcher);
     }
   }
 
   /**
-   * Reload database connection and/or coverage-json
+   * Start background prewarm after a short delay when covflux.prewarmCoverageCache is true.
+   * Fire-and-forget: does not block activation.
    */
-  private async reloadDatabase(): Promise<void> {
-    if (this.database) {
-      await this.database.close();
-      this.database = null;
+  private startPrewarmIfEnabled(): void {
+    const covfluxConfig = vscode.workspace.getConfiguration('covflux');
+    if (!isPrewarmCoverageCacheEnabled(covfluxConfig)) {
+      return;
     }
-    this.coverageJson = null;
-    await this.initializeDatabase();
+    const delayMs = 2000;
+    setTimeout(() => {
+      const workspaceFolders = vscode.workspace.workspaceFolders?.map((f) => f.uri.fsPath) ?? [];
+      if (!this.resolver || workspaceFolders.length === 0) {
+        return;
+      }
+      for (const root of workspaceFolders) {
+        const config = loadCovfluxConfig(root);
+        prewarmCoverageForRoot(root, {
+          listPaths: () => listCoveredPathsFromFirstFormat([root], config),
+          getCoverage: (p) => this.resolver!.getCoverage(p),
+          batchSize: 20,
+        }).catch(() => {
+          // ignore; cache will be on-demand if prewarm fails
+        });
+      }
+    }, delayMs);
+  }
+
+  private async reloadCoverage(): Promise<void> {
+    this.coverageHtml = null;
+    this.resolver = null;
+    await this.initializeCoverage();
+  }
+
+  /** Convert resolver record to the editor's CoverageData shape. */
+  private recordToCoverageData(record: CoverageRecord): CoverageData {
+    const totalLines = record.coveredLines.size + record.uncoveredLines.size;
+    const lineStatuses = new Map<number, number>();
+    for (const line of record.coveredLines) lineStatuses.set(line, 1);
+    for (const line of record.uncoveredLines) lineStatuses.set(line, 2);
+    return {
+      file: {
+        fileId: 0,
+        sourceFile: record.sourcePath,
+        lineCoveragePercent: record.lineCoveragePercent,
+        totalLines,
+        coveredLines: record.coveredLines.size,
+      },
+      coveredLines: record.coveredLines,
+      uncoveredLines: record.uncoveredLines,
+      uncoverableLines: record.uncoverableLines,
+      lineStatuses,
+    };
   }
 
   private log(msg: string): void {
@@ -421,10 +475,7 @@ class CovfluxExtension {
    */
   private async updateEditor(editor: vscode.TextEditor): Promise<void> {
     const filePath = editor.document.uri.fsPath;
-    const config = vscode.workspace.getConfiguration('covflux');
-    const source = config.get<CoverageSource>('source', 'auto');
-
-    this.log(`[update] ${path.basename(filePath)} source=${source} hasDb=${!!this.database} hasJson=${!!this.coverageJson} enabled=${this.coverageEnabled}`);
+    this.log(`[update] ${path.basename(filePath)} hasResolver=${!!this.resolver} enabled=${this.coverageEnabled}`);
 
     if (!this.hasCoverageSource() || !this.coverageEnabled) {
       this.updateCoverageStatus(null);
@@ -498,9 +549,9 @@ class CovfluxExtension {
   }
 
   /**
-   * Update database status bar
+   * Update source status bar (coverage-html availability)
    */
-  private updateDatabaseStatus(text: string, tooltip: string): void {
+  private updateSourceStatus(text: string, tooltip: string): void {
     this.statusBarDatabase.text = text;
     this.statusBarDatabase.tooltip = `Covflux: ${tooltip}`;
     this.statusBarDatabase.show();
@@ -514,7 +565,7 @@ class CovfluxExtension {
     const showCovered = config.get<boolean>('showCovered', true);
     const showUncovered = config.get<boolean>('showUncovered', true);
     const showLineCoverage = config.get<boolean>('showLineCoverage', true);
-    const showGutterCoverage = config.get<boolean>('showGutterCoverage', false);
+    const showGutterCoverage = config.get<boolean>('showGutterCoverage', true);
 
     const coveredRanges: vscode.Range[] = [];
     const uncoveredRanges: vscode.Range[] = [];
@@ -524,9 +575,7 @@ class CovfluxExtension {
 
     for (let i = 0; i < totalLines; i++) {
       const line = editor.document.lineAt(i);
-      const lineNumber = i + 1; // VS Code uses 0-based, database uses 1-based
-
-      // Use line_status from database: 1=covered (green), 2=uncovered (red), 3=uncoverable (yellow), NULL=not tracked
+      const lineNumber = i + 1; // VS Code 0-based, coverage 1-based. 1=covered, 2=uncovered, 3=uncoverable
       if (coverage.coveredLines.has(lineNumber)) {
         // line_status = 1 (covered)
         if (showCovered) {
@@ -603,11 +652,6 @@ class CovfluxExtension {
    */
   async deactivate(): Promise<void> {
     this.clearAllDecorations();
-
-    if (this.database) {
-      await this.database.close();
-    }
-
     this.decorations.dispose();
     this.statusBarCoverage.dispose();
     this.statusBarDatabase.dispose();

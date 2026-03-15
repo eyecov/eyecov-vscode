@@ -1,0 +1,99 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+import { prewarmCoverageForRoot } from './coverage-prewarm';
+import { readCoverageCache } from './coverage-cache';
+import type { CoverageRecord } from './coverage-resolver';
+import type { CovfluxConfig } from './covflux-config';
+
+describe('coverage-prewarm', () => {
+  let tmpDir: string;
+  const BATCH_SIZE = 2;
+
+  beforeEach(() => {
+    tmpDir = path.join(os.tmpdir(), `covflux-prewarm-${Date.now()}`);
+    fs.mkdirSync(tmpDir, { recursive: true });
+  });
+
+  afterEach(() => {
+    try {
+      fs.rmSync(tmpDir, { recursive: true });
+    } catch {
+      // ignore
+    }
+  });
+
+  it('writes valid cache after listing paths and resolving coverage in batches', async () => {
+    const pathA = path.join(tmpDir, 'app/A.php');
+    const pathB = path.join(tmpDir, 'app/B.php');
+    const pathC = path.join(tmpDir, 'app/C.php');
+    const config: CovfluxConfig = {
+      formats: [{ type: 'phpunit-html', path: path.join(tmpDir, 'coverage-html') }],
+    };
+    const recordA: CoverageRecord = {
+      sourcePath: pathA,
+      coveredLines: new Set([1, 2]),
+      uncoveredLines: new Set([3]),
+      uncoverableLines: new Set([]),
+      lineCoveragePercent: 66.67,
+    };
+    const recordB: CoverageRecord = {
+      sourcePath: pathB,
+      coveredLines: new Set([1]),
+      uncoveredLines: new Set([]),
+      uncoverableLines: new Set([]),
+      lineCoveragePercent: 100,
+    };
+    const listPaths = () => ({
+      paths: [pathA, pathB, pathC],
+      formatType: 'phpunit-html' as const,
+    });
+    const getCoverage = async (p: string): Promise<CoverageRecord | null> => {
+      if (p === pathA) return recordA;
+      if (p === pathB) return recordB;
+      return null;
+    };
+
+    await prewarmCoverageForRoot(tmpDir, {
+      listPaths,
+      getCoverage,
+      batchSize: BATCH_SIZE,
+    });
+
+    const cache = readCoverageCache(tmpDir);
+    expect(cache).not.toBeNull();
+    expect(cache!.totalFiles).toBe(3);
+    expect(cache!.coveredFiles).toBe(2);
+    expect(cache!.missingCoverageFiles).toBe(1);
+    expect(cache!.files).toHaveLength(2);
+    expect(cache!.detectedFormat).toBe('phpunit-html');
+  });
+
+  it('does not write cache when signal is aborted before completion', async () => {
+    const pathA = path.join(tmpDir, 'app/A.php');
+    const config: CovfluxConfig = {
+      formats: [{ type: 'phpunit-html', path: path.join(tmpDir, 'coverage-html') }],
+    };
+    const listPaths = () => ({
+      paths: [pathA],
+      formatType: 'phpunit-html' as const,
+    });
+    const getCoverage = async (): Promise<CoverageRecord | null> => {
+      await new Promise((r) => setTimeout(r, 100));
+      return null;
+    };
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 10);
+
+    await prewarmCoverageForRoot(tmpDir, {
+      listPaths,
+      getCoverage,
+      signal: controller.signal,
+      batchSize: 1,
+    });
+
+    const cache = readCoverageCache(tmpDir);
+    expect(cache).toBeNull();
+  });
+});

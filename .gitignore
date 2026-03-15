@@ -1,4 +1,9 @@
 out
 node_modules
 .vscode-test
+coverage
 *.vsix
+.specstory
+.DS_Store
+covflux-review-pack/
+.covflux/coverage-cache.json
