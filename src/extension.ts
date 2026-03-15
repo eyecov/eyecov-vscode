@@ -25,7 +25,7 @@ import {
   isPrewarmCoverageCacheEnabled,
 } from "./mcp/settings";
 
-/** PHPUnit report colors: light then dark (COVERAGE_PLAN). */
+/** PHPUnit report colors: light then dark (docs). */
 const COVERAGE_COLORS = {
   coveredSmall: { light: "#99cb84", dark: "#3d5c4e" },
   coveredMedium: { light: "#c3e3b5", dark: "#3c6051" },

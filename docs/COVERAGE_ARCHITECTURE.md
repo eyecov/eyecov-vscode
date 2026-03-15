@@ -4,11 +4,11 @@
 
 Define the target architecture for coverage lookup and editor highlighting.
 
-This document describes the technical structure. For a feature-level overview (editor, formats, config, MCP), see [COVERAGE_FEATURES.md](COVERAGE_FEATURES.md). Product scope and related feature tracks live in [COVERAGE_PLAN.md](COVERAGE_PLAN.md). The **Current implementation** section below reflects the codebase; the **Main Components** and **Freshness Model** sections describe both current shape and possible evolution.
+This document describes the technical structure. For a feature-level overview (editor, formats, config, MCP), see [COVERAGE_FEATURES.md](COVERAGE_FEATURES.md). Roadmap and future work live in [COVERAGE_ROADMAP.md](COVERAGE_ROADMAP.md). The **Current implementation** section below reflects the codebase; the **Main Components** and **Freshness Model** sections describe both current shape and possible evolution.
 
 - [COVERAGE_FEATURES.md](COVERAGE_FEATURES.md)
-- [COVERAGE_PLAN.md](COVERAGE_PLAN.md)
-- [MCP_SERVER_FEATURES.md](MCP_SERVER_FEATURES.md)
+- [COVERAGE_ROADMAP.md](COVERAGE_ROADMAP.md)
+- [MCP_SERVER.md](MCP_SERVER.md)
 
 ## Architectural Principles
 

@@ -52,5 +52,5 @@ Use these to recognize what the user wants and pick the right tool and parameter
 
 ## Self-improvement and maintenance
 
-- **When the capability changes:** If the MCP server tools or response shapes change (e.g. after editing `src/mcp/server.ts` or `docs/MCP_SERVER_FEATURES.md`), update this skill and the features doc so tool names, inputs, response shapes, and example intents stay accurate.
+- **When the capability changes:** If the MCP server tools or response shapes change (e.g. after editing `src/mcp/server.ts` or `docs/MCP_SERVER.md`), update this skill and the features doc so tool names, inputs, response shapes, and example intents stay accurate.
 - **From usage:** If coverage queries are missed or the wrong tool/params are used, refine the description or example intents and re-test.

@@ -1,6 +1,6 @@
 # Coverage Features
 
-This document describes what the Covflux coverage system does from a feature and user perspective. For technical structure (resolver, adapters, flow), see [COVERAGE_ARCHITECTURE.md](COVERAGE_ARCHITECTURE.md). For product direction and remaining work, see [COVERAGE_PLAN.md](COVERAGE_PLAN.md).
+This document describes what the Covflux coverage system does from a feature and user perspective. For technical structure (resolver, adapters, flow), see [COVERAGE_ARCHITECTURE.md](COVERAGE_ARCHITECTURE.md). For roadmap and future work, see [COVERAGE_ROADMAP.md](COVERAGE_ROADMAP.md).
 
 ## Editor coverage
 
@@ -18,7 +18,7 @@ Formats are **auto-discovered**: the resolver tries each configured format in or
 
 ## Configuration
 
-Coverage sources and order are configured via a JSON file in the workspace root: `.covflux.json` or `covflux.json`. You specify which formats to use, in which order, and the path to each format’s artifact (folder for PHPUnit HTML, file for LCOV). If no config file is present, defaults are used (e.g. PHPUnit HTML at `coverage-html/`, LCOV at `coverage/lcov.info`). See [COVERAGE_PLAN.md](COVERAGE_PLAN.md#configuration-file) for a short reference; implementation lives in `src/covflux-config.ts`.
+Coverage sources and order are configured via a JSON file in the workspace root: `.covflux.json` or `covflux.json`. You specify which formats to use, in which order, and the path to each format’s artifact (folder for PHPUnit HTML, file for LCOV). If no config file is present, defaults are used (e.g. PHPUnit HTML at `coverage-html/`, LCOV at `coverage/lcov.info`). See [COVERAGE_ARCHITECTURE.md](COVERAGE_ARCHITECTURE.md) (Current implementation) for config; implementation lives in `src/covflux-config.ts`.
 
 ## MCP tools
 
@@ -30,7 +30,7 @@ The extension runs an MCP server that exposes coverage to other tools (e.g. Curs
 - **`coverage_project`** — Project-wide aggregate; optional same limits and cutoff; can return `zeroCoverageFiles` when requested.
 - **`coverage_test_priority`** — Prioritize tests by impact on coverage.
 
-When a prewarm cache is valid, `coverage_path` and `coverage_project` (and related aggregates) use it for faster responses. Full tool behavior, inputs, and response shapes are in [MCP_SERVER_FEATURES.md](MCP_SERVER_FEATURES.md).
+When a prewarm cache is valid, `coverage_path` and `coverage_project` (and related aggregates) use it for faster responses. Full tool behavior, inputs, and response shapes are in [MCP_SERVER.md](MCP_SERVER.md).
 
 ## Cache and prewarm
 

@@ -134,7 +134,7 @@ Recommends **where to add tests first** using coverage data only: files with no 
 
 **Input:** Optional.
 
-- **includeNoCoverage** (boolean, default `true`) — When true, files with no coverage are included as top priority. Set to `false` for “where to add tests except where coverage is zero” (same data, no extra I/O).
+- **includeNoCoverage** (boolean, default `true`) — When true, files with no coverage are included as top priority. Set to `false` for "where to add tests except where coverage is zero" (same data, no extra I/O).
 - **limit** (number, default `20`) — Maximum number of items returned.
 
 **Behavior:** When a valid prewarm cache exists, scores over `cache.files` and (if `includeNoCoverage`) `cache.missingPaths`. Otherwise discovers paths via the first configured format, resolves coverage for each, builds file list and missing list, then scores. Returns items sorted by priority (missing-coverage first, then by composite score), capped by `limit`.
