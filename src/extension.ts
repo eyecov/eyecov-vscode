@@ -419,6 +419,8 @@ class CovfluxExtension {
       (editor) => {
         if (editor && this.coverageEnabled) {
           this.updateEditor(editor);
+        } else if (!editor) {
+          this.updateCoverageStatus(null);
         }
       },
     );
