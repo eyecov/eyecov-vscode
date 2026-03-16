@@ -38,7 +38,8 @@ describe("LcovAdapter", () => {
     fs.utimesSync(lcovPath, t, t);
 
     const adapter = new LcovAdapter();
-    const record = await adapter.getCoverage(filePath, [workspaceRoot]);
+    const result = await adapter.getCoverage(filePath, [workspaceRoot]);
+    const record = result.record;
 
     expect(record).not.toBeNull();
     expect(record!.sourcePath).toBe(filePath);
@@ -63,18 +64,18 @@ describe("LcovAdapter", () => {
     const adapter = new LcovAdapter();
     const filePath = path.join(workspaceRoot, "src", "bar.ts");
 
-    const record = await adapter.getCoverage(filePath, [workspaceRoot]);
+    const result = await adapter.getCoverage(filePath, [workspaceRoot]);
 
-    expect(record).toBeNull();
+    expect(result.record).toBeNull();
   });
 
   it("returns null when coverage/lcov.info does not exist", async () => {
     const adapter = new LcovAdapter();
     const filePath = path.join(workspaceRoot, "src", "bar.ts");
 
-    const record = await adapter.getCoverage(filePath, [workspaceRoot]);
+    const result = await adapter.getCoverage(filePath, [workspaceRoot]);
 
-    expect(record).toBeNull();
+    expect(result.record).toBeNull();
   });
 
   it("finds coverage when lcov.info is under the second workspace root", async () => {
@@ -99,10 +100,11 @@ describe("LcovAdapter", () => {
 
     const adapter = new LcovAdapter();
 
-    const record = await adapter.getCoverage(filePath, [
+    const result = await adapter.getCoverage(filePath, [
       workspaceRoot,
       otherRoot,
     ]);
+    const record = result.record;
 
     expect(record).not.toBeNull();
     expect(record!.sourcePath).toBe(filePath);
@@ -130,7 +132,8 @@ describe("LcovAdapter", () => {
 
     const adapter = new LcovAdapter({ path: "out/lcov.info" });
 
-    const record = await adapter.getCoverage(filePath, [workspaceRoot]);
+    const result = await adapter.getCoverage(filePath, [workspaceRoot]);
+    const record = result.record;
 
     expect(record).not.toBeNull();
     expect(record!.sourcePath).toBe(filePath);
@@ -189,8 +192,9 @@ describe("LcovAdapter", () => {
     fs.utimesSync(filePath, nowSec, nowSec);
 
     const adapter = new LcovAdapter();
-    const record = await adapter.getCoverage(filePath, [workspaceRoot]);
+    const result = await adapter.getCoverage(filePath, [workspaceRoot]);
 
-    expect(record).toBeNull();
+    expect(result.record).toBeNull();
+    expect(result.rejectReason).toBe("stale");
   });
 });

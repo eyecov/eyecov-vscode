@@ -344,7 +344,8 @@ describe("phpunit-html adapter", () => {
         "Foo",
         "Action.php",
       );
-      const record = await adapter.getCoverage(sourcePath, [workspaceRoot]);
+      const result = await adapter.getCoverage(sourcePath, [workspaceRoot]);
+      const record = result.record;
       expect(record).not.toBeNull();
       expect(record!.lineStatuses).toBeDefined();
       expect(record!.lineStatuses!.get(1)).toBe(LINE_STATUS.COVERED_LARGE);
@@ -371,9 +372,10 @@ describe("phpunit-html adapter", () => {
       fs.utimesSync(sourcePath, nowSec, nowSec);
 
       const adapter = new PhpUnitHtmlAdapter();
-      const record = await adapter.getCoverage(sourcePath, [workspaceRoot]);
+      const result = await adapter.getCoverage(sourcePath, [workspaceRoot]);
 
-      expect(record).toBeNull();
+      expect(result.record).toBeNull();
+      expect(result.rejectReason).toBe("stale");
     });
   });
 });

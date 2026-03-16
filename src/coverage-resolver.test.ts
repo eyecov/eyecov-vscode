@@ -62,7 +62,8 @@ describe("CoverageResolver", () => {
       "Action.php",
     );
 
-    const record = await resolver.getCoverage(sourcePath);
+    const result = await resolver.getCoverage(sourcePath);
+    const record = result.record;
 
     expect(record).not.toBeNull();
     expect(record!.sourcePath).toBe(sourcePath);
@@ -85,14 +86,33 @@ describe("CoverageResolver", () => {
       "Nonexistent.php",
     );
 
-    const record = await resolver.getCoverage(sourcePath);
+    const result = await resolver.getCoverage(sourcePath);
 
-    expect(record).toBeNull();
+    expect(result.record).toBeNull();
+    expect(result.rejectReason).toBe("no-artifact");
+  });
+
+  it("returns sourceFormat on result and record when adapter provides it", async () => {
+    const resolver = new CoverageResolver({
+      workspaceRoots: [workspaceRoot],
+      adapters: [new PhpUnitHtmlAdapter()],
+    });
+    const sourcePath = path.join(
+      workspaceRoot,
+      "app",
+      "Domain",
+      "Foo",
+      "Action.php",
+    );
+    const result = await resolver.getCoverage(sourcePath);
+    expect(result.record).not.toBeNull();
+    expect(result.record!.sourceFormat).toBe("phpunit-html");
+    expect(result.sourceFormat).toBe("phpunit-html");
   });
 
   it("uses adapter order: second adapter is tried when first returns null", async () => {
     const alwaysNull: CoverageAdapter = {
-      getCoverage: async () => null,
+      getCoverage: async () => ({ record: null }),
     };
     const phpUnitAdapter = new PhpUnitHtmlAdapter();
     const resolver = new CoverageResolver({
@@ -107,7 +127,8 @@ describe("CoverageResolver", () => {
       "Action.php",
     );
 
-    const record = await resolver.getCoverage(sourcePath);
+    const result = await resolver.getCoverage(sourcePath);
+    const record = result.record;
 
     expect(record).not.toBeNull();
     expect(record!.sourcePath).toBe(sourcePath);
@@ -141,7 +162,8 @@ describe("CoverageResolver", () => {
       adapters: [phpUnitAdapter, lcovAdapter],
     });
 
-    const record = await resolver.getCoverage(sourcePath);
+    const result = await resolver.getCoverage(sourcePath);
+    const record = result.record;
 
     expect(record).not.toBeNull();
     expect(record!.sourcePath).toBe(sourcePath);
@@ -196,7 +218,8 @@ describe("CoverageResolver", () => {
     });
     const sourcePath = path.join(workspaceRoot, "src", "Service", "Foo.php");
 
-    const record = await resolver.getCoverage(sourcePath);
+    const result = await resolver.getCoverage(sourcePath);
+    const record = result.record;
 
     expect(record).not.toBeNull();
     expect(record!.sourcePath).toBe(sourcePath);
@@ -227,7 +250,8 @@ describe("CoverageResolver", () => {
       adapters: [fixtureAdapter],
     });
 
-    const record = await resolver.getCoverage(sourcePath);
+    const result = await resolver.getCoverage(sourcePath);
+    const record = result.record;
 
     expect(record).not.toBeNull();
     expect(record!.sourcePath).toBe(sourcePath);

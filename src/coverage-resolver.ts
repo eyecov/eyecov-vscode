@@ -5,9 +5,12 @@
  */
 
 import path from "node:path";
-import type { CovfluxConfig } from "./covflux-config";
+import type { CovfluxConfig, CovfluxFormatType } from "./covflux-config";
 import { PhpUnitHtmlAdapter } from "./coverage-formats/phpunit-html";
 import { LcovAdapter } from "./coverage-formats/lcov";
+
+/** Why coverage was not returned (when record is null). */
+export type CoverageRejectReason = "no-artifact" | "stale";
 
 /** Normalized coverage for the editor. No vscode or DB types. */
 export interface CoverageRecord {
@@ -16,6 +19,8 @@ export interface CoverageRecord {
   uncoveredLines: Set<number>;
   uncoverableLines: Set<number>;
   lineCoveragePercent: number | null;
+  /** Source format that produced this record (e.g. 'phpunit-html', 'lcov'). */
+  sourceFormat?: CovfluxFormatType;
   /** Set by PHPUnit HTML adapter; omitted for LCOV. */
   coverageHtmlPath?: string;
   /** Set by PHPUnit HTML adapter for per-line test data; omitted for LCOV. */
@@ -24,12 +29,19 @@ export interface CoverageRecord {
   lineStatuses?: Map<number, number>;
 }
 
-/** Adapter: given a file path and workspace roots, return a record or null. */
+/** Result from an adapter: record or null with optional reason. */
+export interface AdapterCoverageResult {
+  record: CoverageRecord | null;
+  /** When record is null, why (stale = source newer than artifact; no-artifact = no file found). */
+  rejectReason?: CoverageRejectReason;
+}
+
+/** Adapter: given a file path and workspace roots, return a result. */
 export interface CoverageAdapter {
   getCoverage(
     filePath: string,
     workspaceRoots: string[],
-  ): Promise<CoverageRecord | null>;
+  ): Promise<AdapterCoverageResult>;
 }
 
 export interface CoverageResolverOptions {
@@ -41,13 +53,21 @@ export interface CoverageResolverOptions {
   adapterLabels?: string[];
 }
 
+/** Result from resolver: record (with sourceFormat) or null with optional rejectReason. */
+export interface ResolverCoverageResult {
+  record: CoverageRecord | null;
+  rejectReason?: CoverageRejectReason;
+  sourceFormat?: CovfluxFormatType;
+}
+
 /** Tries adapters in order; returns first non-null record. */
 export class CoverageResolver {
   constructor(private readonly options: CoverageResolverOptions) {}
 
-  async getCoverage(filePath: string): Promise<CoverageRecord | null> {
+  async getCoverage(filePath: string): Promise<ResolverCoverageResult> {
     const normalizedPath = path.resolve(filePath);
     const { adapters, debugLog, adapterLabels } = this.options;
+    let lastRejectReason: CoverageRejectReason | undefined;
     for (let i = 0; i < adapters.length; i++) {
       const label = adapterLabels?.[i] ?? `adapter ${i}`;
       if (debugLog) {
@@ -55,19 +75,25 @@ export class CoverageResolver {
           `[resolver] trying ${label} for ${path.basename(normalizedPath)}`,
         );
       }
-      const record = await adapters[i].getCoverage(
+      const result = await adapters[i].getCoverage(
         normalizedPath,
         this.options.workspaceRoots,
       );
-      if (record !== null) {
+      if (result.record !== null) {
         if (debugLog) {
-          const artifact = record.coverageHtmlPath ?? `(from ${label})`;
+          const artifact = result.record.coverageHtmlPath ?? `(from ${label})`;
           debugLog(`[resolver] resolved via ${label} → ${artifact}`);
         }
-        return record;
+        return {
+          record: result.record,
+          sourceFormat: result.record.sourceFormat,
+        };
+      }
+      if (result.rejectReason) {
+        lastRejectReason = result.rejectReason;
       }
     }
-    return null;
+    return { record: null, rejectReason: lastRejectReason ?? "no-artifact" };
   }
 }
 

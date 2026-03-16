@@ -117,14 +117,13 @@ To configure the server manually (e.g. in `.cursor/mcp.json`):
   "mcpServers": {
     "covflux": {
       "command": "node",
-      "args": ["/path/to/extension/out/mcp/server.js"],
-      "env": { "COVFLUX_WORKSPACE_ROOTS": "/path/to/your/workspace" }
+      "args": ["/path/to/extension/out/mcp/server.js"]
     }
   }
 }
 ```
 
-The extension supplies workspace roots when it runs the server; `COVFLUX_WORKSPACE_ROOTS` is only needed for standalone runs.
+The extension supplies workspace roots when it runs the server. Optional: add `"env": { "COVFLUX_WORKSPACE_ROOTS": "/path/to/workspace" }` for standalone runs only.
 
 ---
 

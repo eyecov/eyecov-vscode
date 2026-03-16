@@ -3,6 +3,7 @@
  * Extracted so recordToCoverageData can be unit tested.
  */
 
+import path from "node:path";
 import type { CoverageRecord } from "./coverage-resolver";
 import type { CoverageData } from "./coverage-types";
 import { LINE_STATUS } from "./coverage-types";
@@ -33,33 +34,98 @@ export interface StatusBarContent {
   show: boolean;
 }
 
+/** Context when there is no coverage data (for status bar messaging). */
+export interface StatusBarNoCoverageContext {
+  hasSource: boolean;
+  /** Why coverage is missing: stale = source newer than report; no-artifact = no report for file. */
+  noCoverageReason?: "no-artifact" | "stale";
+  workspaceFolder?: string;
+  activeFilePath?: string;
+}
+
+/** Options for status bar content. */
+export interface StatusBarContentOptions {
+  coverageEnabled: boolean;
+  noCoverageContext?: StatusBarNoCoverageContext;
+}
+
 /**
  * Pure function: status bar text, tooltip, and optional theme color id.
  * Extension assigns these to the status bar item; use ThemeColor(backgroundColor) when set.
  */
 export function getStatusBarContent(
   coverage: CoverageData | null,
-  coverageEnabled: boolean,
+  options: StatusBarContentOptions,
 ): StatusBarContent {
-  if (!coverage || !coverageEnabled) {
+  const { coverageEnabled, noCoverageContext } = options;
+  const hasSource = noCoverageContext?.hasSource ?? false;
+
+  if (!coverageEnabled) {
     return {
-      text: "$(test-view-icon) Coverage",
+      text: "$(test-view-icon) Coverage (off)",
       tooltip: "Covflux: Click to toggle coverage display",
-      show: false,
+      show: true,
     };
   }
+
+  if (!coverage) {
+    if (!hasSource) {
+      return {
+        text: "$(test-view-icon) Coverage: no source",
+        tooltip:
+          "Covflux: No coverage config (PHPUnit HTML or LCOV). Add .covflux.json or coverage artifacts.",
+        show: true,
+      };
+    }
+    const reason = noCoverageContext?.noCoverageReason;
+    if (reason === "stale") {
+      return {
+        text: "$(test-view-icon) Coverage: invalidated",
+        tooltip:
+          "Covflux: Coverage report is older than the source file. Re-run tests to refresh.",
+        backgroundColor: "statusBarItem.errorBackground",
+        show: true,
+      };
+    }
+    const relPath = formatRelativePath(
+      noCoverageContext?.workspaceFolder,
+      noCoverageContext?.activeFilePath,
+    );
+    return {
+      text: "$(test-view-icon) No coverage",
+      tooltip: `Covflux: No coverage data for this file${relPath ? ` (${noCoverageContext?.activeFilePath})` : ""}. Click to toggle coverage display.`,
+      show: true,
+    };
+  }
+
   const percent = coverage.file.lineCoveragePercent;
   const coveredCount = coverage.file.coveredLines ?? coverage.coveredLines.size;
   const total = coverage.file.totalLines ?? 0;
-  const tooltip = `Coverage: ${percent?.toFixed(1)}%\nCovered lines: ${coveredCount}\nTotal lines: ${coverage.file.totalLines}\nClick to toggle coverage display`;
+  const sourceLabel = coverage.file.sourceFormat ?? "coverage";
+  const relPath = formatRelativePath(
+    noCoverageContext?.workspaceFolder,
+    coverage.file.sourceFile,
+  );
+  const sourcePart = ` [${sourceLabel}]`;
+
+  const tooltipLines = [
+    `Coverage: ${percent != null ? `${percent.toFixed(1)}%` : "N/A"}`,
+    `Source: ${sourceLabel}`,
+    relPath ? `File: ${relPath}` : null,
+    `Covered lines: ${coveredCount}`,
+    `Total lines: ${coverage.file.totalLines ?? total}`,
+    "Click to toggle coverage display",
+  ].filter(Boolean);
+  const tooltip = tooltipLines.join("\n");
 
   if (percent === null || percent === undefined) {
     return {
-      text: "$(test-view-icon) Coverage: N/A",
+      text: `$(test-view-icon) N/A${sourcePart}`,
       tooltip,
       show: true,
     };
   }
+
   let backgroundColor: string | undefined;
   if (percent >= 80) {
     backgroundColor = "statusBarItem.prominentBackground";
@@ -69,11 +135,24 @@ export function getStatusBarContent(
     backgroundColor = "statusBarItem.errorBackground";
   }
   return {
-    text: `$(test-view-icon) ${percent.toFixed(1)}% (${coveredCount}/${total})`,
+    text: `$(test-view-icon) ${percent.toFixed(1)}% (${coveredCount}/${total})${sourcePart}`,
     tooltip,
     backgroundColor,
     show: true,
   };
+}
+
+function formatRelativePath(
+  workspaceFolder: string | undefined,
+  filePath: string | undefined,
+): string {
+  if (!workspaceFolder || !filePath) return "";
+  try {
+    const rel = path.relative(workspaceFolder, filePath);
+    return rel.startsWith("..") ? path.basename(filePath) : rel;
+  } catch {
+    return "";
+  }
 }
 
 /**
@@ -168,6 +247,7 @@ export function recordToCoverageData(record: CoverageRecord): CoverageData {
       lineCoveragePercent: record.lineCoveragePercent,
       totalLines,
       coveredLines: record.coveredLines.size,
+      sourceFormat: record.sourceFormat,
     },
     coveredLines: record.coveredLines,
     uncoveredLines: record.uncoveredLines,

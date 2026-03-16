@@ -33,7 +33,8 @@ describe("FixtureAdapter", () => {
     fs.writeFileSync(sourcePath, "x\n");
 
     const adapter = new FixtureAdapter({ path: "coverage/fixture.json" });
-    const record = await adapter.getCoverage(sourcePath, [workspaceRoot]);
+    const result = await adapter.getCoverage(sourcePath, [workspaceRoot]);
+    const record = result.record;
 
     expect(record).not.toBeNull();
     expect(record!.sourcePath).toBe(sourcePath);
@@ -56,9 +57,9 @@ describe("FixtureAdapter", () => {
     const sourcePath = path.join(workspaceRoot, "src", "bar.ts");
 
     const adapter = new FixtureAdapter({ path: "coverage/fixture.json" });
-    const record = await adapter.getCoverage(sourcePath, [workspaceRoot]);
+    const result = await adapter.getCoverage(sourcePath, [workspaceRoot]);
 
-    expect(record).toBeNull();
+    expect(result.record).toBeNull();
   });
 
   it("resolves both sources from multi-file fixture", async () => {
@@ -76,14 +77,16 @@ describe("FixtureAdapter", () => {
     fs.writeFileSync(path.join(workspaceRoot, "src", "b.ts"), "");
 
     const adapter = new FixtureAdapter({ path: "coverage/fixture.json" });
-    const recordA = await adapter.getCoverage(
+    const resultA = await adapter.getCoverage(
       path.join(workspaceRoot, "src", "a.ts"),
       [workspaceRoot],
     );
-    const recordB = await adapter.getCoverage(
+    const resultB = await adapter.getCoverage(
       path.join(workspaceRoot, "src", "b.ts"),
       [workspaceRoot],
     );
+    const recordA = resultA.record;
+    const recordB = resultB.record;
 
     expect(recordA).not.toBeNull();
     expect(recordA!.lineCoveragePercent).toBe(100);
@@ -107,7 +110,8 @@ describe("FixtureAdapter", () => {
     fs.writeFileSync(sourcePath, "");
 
     const adapter = new FixtureAdapter({ path: "coverage/fixture.json" });
-    const record = await adapter.getCoverage(sourcePath, [workspaceRoot]);
+    const result = await adapter.getCoverage(sourcePath, [workspaceRoot]);
+    const record = result.record;
 
     expect(record).not.toBeNull();
     expect(record!.uncoverableLines.has(3)).toBe(true);

@@ -6,7 +6,10 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import type { CoverageAdapter, CoverageRecord } from "../../coverage-resolver";
+import type {
+  AdapterCoverageResult,
+  CoverageAdapter,
+} from "../../coverage-resolver";
 import { isCoverageStale } from "../../coverage-staleness";
 import { parseLcov, lineCoveragePercent } from "./parser";
 
@@ -53,7 +56,7 @@ export class LcovAdapter implements CoverageAdapter {
   async getCoverage(
     filePath: string,
     workspaceRoots: string[],
-  ): Promise<CoverageRecord | null> {
+  ): Promise<AdapterCoverageResult> {
     const normalizedPath = path.resolve(filePath);
     for (const root of workspaceRoots) {
       const lcovPath = path.join(root, this.lcovPath);
@@ -66,7 +69,7 @@ export class LcovAdapter implements CoverageAdapter {
         const resolved = path.resolve(root, rec.sourceFile);
         if (resolved === normalizedPath) {
           if (isCoverageStale(normalizedPath, lcovPath)) {
-            return null;
+            return { record: null, rejectReason: "stale" };
           }
           const coveredSet = new Set(rec.coveredLines);
           const uncoveredSet = new Set(rec.uncoveredLines);
@@ -75,15 +78,18 @@ export class LcovAdapter implements CoverageAdapter {
             rec.uncoveredLines.length,
           );
           return {
-            sourcePath: normalizedPath,
-            coveredLines: coveredSet,
-            uncoveredLines: uncoveredSet,
-            uncoverableLines: new Set<number>(),
-            lineCoveragePercent: percent,
+            record: {
+              sourcePath: normalizedPath,
+              coveredLines: coveredSet,
+              uncoveredLines: uncoveredSet,
+              uncoverableLines: new Set<number>(),
+              lineCoveragePercent: percent,
+              sourceFormat: "lcov",
+            },
           };
         }
       }
     }
-    return null;
+    return { record: null, rejectReason: "no-artifact" };
   }
 }

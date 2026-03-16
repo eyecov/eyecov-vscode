@@ -38,8 +38,7 @@ Recommended:
 
 ## Tests
 
-- **Unit tests:** `npm test` (Vitest)
-- **Coverage:** `npm run test:coverage` (report in terminal and `coverage/index.html`)
+- **Unit tests:** `npm test` (Vitest; generates coverage by default; report in terminal and `coverage/index.html`). Use `npm run test:no-coverage` for a quick run without coverage.
 - **Extension host tests:** `npm run test:extension` (runs in Extension Development Host)
 
 See [docs/TESTING.md](docs/TESTING.md) for scope and details.

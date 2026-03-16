@@ -5,7 +5,10 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import type { CoverageAdapter, CoverageRecord } from "../../coverage-resolver";
+import type {
+  AdapterCoverageResult,
+  CoverageAdapter,
+} from "../../coverage-resolver";
 import { parseFixtureCoverage } from "./parser";
 
 export interface FixtureAdapterOptions {
@@ -27,7 +30,7 @@ export class FixtureAdapter implements CoverageAdapter {
   async getCoverage(
     filePath: string,
     workspaceRoots: string[],
-  ): Promise<CoverageRecord | null> {
+  ): Promise<AdapterCoverageResult> {
     const normalizedPath = path.resolve(filePath);
     for (const root of workspaceRoots) {
       const fullFixturePath = path.join(root, this.fixturePath);
@@ -43,15 +46,17 @@ export class FixtureAdapter implements CoverageAdapter {
         const resolvedSource = path.resolve(root, entry.sourcePath);
         if (resolvedSource === normalizedPath) {
           return {
-            sourcePath: normalizedPath,
-            coveredLines: new Set(entry.coveredLines),
-            uncoveredLines: new Set(entry.uncoveredLines),
-            uncoverableLines: new Set(entry.uncoverableLines ?? []),
-            lineCoveragePercent: entry.lineCoveragePercent ?? null,
+            record: {
+              sourcePath: normalizedPath,
+              coveredLines: new Set(entry.coveredLines),
+              uncoveredLines: new Set(entry.uncoveredLines),
+              uncoverableLines: new Set(entry.uncoverableLines ?? []),
+              lineCoveragePercent: entry.lineCoveragePercent ?? null,
+            },
           };
         }
       }
     }
-    return null;
+    return { record: null, rejectReason: "no-artifact" };
   }
 }

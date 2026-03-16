@@ -243,7 +243,7 @@ describe("coverage-aggregate", () => {
         workspaceRoots: [workspaceRoot],
         config,
         path: "app/Domain",
-        getCoverage: (p) => resolver.getCoverage(p),
+        getCoverage: (p) => resolver.getCoverage(p).then((r) => r.record),
       });
       expect(response.paths).toEqual(["app/Domain"]);
       expect(response.totalFiles).toBe(1);
@@ -284,7 +284,7 @@ describe("coverage-aggregate", () => {
         workspaceRoots: [workspaceRoot],
         config,
         paths: ["app/Domain/Foo", "app/Domain/Bar"],
-        getCoverage: (p) => resolver.getCoverage(p),
+        getCoverage: (p) => resolver.getCoverage(p).then((r) => r.record),
       });
       expect(response.paths).toEqual(["app/Domain/Foo", "app/Domain/Bar"]);
       expect(response.totalFiles).toBe(2);
@@ -324,7 +324,7 @@ describe("coverage-aggregate", () => {
         workspaceRoots: [workspaceRoot],
         config,
         paths: ["app/Domain/Foo", "app/Domain/Bar"],
-        getCoverage: (p) => resolver.getCoverage(p),
+        getCoverage: (p) => resolver.getCoverage(p).then((r) => r.record),
         zeroCoverageFilesLimit: 10,
         coveredLinesCutoff: 0,
       });
@@ -347,7 +347,7 @@ describe("coverage-aggregate", () => {
       const response = await getProjectAggregateResponse({
         workspaceRoots: [workspaceRoot],
         config,
-        getCoverage: (p) => resolver.getCoverage(p),
+        getCoverage: (p) => resolver.getCoverage(p).then((r) => r.record),
       });
       expect(response.aggregateCoveragePercent).toBe(100);
       expect(response.totalFiles).toBe(1);
@@ -388,7 +388,7 @@ describe("coverage-aggregate", () => {
       const response = await getProjectAggregateResponse({
         workspaceRoots: [lcovRoot],
         config,
-        getCoverage: (p) => resolver.getCoverage(p),
+        getCoverage: (p) => resolver.getCoverage(p).then((r) => r.record),
       });
       expect(response.totalFiles).toBe(1);
       expect(response.coveredFiles).toBe(1);
@@ -408,7 +408,7 @@ describe("coverage-aggregate", () => {
       });
       const result = await aggregateCoverage({
         paths,
-        getCoverage: (p) => resolver.getCoverage(p),
+        getCoverage: (p) => resolver.getCoverage(p).then((r) => r.record),
       });
       expect(result.totalFiles).toBe(1);
       expect(result.coveredFiles).toBe(1);

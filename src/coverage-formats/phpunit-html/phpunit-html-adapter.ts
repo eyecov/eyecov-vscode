@@ -7,7 +7,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { PhpUnitHtmlSourceSegment } from "../../covflux-config";
-import type { CoverageAdapter, CoverageRecord } from "../../coverage-resolver";
+import type {
+  AdapterCoverageResult,
+  CoverageAdapter,
+} from "../../coverage-resolver";
 import { isCoverageStale } from "../../coverage-staleness";
 import { parseCoverageHtml } from "./parser";
 import type { CoverageFileResult, ParsedCoverageFileResult } from "./types";
@@ -260,28 +263,31 @@ export class PhpUnitHtmlAdapter implements CoverageAdapter {
   async getCoverage(
     filePath: string,
     workspaceRoots: string[],
-  ): Promise<CoverageRecord | null> {
+  ): Promise<AdapterCoverageResult> {
     const coverageHtmlPath = resolveCoverageHtmlPath(
       filePath,
       workspaceRoots,
       this.options,
     );
     if (!coverageHtmlPath) {
-      return null;
+      return { record: null, rejectReason: "no-artifact" };
     }
     if (isCoverageStale(filePath, coverageHtmlPath)) {
-      return null;
+      return { record: null, rejectReason: "stale" };
     }
     const result = buildCoverageFileResult(filePath, coverageHtmlPath);
     return {
-      sourcePath: filePath,
-      coveredLines: new Set(result.coveredLineNumbers),
-      uncoveredLines: new Set(result.uncoveredLineNumbers),
-      uncoverableLines: new Set<number>(),
-      lineCoveragePercent: result.lineCoveragePercent,
-      coverageHtmlPath,
-      testsByLine: result.testsByLine,
-      lineStatuses: result.lineStatuses,
+      record: {
+        sourcePath: filePath,
+        coveredLines: new Set(result.coveredLineNumbers),
+        uncoveredLines: new Set(result.uncoveredLineNumbers),
+        uncoverableLines: new Set<number>(),
+        lineCoveragePercent: result.lineCoveragePercent,
+        sourceFormat: "phpunit-html",
+        coverageHtmlPath,
+        testsByLine: result.testsByLine,
+        lineStatuses: result.lineStatuses,
+      },
     };
   }
 }

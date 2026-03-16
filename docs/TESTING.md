@@ -3,7 +3,7 @@
 ## Vitest (unit tests)
 
 - **Scope:** Pure Node code that does not import `vscode`: coverage-formats, coverage-runtime, coverage-resolver, coverage-aggregate, coverage-cache, coverage-prewarm, coverage-staleness, covflux-config, mcp/settings.
-- **Run:** `npm test` (or `npx vitest`). **Coverage:** `npm run test:coverage` (V8 provider; report in terminal and `coverage/index.html`).
+- **Run:** `npm test` (or `npx vitest run --coverage`). Coverage is always generated (V8 provider; report in terminal and `coverage/index.html`). For a quick run without coverage: `npm run test:no-coverage`.
 - **What’s tested:**
   - **coverage-formats/phpunit-html** — Parser (`parseCoverageHtml`, minimal HTML fixture), `parseTestName` (Pest/PHPUnit-style strings); adapter path resolution and `getCoverage`.
   - **coverage-formats/lcov** — Parser and adapter; `getCoverage` with lcov.info fixture.

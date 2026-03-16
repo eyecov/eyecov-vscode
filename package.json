@@ -2,7 +2,7 @@
   "name": "covflux-vscode",
   "displayName": "Covflux",
   "description": "Display code coverage in VS Code editor",
-  "version": "0.2.13",
+  "version": "0.2.16",
   "publisher": "covflux",
   "icon": "images/covflux-logo-256.png",
   "repository": {
@@ -124,7 +124,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
+    "test:no-coverage": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "test:mcp": "node scripts/verify-mcp-server.mjs",

@@ -52,6 +52,21 @@ describe("recordToCoverageData", () => {
     expect(result.lineStatuses.get(2)).toBe(LINE_STATUS.UNCOVERED);
     expect(result.lineStatuses.get(3)).toBe(LINE_STATUS.COVERED_SMALL);
   });
+
+  it("passes through sourceFormat from record to file", () => {
+    const record: CoverageRecord = {
+      sourcePath: "/workspace/src/foo.ts",
+      coveredLines: new Set([1]),
+      uncoveredLines: new Set([2]),
+      uncoverableLines: new Set(),
+      lineCoveragePercent: 33.33,
+      sourceFormat: "lcov",
+    };
+
+    const result = recordToCoverageData(record);
+
+    expect(result.file.sourceFormat).toBe("lcov");
+  });
 });
 
 describe("getDecorationPlan", () => {
@@ -142,10 +157,17 @@ describe("getDecorationPlan", () => {
 });
 
 describe("getStatusBarContent", () => {
-  it("returns show false and default text when no coverage or coverage disabled", () => {
-    expect(getStatusBarContent(null, true).show).toBe(false);
-    expect(getStatusBarContent(null, true).text).toContain("Coverage");
-    expect(getStatusBarContent(null, false).show).toBe(false);
+  it("shows no-source when coverage is null and no context (hasSource falsy)", () => {
+    const out = getStatusBarContent(null, { coverageEnabled: true });
+    expect(out.show).toBe(true);
+    expect(out.text).toContain("no source");
+    expect(out.tooltip).toContain("No coverage config");
+  });
+
+  it("shows Coverage (off) when coverageEnabled is false", () => {
+    expect(
+      getStatusBarContent(null, { coverageEnabled: false }).text,
+    ).toContain("(off)");
     const coverage: CoverageData = {
       file: {
         fileId: 0,
@@ -159,28 +181,192 @@ describe("getStatusBarContent", () => {
       uncoverableLines: new Set(),
       lineStatuses: new Map(),
     };
-    expect(getStatusBarContent(coverage, false).show).toBe(false);
+    expect(
+      getStatusBarContent(coverage, { coverageEnabled: false }).text,
+    ).toContain("(off)");
   });
 
-  it("returns percent text and theme color id when coverage enabled and percent set", () => {
+  it("shows No coverage without path text when hasSource but no data", () => {
+    const out = getStatusBarContent(null, {
+      coverageEnabled: true,
+      noCoverageContext: {
+        hasSource: true,
+        workspaceFolder: "/workspace",
+        activeFilePath: "/workspace/src/Service/Foo.php",
+      },
+    });
+    expect(out.show).toBe(true);
+    expect(out.text).toBe("$(test-view-icon) No coverage");
+    expect(out.tooltip).toContain("No coverage data for this file");
+  });
+
+  it("shows invalidated (red) when noCoverageReason is stale", () => {
+    const out = getStatusBarContent(null, {
+      coverageEnabled: true,
+      noCoverageContext: { hasSource: true, noCoverageReason: "stale" },
+    });
+    expect(out.show).toBe(true);
+    expect(out.text).toContain("invalidated");
+    expect(out.backgroundColor).toBe("statusBarItem.errorBackground");
+    expect(out.tooltip).toContain("older than the source file");
+  });
+
+  it("shows No coverage without path when no workspaceFolder", () => {
+    const out = getStatusBarContent(null, {
+      coverageEnabled: true,
+      noCoverageContext: { hasSource: true },
+    });
+    expect(out.text).toContain("No coverage");
+    expect(out.text).not.toContain("•");
+  });
+
+  it("returns percent, source format and prominent background for high coverage", () => {
     const coverage: CoverageData = {
       file: {
         fileId: 0,
-        sourceFile: "/x",
+        sourceFile: "/workspace/app/Foo.php",
         lineCoveragePercent: 85,
         totalLines: 10,
         coveredLines: 8,
+        sourceFormat: "phpunit-html",
       },
       coveredLines: new Set(),
       uncoveredLines: new Set(),
       uncoverableLines: new Set(),
       lineStatuses: new Map(),
     };
-    const out = getStatusBarContent(coverage, true);
+    const out = getStatusBarContent(coverage, {
+      coverageEnabled: true,
+      noCoverageContext: {
+        hasSource: true,
+        workspaceFolder: "/workspace",
+      },
+    });
     expect(out.show).toBe(true);
     expect(out.text).toContain("85.0%");
     expect(out.text).toContain("8/10");
+    expect(out.text).toContain("phpunit-html");
+    expect(out.text).not.toContain("app/Foo.php");
     expect(out.backgroundColor).toBe("statusBarItem.prominentBackground");
+  });
+
+  it("returns warning background for medium coverage (50–79%)", () => {
+    const coverage: CoverageData = {
+      file: {
+        fileId: 0,
+        sourceFile: "/x",
+        lineCoveragePercent: 60,
+        totalLines: 10,
+        coveredLines: 6,
+        sourceFormat: "lcov",
+      },
+      coveredLines: new Set(),
+      uncoveredLines: new Set(),
+      uncoverableLines: new Set(),
+      lineStatuses: new Map(),
+    };
+    const out = getStatusBarContent(coverage, {
+      coverageEnabled: true,
+      noCoverageContext: { hasSource: true },
+    });
+    expect(out.backgroundColor).toBe("statusBarItem.warningBackground");
+    expect(out.text).toContain("lcov");
+  });
+
+  it("returns error background for low coverage (<50%)", () => {
+    const coverage: CoverageData = {
+      file: {
+        fileId: 0,
+        sourceFile: "/x",
+        lineCoveragePercent: 30,
+        totalLines: 10,
+        coveredLines: 3,
+      },
+      coveredLines: new Set(),
+      uncoveredLines: new Set(),
+      uncoverableLines: new Set(),
+      lineStatuses: new Map(),
+    };
+    const out = getStatusBarContent(coverage, {
+      coverageEnabled: true,
+      noCoverageContext: { hasSource: true },
+    });
+    expect(out.backgroundColor).toBe("statusBarItem.errorBackground");
+  });
+
+  it("tooltip includes source, path, covered lines and total when coverage present", () => {
+    const coverage: CoverageData = {
+      file: {
+        fileId: 0,
+        sourceFile: "/workspace/src/bar.ts",
+        lineCoveragePercent: 75,
+        totalLines: 20,
+        coveredLines: 15,
+        sourceFormat: "lcov",
+      },
+      coveredLines: new Set(),
+      uncoveredLines: new Set(),
+      uncoverableLines: new Set(),
+      lineStatuses: new Map(),
+    };
+    const out = getStatusBarContent(coverage, {
+      coverageEnabled: true,
+      noCoverageContext: {
+        hasSource: true,
+        workspaceFolder: "/workspace",
+      },
+    });
+    expect(out.tooltip).toContain("75.0%");
+    expect(out.tooltip).toContain("Source: lcov");
+    expect(out.tooltip).toContain("src/bar.ts");
+    expect(out.tooltip).toContain("Covered lines: 15");
+    expect(out.tooltip).toContain("Total lines: 20");
+    expect(out.tooltip).toContain("Click to toggle");
+  });
+
+  it("shows N/A with source format when percent is null", () => {
+    const coverage: CoverageData = {
+      file: {
+        fileId: 0,
+        sourceFile: "/x",
+        lineCoveragePercent: null,
+        totalLines: 0,
+        coveredLines: 0,
+        sourceFormat: "phpunit-html",
+      },
+      coveredLines: new Set(),
+      uncoveredLines: new Set(),
+      uncoverableLines: new Set(),
+      lineStatuses: new Map(),
+    };
+    const out = getStatusBarContent(coverage, {
+      coverageEnabled: true,
+      noCoverageContext: { hasSource: true },
+    });
+    expect(out.text).toContain("N/A");
+    expect(out.text).toContain("phpunit-html");
+    expect(out.backgroundColor).toBeUndefined();
+  });
+
+  it("uses fallback 'coverage' when sourceFormat is missing", () => {
+    const coverage: CoverageData = {
+      file: {
+        fileId: 0,
+        sourceFile: "/x",
+        lineCoveragePercent: 50,
+        totalLines: 4,
+        coveredLines: 2,
+      },
+      coveredLines: new Set(),
+      uncoveredLines: new Set(),
+      uncoverableLines: new Set(),
+      lineStatuses: new Map(),
+    };
+    const out = getStatusBarContent(coverage, {
+      coverageEnabled: true,
+      noCoverageContext: { hasSource: true },
+    });
+    expect(out.text).toContain("coverage");
   });
 });
 

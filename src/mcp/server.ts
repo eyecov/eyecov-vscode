@@ -248,8 +248,8 @@ async function main(): Promise<void> {
       });
       const records: CoverageRecord[] = [];
       for (const filePath of candidatePaths) {
-        const record = await resolver.getCoverage(filePath);
-        if (record) records.push(record);
+        const result = await resolver.getCoverage(filePath);
+        if (result.record) records.push(result.record);
       }
       const sourceLabel =
         records.length > 0 && records.some((r) => r.coverageHtmlPath)
@@ -350,8 +350,8 @@ async function main(): Promise<void> {
       });
       const records: CoverageRecord[] = [];
       for (const filePath of candidatePaths) {
-        const record = await resolver.getCoverage(filePath);
-        if (record) records.push(record);
+        const result = await resolver.getCoverage(filePath);
+        if (result.record) records.push(result.record);
       }
 
       const response = {
@@ -544,7 +544,7 @@ async function main(): Promise<void> {
         workspaceRoots,
         config,
         ...pathInput,
-        getCoverage: (p) => resolver.getCoverage(p),
+        getCoverage: (p) => resolver.getCoverage(p).then((r) => r.record),
         worstFilesLimit,
         zeroCoverageFilesLimit: args.zeroCoverageFilesLimit,
         coveredLinesCutoff: args.coveredLinesCutoff,
@@ -637,7 +637,7 @@ async function main(): Promise<void> {
       const response = await getProjectAggregateResponse({
         workspaceRoots,
         config,
-        getCoverage: (p) => resolver.getCoverage(p),
+        getCoverage: (p) => resolver.getCoverage(p).then((r) => r.record),
         worstFilesLimit: args.worstFilesLimit,
         zeroCoverageFilesLimit: args.zeroCoverageFilesLimit,
         coveredLinesCutoff: args.coveredLinesCutoff,
@@ -748,9 +748,9 @@ async function main(): Promise<void> {
       const records: CoverageRecord[] = [];
       const missingPaths: string[] = [];
       for (const p of filePaths) {
-        const record = await resolver.getCoverage(p);
-        if (record) {
-          records.push(record);
+        const result = await resolver.getCoverage(p);
+        if (result.record) {
+          records.push(result.record);
         } else if (includeNoCoverage) {
           missingPaths.push(p);
         }

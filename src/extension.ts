@@ -5,6 +5,7 @@ import {
   getDecorationPlan,
   getStatusBarContent,
   recordToCoverageData,
+  type StatusBarNoCoverageContext,
 } from "./coverage-data-mapper";
 import { CoverageData, LINE_STATUS } from "./coverage-types";
 import { CoverageHtmlReader } from "./coverage-html-reader";
@@ -181,7 +182,6 @@ class CovfluxExtension {
   private fileWatcher: vscode.FileSystemWatcher | null = null;
   private disposables: vscode.Disposable[] = [];
   private statusBarCoverage: vscode.StatusBarItem;
-  private statusBarDatabase: vscode.StatusBarItem;
   private currentCoverage: CoverageData | null = null;
   private workspaceFolder: string | undefined;
   private outputChannel: vscode.OutputChannel;
@@ -203,12 +203,6 @@ class CovfluxExtension {
     this.statusBarCoverage.command = "covflux.toggleCoverage";
     this.statusBarCoverage.tooltip =
       "Covflux: Click to toggle coverage display";
-
-    this.statusBarDatabase = vscode.window.createStatusBarItem(
-      vscode.StatusBarAlignment.Right,
-      101,
-    );
-    this.statusBarDatabase.tooltip = "Covflux: Database connection status";
   }
 
   /**
@@ -274,9 +268,9 @@ class CovfluxExtension {
         const filePath = editor.document.uri.fsPath;
         this.getFileCoverage(filePath)
           .then((result) => {
-            if (!result) {
+            if ("noCoverage" in result) {
               vscode.window.showInformationMessage(
-                `Covflux: No coverage data found for ${path.basename(filePath)}`,
+                `Covflux: No coverage data for ${path.basename(filePath)} (${result.reason})`,
               );
               return;
             }
@@ -565,9 +559,7 @@ class CovfluxExtension {
 
     this.startPrewarmIfEnabled();
 
-    // Show status bar items
     this.statusBarCoverage.show();
-    this.statusBarDatabase.show();
 
     // Update current editor if open
     if (vscode.window.activeTextEditor && this.coverageEnabled) {
@@ -580,7 +572,7 @@ class CovfluxExtension {
     }
 
     // Store disposables
-    context.subscriptions.push(this.statusBarCoverage, this.statusBarDatabase);
+    context.subscriptions.push(this.statusBarCoverage);
     this.disposables.push(...context.subscriptions);
   }
 
@@ -652,19 +644,32 @@ class CovfluxExtension {
 
   /**
    * Get coverage record and mapped CoverageData for a file from the resolver.
+   * Returns noCoverage with reason when the file has no coverage or report is stale.
    */
   private async getFileCoverage(
     filePath: string,
-  ): Promise<{ record: CoverageRecord; coverage: CoverageData } | null> {
-    if (!this.resolver) return null;
-    const record = await this.resolver.getCoverage(filePath);
-    if (!record) return null;
+  ): Promise<
+    | { record: CoverageRecord; coverage: CoverageData; sourceFormat?: string }
+    | { noCoverage: true; reason: "no-artifact" | "stale" }
+  > {
+    if (!this.resolver) {
+      return { noCoverage: true, reason: "no-artifact" };
+    }
+    const result = await this.resolver.getCoverage(filePath);
+    if (!result.record) {
+      return {
+        noCoverage: true,
+        reason: result.rejectReason ?? "no-artifact",
+      };
+    }
+    const record = result.record;
     this.log(
       `[coverage-html] ${path.basename(filePath)}: ${record.uncoveredLines.size} uncovered line(s): [${[...record.uncoveredLines].sort((a, b) => a - b).join(", ")}]`,
     );
     return {
       record,
       coverage: recordToCoverageData(record),
+      sourceFormat: record.sourceFormat ?? result.sourceFormat,
     };
   }
 
@@ -709,10 +714,6 @@ class CovfluxExtension {
       });
       console.log(`[Covflux] ✓ coverage-html at ${coverageRoots.join(", ")}`);
     }
-    this.updateSourceStatus(
-      "$(file-code) Coverage",
-      "Auto-discover coverage (PHPUnit HTML, LCOV) — uses whatever is available for the open file",
-    );
   }
 
   /**
@@ -771,7 +772,8 @@ class CovfluxExtension {
         const config = loadCovfluxConfig(root);
         prewarmCoverageForRoot(root, {
           listPaths: () => listCoveredPathsFromFirstFormat([root], config),
-          getCoverage: (p) => this.resolver!.getCoverage(p),
+          getCoverage: (p) =>
+            this.resolver!.getCoverage(p).then((r) => r.record),
           batchSize: 20,
         }).catch(() => {
           // ignore; cache will be on-demand if prewarm fails
@@ -836,9 +838,16 @@ class CovfluxExtension {
         coverage = trackedStateToCoverageData(existingState);
       } else {
         const result = await this.getFileCoverage(filePath);
-        if (!result) {
-          this.updateCoverageStatus(null);
-          this.log(`[update] No coverage for ${path.basename(filePath)}`);
+        if ("noCoverage" in result) {
+          this.updateCoverageStatus(null, {
+            hasSource: true,
+            noCoverageReason: result.reason,
+            workspaceFolder: this.workspaceFolder,
+            activeFilePath: filePath,
+          });
+          this.log(
+            `[update] No coverage for ${path.basename(filePath)} (${result.reason})`,
+          );
           return;
         }
 
@@ -853,7 +862,11 @@ class CovfluxExtension {
       }
 
       if (!coverage) {
-        this.updateCoverageStatus(null);
+        this.updateCoverageStatus(null, {
+          hasSource: true,
+          workspaceFolder: this.workspaceFolder,
+          activeFilePath: filePath,
+        });
         this.log(`[update] No coverage for ${path.basename(filePath)}`);
         return;
       }
@@ -884,10 +897,26 @@ class CovfluxExtension {
   }
 
   /**
-   * Update coverage status bar
+   * Update coverage status bar. Pass noCoverageContext when coverage is null
+   * so the bar can show reason (stale, no artifact), relative path, etc.
    */
-  private updateCoverageStatus(coverage: CoverageData | null): void {
-    const content = getStatusBarContent(coverage, this.coverageEnabled);
+  private updateCoverageStatus(
+    coverage: CoverageData | null,
+    noCoverageContext?: StatusBarNoCoverageContext,
+  ): void {
+    const noCovCtx: StatusBarNoCoverageContext | undefined =
+      noCoverageContext ??
+      (coverage === null
+        ? {
+            hasSource: this.hasCoverageSource(),
+            workspaceFolder: this.workspaceFolder,
+            activeFilePath: vscode.window.activeTextEditor?.document.uri.fsPath,
+          }
+        : { hasSource: true, workspaceFolder: this.workspaceFolder });
+    const content = getStatusBarContent(coverage, {
+      coverageEnabled: this.coverageEnabled,
+      noCoverageContext: noCovCtx,
+    });
     this.statusBarCoverage.text = content.text;
     this.statusBarCoverage.tooltip = content.tooltip;
     this.statusBarCoverage.backgroundColor = content.backgroundColor
@@ -898,15 +927,6 @@ class CovfluxExtension {
     } else {
       this.statusBarCoverage.hide();
     }
-  }
-
-  /**
-   * Update source status bar (coverage-html availability)
-   */
-  private updateSourceStatus(text: string, tooltip: string): void {
-    this.statusBarDatabase.text = text;
-    this.statusBarDatabase.tooltip = `Covflux: ${tooltip}`;
-    this.statusBarDatabase.show();
   }
 
   /**
@@ -1049,7 +1069,6 @@ class CovfluxExtension {
     this.clearAllDecorations();
     this.decorations.dispose();
     this.statusBarCoverage.dispose();
-    this.statusBarDatabase.dispose();
 
     // Dispose all disposables
     this.disposables.forEach((d) => d.dispose());
