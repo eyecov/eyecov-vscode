@@ -54,11 +54,12 @@ export async function aggregateCoverage(
   const covered = records.filter((r): r is CoverageRecord => r !== null);
   const coveredFiles = covered.length;
   const missingCoverageFiles = paths.length - coveredFiles;
-  const totalExecutable = covered.reduce((sum, r) => {
-    const exec = r.coveredLines.size + r.uncoveredLines.size;
-    return sum + exec;
-  }, 0);
-  const totalCovered = covered.reduce((sum, r) => sum + r.coveredLines.size, 0);
+  let totalExecutable = 0;
+  let totalCovered = 0;
+  for (const r of covered) {
+    totalCovered += r.coveredLines.size;
+    totalExecutable += r.coveredLines.size + r.uncoveredLines.size;
+  }
   const aggregateCoveragePercent =
     totalExecutable > 0
       ? Number(((totalCovered / totalExecutable) * 100).toFixed(2))
@@ -71,12 +72,18 @@ export async function aggregateCoverage(
   }));
 
   const useCutoff = zeroCoverageFilesLimit !== undefined;
-  const aboveCutoff = useCutoff
-    ? withPercentAndCovered.filter((x) => x.coveredCount > coveredLinesCutoff)
-    : withPercentAndCovered;
-  const atOrBelowCutoff = useCutoff
-    ? withPercentAndCovered.filter((x) => x.coveredCount <= coveredLinesCutoff)
-    : [];
+  let aboveCutoff = withPercentAndCovered;
+  const atOrBelowCutoff: typeof withPercentAndCovered = [];
+  if (useCutoff) {
+    aboveCutoff = [];
+    for (const x of withPercentAndCovered) {
+      if (x.coveredCount > coveredLinesCutoff) {
+        aboveCutoff.push(x);
+      } else {
+        atOrBelowCutoff.push(x);
+      }
+    }
+  }
 
   const sortedWorst = [...aboveCutoff].sort((a, b) => {
     const pa = a.lineCoveragePercent ?? 101;
@@ -361,21 +368,15 @@ export function pathAggregateFromCache(
   worstFilesLimit = 10,
 ): PathAggregateResponse {
   const prefixNorm = pathPrefixes.map((p) => p.replace(/\/+$/, ""));
-  const filtered = cache.files.filter((f) => {
-    const normalized = path.resolve(f.filePath);
-    for (const p of prefixNorm) {
-      const prefixFull = path.resolve(workspaceRoot, p);
-      if (
-        normalized === prefixFull ||
-        normalized.startsWith(prefixFull + path.sep)
-      ) {
-        return true;
-      }
-    }
-    return false;
-  });
-  const totalCovered = filtered.reduce((s, f) => s + f.coveredLines, 0);
-  const totalUncovered = filtered.reduce((s, f) => s + f.uncoveredLines, 0);
+  const filtered = cache.files.filter((f) =>
+    prefixNorm.some((p) => underPrefix(f.filePath, [workspaceRoot], p)),
+  );
+  let totalCovered = 0;
+  let totalUncovered = 0;
+  for (const f of filtered) {
+    totalCovered += f.coveredLines;
+    totalUncovered += f.uncoveredLines;
+  }
   const totalExecutable = totalCovered + totalUncovered;
   const aggregateCoveragePercent =
     totalExecutable > 0

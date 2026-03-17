@@ -14,8 +14,47 @@ import { LINE_STATUS } from "./coverage-types";
  * removed, matching addedLines = newlines in text.
  */
 export interface ContentChange {
-  range: { start: { line: number }; end: { line: number } };
+  range: {
+    start: { line: number; character?: number };
+    end: { line: number; character?: number };
+  };
   text: string;
+  /**
+   * When true, the edit inserted a newline after the end of the start line
+   * without changing that line's content, so the start line should not be
+   * invalidated.
+   */
+  preserveStartLine?: boolean;
+  /**
+   * When true, the edit inserted one or more whole lines before the start line
+   * without changing that line's content, so the start line should shift by
+   * lineDelta instead of being invalidated.
+   */
+  shiftStartLine?: boolean;
+}
+
+/**
+ * Coverage line numbers are 1-based. VS Code document change events are 0-based,
+ * so normalize them before applying edit tracking.
+ */
+export function normalizeContentChangeFromZeroBased(
+  change: ContentChange,
+): ContentChange {
+  return {
+    range: {
+      start: {
+        line: change.range.start.line + 1,
+        character: change.range.start.character,
+      },
+      end: {
+        line: change.range.end.line + 1,
+        character: change.range.end.character,
+      },
+    },
+    text: change.text,
+    preserveStartLine: change.preserveStartLine,
+    shiftStartLine: change.shiftStartLine,
+  };
 }
 
 export interface LineDelta {
@@ -58,20 +97,31 @@ export function applyOneChange(
   const editEnd = change.range.end.line;
   const { lineDelta } = computeLineDelta(change);
 
-  const inRange = (L: number) => L >= editStart && L <= editEnd;
-  if (
-    coveredLines.some(inRange) ||
-    uncoveredLines.some(inRange) ||
-    uncoverableLines.some(inRange)
-  ) {
-    return null;
-  }
-  if (lineDelta === 0) {
-    return { coveredLines, uncoveredLines, uncoverableLines };
-  }
+  // Only exclude editStart from invalidation for the exact join-lines shape: backspace at
+  // col 0 of the next line removes the trailing newline of editStart without touching its
+  // content. Any other multi-line edit starting mid-line still modifies editStart's content.
+  const isJoinLines =
+    (change.range.start.character ?? 0) > 0 &&
+    editEnd === editStart + 1 &&
+    (change.range.end.character ?? 0) === 0 &&
+    change.text === "";
+  const shiftsStartLine =
+    change.shiftStartLine &&
+    editStart === editEnd &&
+    (change.range.start.character ?? 0) === 0;
+  const lowerBound =
+    isJoinLines || change.preserveStartLine ? editStart + 1 : editStart;
+  const inRange = (L: number) => L >= lowerBound && L <= editEnd;
 
+  // Drop lines that fall inside the edit range (their content was replaced/removed).
+  // Shift lines that fall after the edit range by lineDelta.
   const mapLines = (lines: number[]): number[] => {
-    return lines.map((L) => (L > editEnd ? L + lineDelta : L));
+    return lines.flatMap((L) => {
+      if (shiftsStartLine && L >= editStart) return [L + lineDelta];
+      if (inRange(L)) return [];
+      if (L > editEnd) return [L + lineDelta];
+      return [L];
+    });
   };
 
   return {

@@ -29,3 +29,4 @@ Forward-looking roadmap: done, in progress, planned, and maybe. For the canonica
 ## Maybe
 
 - semantic coverage analysis
+- stale coverage detection (`staleCoverageFiles` field exists in MCP responses and cache schema but is always `0`; implement or remove as a breaking API change)

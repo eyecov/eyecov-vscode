@@ -10,13 +10,18 @@ suite("Covflux Extension Test Suite", () => {
   });
 
   test("Covflux commands should be registered", async () => {
-    const showCoverage = await vscode.commands
-      .getCommands()
-      .then((cmds) => cmds.includes("covflux.showCoverage"));
+    const commands = await vscode.commands.getCommands();
+    const showCoverage = commands.includes("covflux.showCoverage");
+    const rereadCoverage = commands.includes("covflux.rereadCoverage");
     assert.strictEqual(
       showCoverage,
       true,
       "covflux.showCoverage command should be registered",
+    );
+    assert.strictEqual(
+      rereadCoverage,
+      true,
+      "covflux.rereadCoverage command should be registered",
     );
   });
 
@@ -156,7 +161,7 @@ suite("Covflux Extension Test Suite", () => {
     );
   });
 
-  test("overlapping edit invalidates tracked coverage state", async () => {
+  test("overlapping edit drops the edited covered line from tracked coverage state", async () => {
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     assert.ok(workspaceRoot, "test-workspace should be open");
     const demoPath = path.join(workspaceRoot, "src", "demo.ts");
@@ -200,11 +205,167 @@ suite("Covflux Extension Test Suite", () => {
 
     const after = (await vscode.commands.executeCommand(
       "covflux._debugGetTrackedStateDetails",
-    )) as unknown as Record<string, unknown>;
+    )) as unknown as Record<
+      string,
+      {
+        coveredLines: number[];
+        uncoveredLines: number[];
+        uncoverableLines: number[];
+      }
+    >;
 
     assert.ok(
-      !after[uriString],
-      "tracked state details should be cleared after an overlapping edit",
+      after[uriString],
+      "tracked state details should still exist after an overlapping edit",
+    );
+    assert.ok(
+      !after[uriString].coveredLines.includes(firstCoveredLine1Based),
+      "the edited covered line should be removed from tracked coverage after overlap",
+    );
+  });
+
+  test("pressing Enter at column 0 of a covered line preserves that line and shifts it down", async () => {
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    assert.ok(workspaceRoot, "test-workspace should be open");
+    const demoPath = path.join(workspaceRoot, "src", "demo.ts");
+
+    const doc = await vscode.workspace.openTextDocument(demoPath);
+    const editor = await vscode.window.showTextDocument(doc);
+
+    await new Promise((r) => setTimeout(r, 300));
+    await vscode.commands.executeCommand("covflux.showCoverage");
+    await new Promise((r) => setTimeout(r, 500));
+
+    const uriString = doc.uri.toString();
+    const before = (await vscode.commands.executeCommand(
+      "covflux._debugGetTrackedStateDetails",
+    )) as unknown as Record<
+      string,
+      {
+        coveredLines: number[];
+        uncoveredLines: number[];
+        uncoverableLines: number[];
+      }
+    >;
+
+    assert.ok(
+      before[uriString],
+      "tracked state details should exist for the opened document URI before pressing Enter at column 0",
+    );
+
+    const firstCoveredLine1Based = before[uriString].coveredLines[0];
+    assert.ok(
+      firstCoveredLine1Based,
+      "there should be at least one covered line to split at column 0",
+    );
+
+    try {
+      await editor.edit((editBuilder) => {
+        editBuilder.insert(
+          new vscode.Position(firstCoveredLine1Based - 1, 0),
+          "\n",
+        );
+      });
+
+      await new Promise((r) => setTimeout(r, 500));
+
+      const after = (await vscode.commands.executeCommand(
+        "covflux._debugGetTrackedStateDetails",
+      )) as unknown as Record<
+        string,
+        {
+          coveredLines: number[];
+          uncoveredLines: number[];
+          uncoverableLines: number[];
+        }
+      >;
+
+      assert.ok(
+        after[uriString],
+        "tracked state details should still exist after pressing Enter at column 0",
+      );
+      assert.ok(
+        after[uriString].coveredLines.includes(firstCoveredLine1Based + 1),
+        "the covered line should be preserved and shift down by one after inserting a blank line above it",
+      );
+    } finally {
+      await vscode.commands.executeCommand("undo");
+      await new Promise((r) => setTimeout(r, 300));
+    }
+  });
+
+  test("undo after overlapping edit restores tracked coverage state", async () => {
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    assert.ok(workspaceRoot, "test-workspace should be open");
+    const demoPath = path.join(workspaceRoot, "src", "demo.ts");
+
+    const doc = await vscode.workspace.openTextDocument(demoPath);
+    const editor = await vscode.window.showTextDocument(doc);
+
+    await new Promise((r) => setTimeout(r, 300));
+    await vscode.commands.executeCommand("covflux.showCoverage");
+    await new Promise((r) => setTimeout(r, 500));
+
+    const uriString = doc.uri.toString();
+    const before = (await vscode.commands.executeCommand(
+      "covflux._debugGetTrackedStateDetails",
+    )) as unknown as Record<
+      string,
+      {
+        coveredLines: number[];
+        uncoveredLines: number[];
+        uncoverableLines: number[];
+      }
+    >;
+
+    assert.ok(
+      before[uriString],
+      "tracked state details should exist before overlapping edit",
+    );
+
+    const firstCoveredLine1Based = before[uriString].coveredLines[0];
+    const lineToReplace = doc.lineAt(firstCoveredLine1Based - 1);
+    await editor.edit((editBuilder) => {
+      editBuilder.replace(lineToReplace.range, "// edited by test");
+    });
+    await new Promise((r) => setTimeout(r, 500));
+
+    const afterEdit = (await vscode.commands.executeCommand(
+      "covflux._debugGetTrackedStateDetails",
+    )) as unknown as Record<
+      string,
+      {
+        coveredLines: number[];
+        uncoveredLines: number[];
+        uncoverableLines: number[];
+      }
+    >;
+    assert.ok(
+      afterEdit[uriString],
+      "tracked state should still exist after overlapping edit before undo",
+    );
+    assert.ok(
+      !afterEdit[uriString].coveredLines.includes(firstCoveredLine1Based),
+      "the edited covered line should be removed before undo",
+    );
+
+    await vscode.commands.executeCommand("undo");
+    await new Promise((r) => setTimeout(r, 500));
+
+    const afterUndo = (await vscode.commands.executeCommand(
+      "covflux._debugGetTrackedStateDetails",
+    )) as unknown as Record<
+      string,
+      {
+        coveredLines: number[];
+        uncoveredLines: number[];
+        uncoverableLines: number[];
+      }
+    >;
+    assert.deepStrictEqual(
+      afterUndo[uriString],
+      before[uriString],
+      "tracked state should be restored after undo returns the file to its previous content",
     );
   });
 
@@ -313,6 +474,48 @@ suite("Covflux Extension Test Suite", () => {
       trackedAfterReload.length,
       0,
       "tracked state should be empty after coverage reload",
+    );
+  });
+
+  test("covflux.rereadCoverage re-reads coverage for visible editors on demand", async () => {
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    assert.ok(workspaceRoot, "test-workspace should be open");
+    const demoPath = path.join(workspaceRoot, "src", "demo.ts");
+
+    const doc = await vscode.workspace.openTextDocument(demoPath);
+    await vscode.window.showTextDocument(doc);
+
+    await new Promise((r) => setTimeout(r, 300));
+    await vscode.commands.executeCommand("covflux.showCoverage");
+    await new Promise((r) => setTimeout(r, 500));
+
+    const trackedBeforeReload = (await vscode.commands.executeCommand(
+      "covflux._debugGetTrackedState",
+    )) as unknown as string[];
+    assert.ok(
+      trackedBeforeReload.includes(doc.uri.toString()),
+      "tracked state should exist before coverage is reloaded",
+    );
+
+    await vscode.commands.executeCommand("covflux._debugReloadCoverage");
+
+    const trackedAfterReload = (await vscode.commands.executeCommand(
+      "covflux._debugGetTrackedState",
+    )) as unknown as string[];
+    assert.ok(
+      !trackedAfterReload.includes(doc.uri.toString()),
+      "tracked state should be cleared by reload before re-read",
+    );
+
+    await vscode.commands.executeCommand("covflux.rereadCoverage");
+    await new Promise((r) => setTimeout(r, 500));
+
+    const trackedAfterReread = (await vscode.commands.executeCommand(
+      "covflux._debugGetTrackedState",
+    )) as unknown as string[];
+    assert.ok(
+      trackedAfterReread.includes(doc.uri.toString()),
+      "tracked state should be recreated after manual re-read",
     );
   });
 });

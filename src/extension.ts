@@ -28,11 +28,17 @@ import {
   isPrewarmCoverageCacheEnabled,
 } from "./mcp/settings";
 import {
-  TrackedCoverageState,
   applyContentChangesToTrackedState,
+  type ContentChange,
+  normalizeContentChangeFromZeroBased,
   recordToTrackedState,
   trackedStateToCoverageData,
 } from "./edit-tracking";
+import {
+  createTrackedCoverageEntry,
+  tryRestoreTrackedCoverageEntry,
+  type TrackedCoverageEntry,
+} from "./edit-recovery";
 
 /** PHPUnit report colors: light then dark (docs). */
 const COVERAGE_COLORS = {
@@ -185,8 +191,8 @@ class CovfluxExtension {
   private currentCoverage: CoverageData | null = null;
   private workspaceFolder: string | undefined;
   private outputChannel: vscode.OutputChannel;
-  private trackedCoverageByUri = new Map<string, TrackedCoverageState>();
-  private editCountByUri = new Map<string, number>();
+  private trackedByUri = new Map<string, TrackedCoverageEntry>();
+  private recoverableByUri = new Map<string, TrackedCoverageEntry>();
 
   constructor(context: vscode.ExtensionContext) {
     this.decorations = new CoverageDecorations(
@@ -300,6 +306,14 @@ class CovfluxExtension {
       },
     );
 
+    const rereadCoverageCommand = vscode.commands.registerCommand(
+      "covflux.rereadCoverage",
+      async () => {
+        await this.rereadCoverage();
+        vscode.window.showInformationMessage("Covflux: Coverage re-read");
+      },
+    );
+
     const toggleGutterCommand = vscode.commands.registerCommand(
       "covflux.toggleGutterCoverage",
       async () => {
@@ -360,7 +374,7 @@ class CovfluxExtension {
 
     const debugGetTrackedStateCommand = vscode.commands.registerCommand(
       "covflux._debugGetTrackedState",
-      () => Array.from(this.trackedCoverageByUri.keys()),
+      () => Array.from(this.trackedByUri.keys()),
     );
 
     const debugGetTrackedStateDetailsCommand = vscode.commands.registerCommand(
@@ -374,7 +388,7 @@ class CovfluxExtension {
             uncoverableLines: number[];
           }
         > = {};
-        for (const [uri, state] of this.trackedCoverageByUri.entries()) {
+        for (const [uri, { state }] of this.trackedByUri.entries()) {
           result[uri] = {
             coveredLines: state.coveredLines.slice(),
             uncoveredLines: state.uncoveredLines.slice(),
@@ -404,6 +418,7 @@ class CovfluxExtension {
       hideCommand,
       toggleCommand,
       showInfoCommand,
+      rereadCoverageCommand,
       toggleGutterCommand,
       toggleLineCommand,
       toggleTrackCoverageThroughEditsCommand,
@@ -442,9 +457,41 @@ class CovfluxExtension {
         }
 
         const uriKey = event.document.uri.toString();
-        const existingState = this.trackedCoverageByUri.get(uriKey);
+        const tracked = this.trackedByUri.get(uriKey);
+        const editor = vscode.window.visibleTextEditors.find(
+          (e) => e.document.uri.toString() === uriKey,
+        );
+        const recoverable = this.recoverableByUri.get(uriKey);
 
-        if (!this.coverageEnabled || !existingState) {
+        const restored = tryRestoreTrackedCoverageEntry({
+          reason: event.reason,
+          currentDocumentText: event.document.getText(),
+          recoverableEntry: recoverable,
+        });
+        if (this.coverageEnabled && restored) {
+          this.trackedByUri.set(uriKey, restored);
+          if (tracked) {
+            this.recoverableByUri.set(uriKey, tracked);
+          } else {
+            this.recoverableByUri.delete(uriKey);
+          }
+          this.currentCoverage = trackedStateToCoverageData(restored.state);
+          if (editor) {
+            this.applyDecorations(editor, this.currentCoverage);
+          }
+          if (
+            vscode.window.activeTextEditor &&
+            event.document === vscode.window.activeTextEditor.document
+          ) {
+            this.updateCoverageStatus(this.currentCoverage);
+          }
+          return;
+        }
+
+        if (!this.coverageEnabled || !tracked) {
+          if (recoverable && event.reason === undefined) {
+            this.recoverableByUri.delete(uriKey);
+          }
           if (
             vscode.window.activeTextEditor &&
             event.document === vscode.window.activeTextEditor.document &&
@@ -455,21 +502,32 @@ class CovfluxExtension {
           return;
         }
 
-        const editor = vscode.window.visibleTextEditors.find(
-          (e) => e.document.uri.toString() === uriKey,
-        );
         if (!editor) {
           return;
         }
 
-        const editCountBefore = this.editCountByUri.get(uriKey) ?? 0;
-        const contentChanges = event.contentChanges.map((change) => ({
-          range: {
-            start: { line: change.range.start.line },
-            end: { line: change.range.end.line },
-          },
-          text: change.text,
-        }));
+        const { state: existingState, editCount: editCountBefore } = tracked;
+        const contentChanges = event.contentChanges.map(
+          (change): ContentChange =>
+            normalizeContentChangeFromZeroBased({
+              range: {
+                start: {
+                  line: change.range.start.line,
+                  character: change.range.start.character,
+                },
+                end: {
+                  line: change.range.end.line,
+                  character: change.range.end.character,
+                },
+              },
+              text: change.text,
+              preserveStartLine: shouldPreserveStartLineOnInsert(
+                event.document,
+                change,
+              ),
+              shiftStartLine: shouldShiftStartLineOnInsert(change),
+            }),
+        );
         const result = applyContentChangesToTrackedState(
           existingState,
           contentChanges,
@@ -477,38 +535,21 @@ class CovfluxExtension {
         );
 
         if (result.kind === "invalidated") {
-          this.trackedCoverageByUri.delete(uriKey);
-          this.editCountByUri.delete(uriKey);
-          editor.setDecorations(this.decorations.coveredLine, []);
-          editor.setDecorations(this.decorations.uncoveredLine, []);
-          editor.setDecorations(this.decorations.uncoverableLine, []);
-          editor.setDecorations(this.decorations.coveredLineWithBackground, []);
-          editor.setDecorations(
-            this.decorations.uncoveredLineWithBackground,
-            [],
-          );
-          editor.setDecorations(
-            this.decorations.uncoverableLineWithBackground,
-            [],
-          );
-          editor.setDecorations(
-            this.decorations.coveredSmallWithBackground,
-            [],
-          );
-          editor.setDecorations(
-            this.decorations.coveredMediumWithBackground,
-            [],
-          );
-          editor.setDecorations(
-            this.decorations.coveredLargeWithBackground,
-            [],
-          );
-          editor.setDecorations(this.decorations.warningWithBackground, []);
+          this.recoverableByUri.set(uriKey, tracked);
+          this.trackedByUri.delete(uriKey);
+          this.clearDecorationsForEditor(editor);
           return;
         }
 
-        this.trackedCoverageByUri.set(uriKey, result.state);
-        this.editCountByUri.set(uriKey, result.newEditCount);
+        this.recoverableByUri.set(uriKey, tracked);
+        this.trackedByUri.set(
+          uriKey,
+          createTrackedCoverageEntry(
+            result.state,
+            result.newEditCount,
+            event.document.getText(),
+          ),
+        );
         this.currentCoverage = result.coverage;
         this.applyDecorations(editor, result.coverage);
       },
@@ -532,13 +573,12 @@ class CovfluxExtension {
 
     this.statusBarCoverage.show();
 
-    // Update current editor if open
-    if (vscode.window.activeTextEditor && this.coverageEnabled) {
+    if (this.coverageEnabled) {
       const showOnOpen = vscode.workspace
         .getConfiguration("covflux")
         .get<boolean>("showCoverageOnOpen", true);
       if (showOnOpen) {
-        this.updateEditor(vscode.window.activeTextEditor);
+        this.updateAllEditors();
       }
     }
 
@@ -553,14 +593,14 @@ class CovfluxExtension {
 
   /** Remove tracked coverage state for a document (e.g. on close). */
   private clearTrackedStateForUri(uriKey: string): void {
-    this.trackedCoverageByUri.delete(uriKey);
-    this.editCountByUri.delete(uriKey);
+    this.trackedByUri.delete(uriKey);
+    this.recoverableByUri.delete(uriKey);
   }
 
   /** Clear all tracked coverage state (e.g. on coverage reload). */
   private clearAllTrackedState(): void {
-    this.trackedCoverageByUri.clear();
-    this.editCountByUri.clear();
+    this.trackedByUri.clear();
+    this.recoverableByUri.clear();
   }
 
   private registerMcpServer(context: vscode.ExtensionContext): void {
@@ -763,6 +803,15 @@ class CovfluxExtension {
     await this.initializeCoverage();
   }
 
+  private async rereadCoverage(): Promise<void> {
+    await this.reloadCoverage();
+    if (this.coverageEnabled) {
+      this.updateAllEditors();
+    } else {
+      this.updateCoverageStatus(null);
+    }
+  }
+
   private isDarkTheme(): boolean {
     const kind = vscode.window.activeColorTheme.kind;
     return (
@@ -803,7 +852,7 @@ class CovfluxExtension {
       const trackThroughEdits = vscode.workspace
         .getConfiguration("covflux")
         .get<boolean>("trackCoverageThroughEdits", true);
-      const existingState = this.trackedCoverageByUri.get(uriKey);
+      const existingState = this.trackedByUri.get(uriKey)?.state;
 
       let coverage: CoverageData | null = null;
 
@@ -829,7 +878,11 @@ class CovfluxExtension {
           editor.document.version,
         );
         if (trackThroughEdits) {
-          this.trackedCoverageByUri.set(uriKey, state);
+          this.trackedByUri.set(
+            uriKey,
+            createTrackedCoverageEntry(state, 0, editor.document.getText()),
+          );
+          this.recoverableByUri.delete(uriKey);
         }
         coverage = trackedStateToCoverageData(state);
       }
@@ -1016,21 +1069,25 @@ class CovfluxExtension {
     });
   }
 
+  private clearDecorationsForEditor(editor: vscode.TextEditor): void {
+    editor.setDecorations(this.decorations.coveredLine, []);
+    editor.setDecorations(this.decorations.uncoveredLine, []);
+    editor.setDecorations(this.decorations.uncoverableLine, []);
+    editor.setDecorations(this.decorations.coveredLineWithBackground, []);
+    editor.setDecorations(this.decorations.uncoveredLineWithBackground, []);
+    editor.setDecorations(this.decorations.uncoverableLineWithBackground, []);
+    editor.setDecorations(this.decorations.coveredSmallWithBackground, []);
+    editor.setDecorations(this.decorations.coveredMediumWithBackground, []);
+    editor.setDecorations(this.decorations.coveredLargeWithBackground, []);
+    editor.setDecorations(this.decorations.warningWithBackground, []);
+  }
+
   /**
    * Clear all coverage decorations
    */
   private clearAllDecorations(): void {
     vscode.window.visibleTextEditors.forEach((editor) => {
-      editor.setDecorations(this.decorations.coveredLine, []);
-      editor.setDecorations(this.decorations.uncoveredLine, []);
-      editor.setDecorations(this.decorations.uncoverableLine, []);
-      editor.setDecorations(this.decorations.coveredLineWithBackground, []);
-      editor.setDecorations(this.decorations.uncoveredLineWithBackground, []);
-      editor.setDecorations(this.decorations.uncoverableLineWithBackground, []);
-      editor.setDecorations(this.decorations.coveredSmallWithBackground, []);
-      editor.setDecorations(this.decorations.coveredMediumWithBackground, []);
-      editor.setDecorations(this.decorations.coveredLargeWithBackground, []);
-      editor.setDecorations(this.decorations.warningWithBackground, []);
+      this.clearDecorationsForEditor(editor);
     });
   }
 
@@ -1045,6 +1102,43 @@ class CovfluxExtension {
     // Dispose all disposables
     this.disposables.forEach((d) => d.dispose());
   }
+}
+
+function shouldPreserveStartLineOnInsert(
+  document: vscode.TextDocument,
+  change: vscode.TextDocumentContentChangeEvent,
+): boolean {
+  if (change.range.start.line !== change.range.end.line) {
+    return false;
+  }
+  if (change.range.start.character !== change.range.end.character) {
+    return false;
+  }
+  const newlineParts = change.text.split("\n");
+  if (newlineParts.length !== 2) {
+    return false;
+  }
+  const nextLineIndex = change.range.start.line + 1;
+  if (nextLineIndex >= document.lineCount) {
+    return false;
+  }
+  const nextLineText = document.lineAt(nextLineIndex).text;
+
+  // Enter at EOL inserts a blank next line while keeping the current line's
+  // content on the same line number.
+  return newlineParts[1] === "" && nextLineText === "";
+}
+
+function shouldShiftStartLineOnInsert(
+  change: vscode.TextDocumentContentChangeEvent,
+): boolean {
+  if (change.range.start.line !== change.range.end.line) {
+    return false;
+  }
+  if (change.range.start.character !== 0 || change.range.end.character !== 0) {
+    return false;
+  }
+  return change.text.includes("\n") && change.text.endsWith("\n");
 }
 
 let extension: CovfluxExtension | null = null;

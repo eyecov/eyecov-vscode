@@ -160,6 +160,7 @@ Formats are tried in order; the first with coverage for the file is used. Paths 
 - **Covflux: Show Coverage** — Enable coverage display
 - **Covflux: Hide Coverage** — Disable coverage display
 - **Covflux: Toggle Coverage** — Toggle coverage on/off
+- **Covflux: Re-read Coverage** — Rebuild coverage state and re-apply it to visible editors
 - **Covflux: Show Coverage Info** — Coverage details for the current file
 - **Covflux: Toggle Gutter Coverage** — Toggle gutter icons (Cmd+Shift+P)
 - **Covflux: Toggle Line Coverage** — Toggle line highlighting (Cmd+Shift+P)

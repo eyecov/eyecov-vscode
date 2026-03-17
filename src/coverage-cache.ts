@@ -90,10 +90,6 @@ export interface BuildCoverageCachePayloadOptions {
  * Build cache payload from resolved coverage records and path count.
  * Aggregate percent is computed from sum(covered) / sum(executable) across all records.
  */
-function samePath(a: string, b: string): boolean {
-  return path.resolve(a) === path.resolve(b);
-}
-
 export function buildCoverageCachePayload(
   options: BuildCoverageCachePayloadOptions,
 ): CoverageCachePayload {
@@ -101,9 +97,10 @@ export function buildCoverageCachePayload(
     options;
   const coveredFiles = records.length;
   const missingCoverageFiles = totalPathCount - coveredFiles;
+  const recordPathSet = new Set(records.map((r) => path.resolve(r.sourcePath)));
   const missingPaths =
     paths != null
-      ? paths.filter((p) => !records.some((r) => samePath(r.sourcePath, p)))
+      ? paths.filter((p) => !recordPathSet.has(path.resolve(p)))
       : undefined;
   const files: CoverageCacheFileEntry[] = records.map((r) => ({
     filePath: r.sourcePath,
@@ -112,17 +109,16 @@ export function buildCoverageCachePayload(
     uncoveredLines: r.uncoveredLines.size,
     uncoverableLines: r.uncoverableLines.size,
   }));
-  let aggregateCoveragePercent: number | null = null;
-  const totalExecutable = records.reduce(
-    (sum, r) => sum + r.coveredLines.size + r.uncoveredLines.size,
-    0,
-  );
-  const totalCovered = records.reduce((sum, r) => sum + r.coveredLines.size, 0);
-  if (totalExecutable > 0) {
-    aggregateCoveragePercent = Number(
-      ((totalCovered / totalExecutable) * 100).toFixed(2),
-    );
+  let totalExecutable = 0;
+  let totalCovered = 0;
+  for (const r of records) {
+    totalCovered += r.coveredLines.size;
+    totalExecutable += r.coveredLines.size + r.uncoveredLines.size;
   }
+  const aggregateCoveragePercent =
+    totalExecutable > 0
+      ? Number(((totalCovered / totalExecutable) * 100).toFixed(2))
+      : null;
   return {
     workspaceRoot,
     detectedFormat,
