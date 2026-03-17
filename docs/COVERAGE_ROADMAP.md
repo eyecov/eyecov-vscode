@@ -24,6 +24,7 @@ Forward-looking roadmap: done, in progress, planned, and maybe. For the canonica
 - additional adapters
 - coverage diff
 - test recommendation improvements
+- gutter redesign: plain colored vertical lines (green/red) instead of circle icons — see `media/gutter-design.png`
 
 ## Maybe
 

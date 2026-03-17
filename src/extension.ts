@@ -29,7 +29,7 @@ import {
 } from "./mcp/settings";
 import {
   TrackedCoverageState,
-  applyChanges,
+  applyContentChangesToTrackedState,
   recordToTrackedState,
   trackedStateToCoverageData,
 } from "./edit-tracking";
@@ -288,7 +288,7 @@ class CovfluxExtension {
             ].join("\n");
 
             vscode.window.showInformationMessage(message);
-            console.log(`[Covflux] Coverage info: ${message}`);
+            this.log(`[coverage-info] ${message}`);
           })
           .catch((error: unknown) => {
             const message =
@@ -375,7 +375,6 @@ class CovfluxExtension {
           }
         > = {};
         for (const [uri, state] of this.trackedCoverageByUri.entries()) {
-          if (!state.isValid) continue;
           result[uri] = {
             coveredLines: state.coveredLines.slice(),
             uncoveredLines: state.uncoveredLines.slice(),
@@ -445,7 +444,7 @@ class CovfluxExtension {
         const uriKey = event.document.uri.toString();
         const existingState = this.trackedCoverageByUri.get(uriKey);
 
-        if (!this.coverageEnabled || !existingState || !existingState.isValid) {
+        if (!this.coverageEnabled || !existingState) {
           if (
             vscode.window.activeTextEditor &&
             event.document === vscode.window.activeTextEditor.document &&
@@ -464,39 +463,20 @@ class CovfluxExtension {
         }
 
         const editCountBefore = this.editCountByUri.get(uriKey) ?? 0;
-        const contentChanges = event.contentChanges.map((change) => {
-          const start0 = change.range.start.line;
-          const end0 = change.range.end.line;
-          const endChar = change.range.end.character;
-          const isEmpty = change.range.isEmpty;
-          const exclusiveEnd = isEmpty
-            ? start0
-            : start0 === end0
-              ? start0 + 1
-              : endChar === 0
-                ? end0
-                : end0 + 1;
-          return {
-            range: {
-              start: { line: start0 },
-              end: { line: exclusiveEnd },
-            },
-            text: change.text,
-          };
-        });
-        const mapped = applyChanges(
-          existingState.coveredLines,
-          existingState.uncoveredLines,
-          existingState.uncoverableLines,
-          contentChanges,
-          {
-            maxEditRange: 200,
-            maxEdits: 200,
-            editCountBefore,
+        const contentChanges = event.contentChanges.map((change) => ({
+          range: {
+            start: { line: change.range.start.line },
+            end: { line: change.range.end.line },
           },
+          text: change.text,
+        }));
+        const result = applyContentChangesToTrackedState(
+          existingState,
+          contentChanges,
+          editCountBefore,
         );
 
-        if (!mapped) {
+        if (result.kind === "invalidated") {
           this.trackedCoverageByUri.delete(uriKey);
           this.editCountByUri.delete(uriKey);
           editor.setDecorations(this.decorations.coveredLine, []);
@@ -527,21 +507,10 @@ class CovfluxExtension {
           return;
         }
 
-        const updatedState: TrackedCoverageState = {
-          ...existingState,
-          coveredLines: mapped.coveredLines,
-          uncoveredLines: mapped.uncoveredLines,
-          uncoverableLines: mapped.uncoverableLines,
-        };
-        this.trackedCoverageByUri.set(uriKey, updatedState);
-        this.editCountByUri.set(
-          uriKey,
-          editCountBefore + event.contentChanges.length,
-        );
-
-        const coverage = trackedStateToCoverageData(updatedState);
-        this.currentCoverage = coverage;
-        this.applyDecorations(editor, coverage);
+        this.trackedCoverageByUri.set(uriKey, result.state);
+        this.editCountByUri.set(uriKey, result.newEditCount);
+        this.currentCoverage = result.coverage;
+        this.applyDecorations(editor, result.coverage);
       },
     );
 
@@ -623,7 +592,7 @@ class CovfluxExtension {
     const provider = registerProvider(MCP_SERVER_DEFINITION_PROVIDER_ID, {
       provideMcpServerDefinitions: () => {
         const serverDefinition = new vscode.McpStdioServerDefinition(
-          "Covflux Hello Server",
+          "Covflux",
           process.execPath,
           [serverScriptPath],
           {
@@ -714,7 +683,7 @@ class CovfluxExtension {
         coverageHtmlDir,
         sourceSegment: getPhpUnitHtmlSourceSegment(config),
       });
-      console.log(`[Covflux] ✓ coverage-html at ${coverageRoots.join(", ")}`);
+      this.log(`[init] coverage-html at ${coverageRoots.join(", ")}`);
     }
   }
 
@@ -777,8 +746,11 @@ class CovfluxExtension {
           getCoverage: (p) =>
             this.resolver!.getCoverage(p).then((r) => r.record),
           batchSize: 20,
-        }).catch(() => {
-          // ignore; cache will be on-demand if prewarm fails
+        }).catch((err: unknown) => {
+          // Cache will be built on-demand if prewarm fails.
+          console.error(
+            `[Covflux] prewarm error: ${err instanceof Error ? err.message : String(err)}`,
+          );
         });
       }
     }, delayMs);
@@ -805,7 +777,6 @@ class CovfluxExtension {
     )
       return;
     this.outputChannel.appendLine(msg);
-    this.outputChannel.show(true);
   }
 
   /**
@@ -836,7 +807,7 @@ class CovfluxExtension {
 
       let coverage: CoverageData | null = null;
 
-      if (trackThroughEdits && existingState && existingState.isValid) {
+      if (trackThroughEdits && existingState) {
         coverage = trackedStateToCoverageData(existingState);
       } else {
         const result = await this.getFileCoverage(filePath);
@@ -880,18 +851,17 @@ class CovfluxExtension {
       const covered = coverage.file.coveredLines ?? coverage.coveredLines.size;
       const total = coverage.file.totalLines || editor.document.lineCount;
 
-      console.log(
-        `[Covflux] ✓ Coverage loaded for ${path.basename(filePath)}: ${coveragePercent?.toFixed(1)}% (${covered}/${total} lines)`,
+      this.log(
+        `[update] Coverage loaded for ${path.basename(filePath)}: ${coveragePercent?.toFixed(1)}% (${covered}/${total} lines)`,
       );
 
       this.updateCoverageStatus(coverage);
     } catch (error: unknown) {
       this.updateCoverageStatus(null);
-      console.error(
-        `[Covflux] ✗ Error updating coverage for ${filePath}:`,
-        error,
-      );
       const message = error instanceof Error ? error.message : String(error);
+      console.error(
+        `[Covflux] error updating coverage for ${filePath}: ${message}`,
+      );
       vscode.window.showErrorMessage(
         `Covflux: Error loading coverage - ${message}`,
       );

@@ -6,8 +6,14 @@ coverage/**
 test-workspace/**
 scripts/**
 .gitignore
+.prettierrc
+.editorconfig
+eslint.config.mjs
 tsconfig.json
+tsconfig.test.json
+vitest.config.ts
 .vscodeignore
+.covflux/**
 *.md
 *.map
 docs/**

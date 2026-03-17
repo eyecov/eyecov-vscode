@@ -5,6 +5,7 @@ coverage
 *.vsix
 .specstory
 .DS_Store
+.claude/
 covflux-review-pack/
 .covflux/coverage-cache.json
 *.zip

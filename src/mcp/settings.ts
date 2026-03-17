@@ -16,8 +16,8 @@ export function isMcpServerEnabled(config: WorkspaceConfigLike): boolean {
 }
 
 /**
- * Whether to prewarm the coverage cache in the background (reserved for future use).
- * Default true when unset. Currently a no-op.
+ * Whether to prewarm the coverage cache in the background.
+ * Default true when unset.
  */
 export function isPrewarmCoverageCacheEnabled(
   config: WorkspaceConfigLike,

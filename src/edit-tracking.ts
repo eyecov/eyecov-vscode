@@ -7,7 +7,12 @@ import type { CoverageRecord } from "./coverage-resolver";
 import type { CoverageData } from "./coverage-types";
 import { LINE_STATUS } from "./coverage-types";
 
-/** Single change from TextDocumentChangeEvent.contentChanges[]. */
+/**
+ * Single change from TextDocumentChangeEvent.contentChanges[].
+ * range.end.line is VS Code's raw end line: the last line touched by the
+ * replacement. removedLines = end.line - start.line counts newline boundaries
+ * removed, matching addedLines = newlines in text.
+ */
 export interface ContentChange {
   range: { start: { line: number }; end: { line: number } };
   text: string;
@@ -27,7 +32,7 @@ export interface LineDelta {
  */
 export function computeLineDelta(change: ContentChange): LineDelta {
   const removedLines = change.range.end.line - change.range.start.line;
-  const addedLines = change.text === "" ? 0 : change.text.split("\n").length;
+  const addedLines = change.text.split("\n").length - 1;
   const lineDelta = addedLines - removedLines;
   return { removedLines, addedLines, lineDelta };
 }
@@ -128,13 +133,63 @@ export function applyChanges(
   return state;
 }
 
+// Both thresholds intentionally equal — tune together if adjusting.
+export const MAX_EDIT_RANGE = 200;
+export const MAX_EDITS = 200;
+
+/** Result of applying content changes to a tracked coverage state. */
+export type ApplyContentChangesResult =
+  | {
+      kind: "updated";
+      state: TrackedCoverageState;
+      coverage: CoverageData;
+      newEditCount: number;
+    }
+  | { kind: "invalidated" };
+
+/**
+ * Apply VS Code content changes to a tracked coverage state.
+ * Returns updated state + coverage data, or `{ kind: "invalidated" }` when
+ * any change overlaps a tracked line or exceeds the edit thresholds.
+ * Pure function — no VS Code dependency.
+ */
+export function applyContentChangesToTrackedState(
+  existingState: TrackedCoverageState,
+  contentChanges: ContentChange[],
+  editCountBefore: number,
+): ApplyContentChangesResult {
+  const mapped = applyChanges(
+    existingState.coveredLines,
+    existingState.uncoveredLines,
+    existingState.uncoverableLines,
+    contentChanges,
+    { maxEditRange: MAX_EDIT_RANGE, maxEdits: MAX_EDITS, editCountBefore },
+  );
+  if (!mapped) {
+    return { kind: "invalidated" };
+  }
+  const updatedState: TrackedCoverageState = {
+    ...existingState,
+    coveredLines: mapped.coveredLines,
+    uncoveredLines: mapped.uncoveredLines,
+    uncoverableLines: mapped.uncoverableLines,
+  };
+  return {
+    kind: "updated",
+    state: updatedState,
+    coverage: trackedStateToCoverageData(updatedState),
+    // contentChanges.length is the number of VS Code change items in this event
+    // (>1 for multi-cursor edits), so this counts items, not keystrokes.
+    newEditCount: editCountBefore + contentChanges.length,
+  };
+}
+
 /** Tracked coverage line arrays + metadata for edit mapping. */
 export interface TrackedCoverageState {
   sourcePath: string;
   coveredLines: number[];
   uncoveredLines: number[];
   uncoverableLines: number[];
-  isValid: boolean;
   baseDocumentVersion: number;
   lineCoveragePercent: number | null;
 }
@@ -152,35 +207,17 @@ export function recordToTrackedState(
     coveredLines: toSortedArray(record.coveredLines),
     uncoveredLines: toSortedArray(record.uncoveredLines),
     uncoverableLines: toSortedArray(record.uncoverableLines),
-    isValid: true,
     baseDocumentVersion: documentVersion,
     lineCoveragePercent: record.lineCoveragePercent ?? null,
   };
 }
 
 /**
- * Convert tracked state to CoverageData for applyDecorations. When state.isValid
- * is false, returns minimal CoverageData (empty line sets) so the extension can
- * still call getDecorationPlan / applyDecorations without branching.
+ * Convert tracked state to CoverageData for applyDecorations.
  */
 export function trackedStateToCoverageData(
   state: TrackedCoverageState,
 ): CoverageData {
-  if (!state.isValid) {
-    return {
-      file: {
-        fileId: 0,
-        sourceFile: state.sourcePath,
-        lineCoveragePercent: state.lineCoveragePercent,
-        totalLines: 0,
-        coveredLines: 0,
-      },
-      coveredLines: new Set(),
-      uncoveredLines: new Set(),
-      uncoverableLines: new Set(),
-      lineStatuses: new Map(),
-    };
-  }
   const coveredLines = new Set(state.coveredLines);
   const uncoveredLines = new Set(state.uncoveredLines);
   const uncoverableLines = new Set(state.uncoverableLines);
