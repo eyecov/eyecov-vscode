@@ -28,7 +28,7 @@ async function main() {
   const proc = spawn(process.execPath, [serverPath], {
     cwd: repoRoot,
     stdio: ["pipe", "pipe", "inherit"],
-    env: { ...process.env, COVFLUX_WORKSPACE_ROOTS: repoRoot },
+    env: { ...process.env, EYECOV_WORKSPACE_ROOTS: repoRoot },
   });
 
   const rl = createInterface({ input: proc.stdout, crlfDelay: Infinity });

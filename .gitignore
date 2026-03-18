@@ -6,6 +6,6 @@ coverage
 .specstory
 .DS_Store
 .claude/
-covflux-review-pack/
-.covflux/coverage-cache.json
+eyecov-review-pack/
+.eyecov/coverage-cache.json
 *.zip

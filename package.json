@@ -1,14 +1,14 @@
 {
-  "name": "covflux-vscode",
-  "displayName": "Covflux",
+  "name": "eyecov-vscode",
+  "displayName": "Eyecov",
   "description": "Display code coverage in VS Code editor",
-  "version": "0.2.25",
-  "publisher": "covflux",
+  "version": "0.2.29",
+  "publisher": "eyecov",
   "license": "MIT",
-  "icon": "images/covflux-logo-256.png",
+  "icon": "images/eyecov-logo-256.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/covflux/covflux-vscode.git"
+    "url": "https://github.com/eyecov/eyecov-vscode.git"
   },
   "engines": {
     "vscode": "^1.105.0",
@@ -22,7 +22,7 @@
     "coverage",
     "testing",
     "phpunit",
-    "covflux"
+    "eyecov"
   ],
   "activationEvents": [
     "onStartupFinished"
@@ -31,88 +31,92 @@
   "contributes": {
     "mcpServerDefinitionProviders": [
       {
-        "id": "covflux.builtin",
-        "label": "Covflux Built-in MCP Server"
+        "id": "eyecov.builtin",
+        "label": "Eyecov Built-in MCP Server"
       }
     ],
     "commands": [
       {
-        "command": "covflux.showCoverage",
+        "command": "eyecov.showCoverage",
         "title": "Show Coverage"
       },
       {
-        "command": "covflux.hideCoverage",
+        "command": "eyecov.hideCoverage",
         "title": "Hide Coverage"
       },
       {
-        "command": "covflux.toggleCoverage",
+        "command": "eyecov.toggleCoverage",
         "title": "Toggle Coverage"
       },
       {
-        "command": "covflux.showCoverageInfo",
+        "command": "eyecov.showCoverageInfo",
         "title": "Show Coverage Info"
       },
       {
-        "command": "covflux.rereadCoverage",
+        "command": "eyecov.rereadCoverage",
         "title": "Re-read Coverage"
       },
       {
-        "command": "covflux.toggleGutterCoverage",
+        "command": "eyecov.showDebugOutput",
+        "title": "Show Debug Output"
+      },
+      {
+        "command": "eyecov.toggleGutterCoverage",
         "title": "Toggle Gutter Coverage"
       },
       {
-        "command": "covflux.toggleLineCoverage",
+        "command": "eyecov.toggleLineCoverage",
         "title": "Toggle Line Coverage"
       },
       {
-        "command": "covflux.toggleTrackCoverageThroughEdits",
+        "command": "eyecov.toggleTrackCoverageThroughEdits",
         "title": "Toggle Track Coverage Through Edits"
       }
     ],
     "configuration": {
-      "title": "Covflux",
+      "title": "Eyecov",
       "properties": {
-        "covflux.debug": {
+        "eyecov.debug": {
           "type": "boolean",
           "default": false,
-          "description": "When true, write debug logs to the Covflux output channel (View → Output → Covflux)."
+          "description": "When true, write debug logs to the Eyecov output channel (View → Output → Eyecov)."
         },
-        "covflux.showCoverageOnOpen": {
+        "eyecov.showCoverageOnOpen": {
           "type": "boolean",
           "default": true,
           "description": "Automatically show coverage when files are opened"
         },
-        "covflux.showUncovered": {
+        "eyecov.showUncovered": {
           "type": "boolean",
           "default": true,
           "description": "Highlight uncovered lines"
         },
-        "covflux.showCovered": {
+        "eyecov.showCovered": {
           "type": "boolean",
           "default": true,
           "description": "Highlight covered lines"
         },
-        "covflux.showLineCoverage": {
+        "eyecov.showLineCoverage": {
           "type": "boolean",
           "default": true,
           "description": "Show coverage by changing background color of lines (default: true)"
         },
-        "covflux.showGutterCoverage": {
+        "eyecov.showGutterCoverage": {
           "type": "boolean",
           "default": true,
           "description": "Show coverage with gutter icons in addition to background colors"
         },
-        "covflux.enableMcpServer": {
+        "eyecov.enableMcpServer": {
           "type": "boolean",
           "default": true,
           "description": "When true, register the built-in MCP server so AI hosts can query coverage (coverage_file, coverage_path, coverage_project). Set to false to disable."
         },
-        "covflux.prewarmCoverageCache": {
+        "eyecov.prewarmCoverageCache": {
           "type": "boolean",
           "default": true,
           "description": "When true, runs a low-priority background crawl on startup to pre-index coverage for faster path/project queries."
         },
-        "covflux.trackCoverageThroughEdits": {
+        "eyecov.trackCoverageThroughEdits": {
           "type": "boolean",
           "default": true,
           "description": "When true, coverage line numbers are shifted in memory when you insert or delete lines, so highlighting stays aligned. When false, coverage is not tracked through edits; after editing, use coverage refresh or reopen the file to realign."
@@ -138,7 +142,7 @@
     "compile:all": "npm run compile && npm run compile:tests",
     "test:extension": "npm run compile:all && vscode-test",
     "package": "vsce package",
-    "export:zip": "git archive --format=zip --prefix=covflux-vscode/ -o covflux-vscode.zip HEAD"
+    "export:zip": "git archive --format=zip --prefix=eyecov-vscode/ -o eyecov-vscode.zip HEAD"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

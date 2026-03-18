@@ -1,5 +1,5 @@
 /**
- * Coverage cache: write/read .covflux/coverage-cache.json so coverage_path and
+ * Coverage cache: write/read .eyecov/coverage-cache.json so coverage_path and
  * coverage_project can skip re-aggregation when a valid cache exists (Step 5).
  */
 
@@ -46,14 +46,14 @@ export interface CoverageCacheWritten {
 }
 
 /**
- * Write coverage cache to workspaceRoot/.covflux/coverage-cache.json.
- * Creates .covflux directory if needed.
+ * Write coverage cache to workspaceRoot/.eyecov/coverage-cache.json.
+ * Creates .eyecov directory if needed.
  */
 export function writeCoverageCache(
   workspaceRoot: string,
   payload: CoverageCachePayload,
 ): void {
-  const dir = path.join(workspaceRoot, ".covflux");
+  const dir = path.join(workspaceRoot, ".eyecov");
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -133,7 +133,7 @@ export function buildCoverageCachePayload(
 }
 
 /**
- * Read coverage cache from workspaceRoot/.covflux/coverage-cache.json.
+ * Read coverage cache from workspaceRoot/.eyecov/coverage-cache.json.
  * Returns null if file is missing, malformed, or has invalid/unsupported version.
  */
 export function readCoverageCache(
@@ -141,7 +141,7 @@ export function readCoverageCache(
 ): CoverageCacheWritten | null {
   const cachePath = path.join(
     workspaceRoot,
-    ".covflux",
+    ".eyecov",
     COVERAGE_CACHE_FILENAME,
   );
   if (!fs.existsSync(cachePath)) {
@@ -185,7 +185,7 @@ export function readCoverageCache(
 export function deleteCoverageCache(workspaceRoot: string): void {
   const cachePath = path.join(
     workspaceRoot,
-    ".covflux",
+    ".eyecov",
     COVERAGE_CACHE_FILENAME,
   );
   try {

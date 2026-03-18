@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createTrackedCoverageEntry,
   fingerprintDocumentText,
+  pushRecoverableEntry,
   tryRestoreTrackedCoverageEntry,
 } from "./edit-recovery";
 import { recordToTrackedState } from "./edit-tracking";
@@ -30,7 +31,7 @@ describe("edit-recovery", () => {
     const restored = tryRestoreTrackedCoverageEntry({
       reason: 1,
       currentDocumentText: "line 1\nline 2\n",
-      recoverableEntry: entry,
+      recoverableEntries: [entry],
     });
 
     expect(restored).toEqual(entry);
@@ -42,16 +43,16 @@ describe("edit-recovery", () => {
     );
   });
 
-  it("does not restore on non-undo edits even when the document text matches", () => {
+  it("restores on exact snapshot match even without undo reason", () => {
     const entry = makeTrackedEntry("line 1\nline 2\n");
 
     const restored = tryRestoreTrackedCoverageEntry({
       reason: undefined,
       currentDocumentText: "line 1\nline 2\n",
-      recoverableEntry: entry,
+      recoverableEntries: [entry],
     });
 
-    expect(restored).toBeNull();
+    expect(restored).toEqual(entry);
   });
 
   it("does not restore when undo stops short of the saved snapshot", () => {
@@ -60,7 +61,7 @@ describe("edit-recovery", () => {
     const restored = tryRestoreTrackedCoverageEntry({
       reason: 1,
       currentDocumentText: "line 1\nline 2 changed\n",
-      recoverableEntry: entry,
+      recoverableEntries: [entry],
     });
 
     expect(restored).toBeNull();
@@ -72,9 +73,27 @@ describe("edit-recovery", () => {
     const restored = tryRestoreTrackedCoverageEntry({
       reason: 2,
       currentDocumentText: "line 1\nline 2\n",
-      recoverableEntry: entry,
+      recoverableEntries: [entry],
     });
 
     expect(restored).toEqual(entry);
+  });
+
+  it("restores from older matching snapshot when multiple recoverable entries exist", () => {
+    const original = makeTrackedEntry("line 1\nline 2\n");
+    const oneSpace = makeTrackedEntry("line 1\nline 2 \n");
+    const twoSpaces = makeTrackedEntry("line 1\nline 2  \n");
+    const history = pushRecoverableEntry(
+      pushRecoverableEntry([original], oneSpace),
+      twoSpaces,
+    );
+
+    const restored = tryRestoreTrackedCoverageEntry({
+      reason: 1,
+      currentDocumentText: "line 1\nline 2 \n",
+      recoverableEntries: history,
+    });
+
+    expect(restored).toEqual(oneSpace);
   });
 });

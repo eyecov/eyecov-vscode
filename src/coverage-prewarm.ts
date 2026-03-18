@@ -1,6 +1,6 @@
 /**
  * Background prewarm: build coverage cache for a workspace root in chunks,
- * yielding to the event loop between batches. Used when covflux.prewarmCoverageCache is true.
+ * yielding to the event loop between batches. Used when eyecov.prewarmCoverageCache is true.
  */
 
 import type { CoverageRecord } from "./coverage-resolver";
@@ -25,7 +25,7 @@ function yieldToEventLoop(): Promise<void> {
 
 /**
  * Prewarm coverage cache for one workspace root: list paths, resolve coverage in batches,
- * then write .covflux/coverage-cache.json. Yields between batches so the UI stays responsive.
+ * then write .eyecov/coverage-cache.json. Yields between batches so the UI stays responsive.
  * If signal is aborted, exits without writing.
  */
 export async function prewarmCoverageForRoot(

@@ -3,21 +3,21 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import {
-  loadCovfluxConfig,
+  loadCoverageConfig,
   DEFAULT_CONFIG,
   getPhpUnitHtmlDir,
   getPhpUnitHtmlSourceSegment,
   getLcovPath,
   getLcovPathsToWatch,
-  type CovfluxConfig,
-} from "./covflux-config";
+  type CoverageConfig,
+} from "./coverage-config";
 
-describe("covflux-config", () => {
+describe("coverage-config", () => {
   let tmpDir: string;
   let workspaceRoot: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "covflux-config-"));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "coverage-config-"));
     workspaceRoot = path.join(tmpDir, "workspace");
     fs.mkdirSync(workspaceRoot, { recursive: true });
   });
@@ -40,22 +40,22 @@ describe("covflux-config", () => {
     });
   });
 
-  describe("loadCovfluxConfig", () => {
+  describe("loadCoverageConfig", () => {
     it("returns DEFAULT_CONFIG when no config file exists", () => {
-      const config = loadCovfluxConfig(workspaceRoot);
+      const config = loadCoverageConfig(workspaceRoot);
       expect(config.formats).toEqual(DEFAULT_CONFIG.formats);
     });
 
     it("returns DEFAULT_CONFIG when workspace root is empty or missing", () => {
-      expect(loadCovfluxConfig("").formats).toEqual(DEFAULT_CONFIG.formats);
+      expect(loadCoverageConfig("").formats).toEqual(DEFAULT_CONFIG.formats);
       expect(
-        loadCovfluxConfig(path.join(tmpDir, "nonexistent")).formats,
+        loadCoverageConfig(path.join(tmpDir, "nonexistent")).formats,
       ).toEqual(DEFAULT_CONFIG.formats);
     });
 
-    it("loads .covflux.json and uses its formats", () => {
+    it("loads .eyecov.json and uses its formats", () => {
       fs.writeFileSync(
-        path.join(workspaceRoot, ".covflux.json"),
+        path.join(workspaceRoot, ".eyecov.json"),
         JSON.stringify({
           formats: [
             { type: "phpunit-html", path: "build/coverage-html" },
@@ -63,7 +63,7 @@ describe("covflux-config", () => {
           ],
         }),
       );
-      const config = loadCovfluxConfig(workspaceRoot);
+      const config = loadCoverageConfig(workspaceRoot);
       expect(config.formats).toHaveLength(2);
       expect(config.formats[0]).toEqual({
         type: "phpunit-html",
@@ -77,7 +77,7 @@ describe("covflux-config", () => {
 
     it("parses sourceSegment for phpunit-html entry when valid", () => {
       fs.writeFileSync(
-        path.join(workspaceRoot, ".covflux.json"),
+        path.join(workspaceRoot, ".eyecov.json"),
         JSON.stringify({
           formats: [
             {
@@ -89,7 +89,7 @@ describe("covflux-config", () => {
           ],
         }),
       );
-      const config = loadCovfluxConfig(workspaceRoot);
+      const config = loadCoverageConfig(workspaceRoot);
       expect(config.formats[0]).toMatchObject({
         type: "phpunit-html",
         path: "coverage-html",
@@ -98,14 +98,14 @@ describe("covflux-config", () => {
       expect(getPhpUnitHtmlSourceSegment(config)).toBe("src");
     });
 
-    it("loads covflux.json when .covflux.json is absent", () => {
+    it("loads eyecov.json when .eyecov.json is absent", () => {
       fs.writeFileSync(
-        path.join(workspaceRoot, "covflux.json"),
+        path.join(workspaceRoot, "eyecov.json"),
         JSON.stringify({
           formats: [{ type: "lcov", path: "coverage/lcov.info" }],
         }),
       );
-      const config = loadCovfluxConfig(workspaceRoot);
+      const config = loadCoverageConfig(workspaceRoot);
       expect(config.formats).toHaveLength(1);
       expect(config.formats[0]).toEqual({
         type: "lcov",
@@ -113,22 +113,22 @@ describe("covflux-config", () => {
       });
     });
 
-    it("prefers .covflux.json over covflux.json", () => {
+    it("prefers .eyecov.json over eyecov.json", () => {
       fs.writeFileSync(
-        path.join(workspaceRoot, "covflux.json"),
+        path.join(workspaceRoot, "eyecov.json"),
         JSON.stringify({ formats: [{ type: "lcov", path: "a.info" }] }),
       );
       fs.writeFileSync(
-        path.join(workspaceRoot, ".covflux.json"),
+        path.join(workspaceRoot, ".eyecov.json"),
         JSON.stringify({ formats: [{ type: "lcov", path: "b.info" }] }),
       );
-      const config = loadCovfluxConfig(workspaceRoot);
+      const config = loadCoverageConfig(workspaceRoot);
       expect(config.formats[0].path).toBe("b.info");
     });
 
     it("ignores unknown format types", () => {
       fs.writeFileSync(
-        path.join(workspaceRoot, ".covflux.json"),
+        path.join(workspaceRoot, ".eyecov.json"),
         JSON.stringify({
           formats: [
             { type: "phpunit-html", path: "coverage-html" },
@@ -137,7 +137,7 @@ describe("covflux-config", () => {
           ],
         }),
       );
-      const config = loadCovfluxConfig(workspaceRoot);
+      const config = loadCoverageConfig(workspaceRoot);
       expect(config.formats).toHaveLength(2);
       expect(config.formats.map((f) => f.type)).toEqual([
         "phpunit-html",
@@ -147,7 +147,7 @@ describe("covflux-config", () => {
 
     it("ignores entries with missing or invalid type/path", () => {
       fs.writeFileSync(
-        path.join(workspaceRoot, ".covflux.json"),
+        path.join(workspaceRoot, ".eyecov.json"),
         JSON.stringify({
           formats: [
             { type: "phpunit-html", path: "" },
@@ -156,23 +156,23 @@ describe("covflux-config", () => {
           ],
         }),
       );
-      const config = loadCovfluxConfig(workspaceRoot);
+      const config = loadCoverageConfig(workspaceRoot);
       expect(config.formats).toHaveLength(1);
       expect(config.formats[0].type).toBe("lcov");
     });
 
     it("returns DEFAULT_CONFIG when JSON is invalid", () => {
-      fs.writeFileSync(path.join(workspaceRoot, ".covflux.json"), "not json");
-      const config = loadCovfluxConfig(workspaceRoot);
+      fs.writeFileSync(path.join(workspaceRoot, ".eyecov.json"), "not json");
+      const config = loadCoverageConfig(workspaceRoot);
       expect(config.formats).toEqual(DEFAULT_CONFIG.formats);
     });
 
     it("returns DEFAULT_CONFIG when formats is not an array", () => {
       fs.writeFileSync(
-        path.join(workspaceRoot, ".covflux.json"),
+        path.join(workspaceRoot, ".eyecov.json"),
         JSON.stringify({ formats: null }),
       );
-      const config = loadCovfluxConfig(workspaceRoot);
+      const config = loadCoverageConfig(workspaceRoot);
       expect(config.formats).toEqual(DEFAULT_CONFIG.formats);
     });
   });
@@ -238,7 +238,7 @@ describe("covflux-config", () => {
 
   describe("getLcovPathsToWatch", () => {
     it("returns one absolute path per workspace root using default lcov path", () => {
-      const config: CovfluxConfig = DEFAULT_CONFIG;
+      const config: CoverageConfig = DEFAULT_CONFIG;
       const roots = [workspaceRoot];
       const paths = getLcovPathsToWatch(config, roots);
       expect(paths).toHaveLength(1);
@@ -246,7 +246,7 @@ describe("covflux-config", () => {
     });
 
     it("returns custom lcov path when configured", () => {
-      const config: CovfluxConfig = {
+      const config: CoverageConfig = {
         formats: [{ type: "lcov", path: "build/coverage.info" }],
       };
       const roots = [workspaceRoot];
@@ -258,7 +258,7 @@ describe("covflux-config", () => {
     it("returns one path per workspace root for multi-root", () => {
       const root2 = path.join(tmpDir, "workspace2");
       fs.mkdirSync(root2, { recursive: true });
-      const config: CovfluxConfig = DEFAULT_CONFIG;
+      const config: CoverageConfig = DEFAULT_CONFIG;
       const paths = getLcovPathsToWatch(config, [workspaceRoot, root2]);
       expect(paths).toHaveLength(2);
       expect(paths[0]).toBe(path.join(workspaceRoot, "coverage", "lcov.info"));
@@ -266,7 +266,7 @@ describe("covflux-config", () => {
     });
 
     it("returns empty array when config has no lcov format", () => {
-      const config: CovfluxConfig = {
+      const config: CoverageConfig = {
         formats: [{ type: "phpunit-html", path: "coverage-html" }],
       };
       const paths = getLcovPathsToWatch(config, [workspaceRoot]);

@@ -17,7 +17,7 @@ describe("phpunit-html adapter", () => {
   let workspaceRoot: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "covflux-test-"));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "eyecov-test-"));
     workspaceRoot = path.join(tmpDir, "workspace");
     fs.mkdirSync(path.join(workspaceRoot, "app", "Domain", "Foo"), {
       recursive: true,

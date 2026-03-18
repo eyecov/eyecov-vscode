@@ -217,6 +217,20 @@ describe("applyOneChange", () => {
     expect(result!.uncoverableLines).toEqual([7]);
   });
 
+  it("backspace at col 0 after blank line shifts the covered end line up", () => {
+    const change = {
+      range: {
+        start: { line: 5, character: 0 },
+        end: { line: 6, character: 0 },
+      },
+      text: "",
+    };
+    const result = applyOneChange([5, 6, 10], [], [8], change);
+    expect(result).not.toBeNull();
+    expect(result!.coveredLines).toEqual([5, 9]);
+    expect(result!.uncoverableLines).toEqual([7]);
+  });
+
   // Mid-line multi-line replacement: select from col 10 on line 5 through line 7 and replace.
   // Even though start.character > 0, this is NOT a join-lines — line 5's content changes.
   // Coverage on line 5 must be dropped.

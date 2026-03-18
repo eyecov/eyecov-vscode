@@ -13,10 +13,10 @@ import {
 import { readCoverageCache } from "../coverage-cache";
 import { computeTestPriorityItems } from "../coverage-test-priority";
 import {
-  loadCovfluxConfig,
+  loadCoverageConfig,
   getPhpUnitHtmlDir,
   getPhpUnitHtmlSourceSegment,
-} from "../covflux-config";
+} from "../coverage-config";
 import type { CoverageFileResult } from "../coverage-formats/phpunit-html";
 import {
   getCandidatePathsForQuery,
@@ -27,6 +27,9 @@ import {
   CoverageResolver,
   createAdaptersFromConfig,
 } from "../coverage-resolver";
+
+const ANSI_TEXT_LOGO =
+  "\u001b[48;2;0;0;0m\u001b[38;2;90;12;163m \u25ae\u001b[38;2;124;58;237m\u25ae\u001b[38;2;159;103;255m\u25ae\u001b[38;2;255;255;255meyecov \u001b[0m\n";
 
 const FILE_INPUT_SCHEMA = z.object({
   query: z
@@ -144,7 +147,7 @@ const COVERAGE_PATH_INPUT_SCHEMA = z
   );
 
 function getConfiguredWorkspaceRoots(): string[] {
-  const raw = process.env.COVFLUX_WORKSPACE_ROOTS;
+  const raw = process.env.EYECOV_WORKSPACE_ROOTS;
   if (!raw) {
     return [];
   }
@@ -196,9 +199,11 @@ function recordToMatch(record: CoverageRecord): CoverageFileResult {
 }
 
 async function main(): Promise<void> {
+  process.stderr.write(ANSI_TEXT_LOGO);
+
   const server = new McpServer({
-    name: "covflux",
-    version: process.env.COVFLUX_EXTENSION_VERSION ?? "0.0.0",
+    name: "eyecov",
+    version: process.env.EYECOV_EXTENSION_VERSION ?? "0.0.0",
   });
 
   server.registerTool(
@@ -235,7 +240,7 @@ async function main(): Promise<void> {
         .listRoots()
         .catch(() => ({ roots: [] }));
       const workspaceRoots = resolveWorkspaceRoots(rootsResponse.roots);
-      const config = loadCovfluxConfig(workspaceRoots[0] ?? "");
+      const config = loadCoverageConfig(workspaceRoots[0] ?? "");
       const coverageHtmlDir = getPhpUnitHtmlDir(config);
       const sourceSegment = getPhpUnitHtmlSourceSegment(config);
       const resolver = new CoverageResolver({
@@ -337,7 +342,7 @@ async function main(): Promise<void> {
         .listRoots()
         .catch(() => ({ roots: [] }));
       const workspaceRoots = resolveWorkspaceRoots(rootsResponse.roots);
-      const config = loadCovfluxConfig(workspaceRoots[0] ?? "");
+      const config = loadCoverageConfig(workspaceRoots[0] ?? "");
       const coverageHtmlDir = getPhpUnitHtmlDir(config);
       const sourceSegment = getPhpUnitHtmlSourceSegment(config);
       const resolver = new CoverageResolver({
@@ -531,7 +536,7 @@ async function main(): Promise<void> {
           content: [{ type: "text", text: JSON.stringify(response) }],
         };
       }
-      const config = loadCovfluxConfig(root ?? "");
+      const config = loadCoverageConfig(root ?? "");
       const resolver = new CoverageResolver({
         workspaceRoots,
         adapters: createAdaptersFromConfig(config),
@@ -629,7 +634,7 @@ async function main(): Promise<void> {
           content: [{ type: "text", text: JSON.stringify(response) }],
         };
       }
-      const config = loadCovfluxConfig(root ?? "");
+      const config = loadCoverageConfig(root ?? "");
       const resolver = new CoverageResolver({
         workspaceRoots,
         adapters: createAdaptersFromConfig(config),
@@ -724,7 +729,7 @@ async function main(): Promise<void> {
         };
       }
 
-      const config = loadCovfluxConfig(root ?? "");
+      const config = loadCoverageConfig(root ?? "");
       const resolver = new CoverageResolver({
         workspaceRoots,
         adapters: createAdaptersFromConfig(config),

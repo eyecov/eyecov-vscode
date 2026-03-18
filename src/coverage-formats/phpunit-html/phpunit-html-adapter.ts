@@ -6,7 +6,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import type { PhpUnitHtmlSourceSegment } from "../../covflux-config";
+import type { PhpUnitHtmlSourceSegment } from "../../coverage-config";
 import type {
   AdapterCoverageResult,
   CoverageAdapter,

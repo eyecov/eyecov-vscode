@@ -1,5 +1,5 @@
 /**
- * Covflux configuration file support. Reads .covflux.json or covflux.json
+ * Coverage configuration file support. Reads .eyecov.json or eyecov.json
  * from the workspace root to determine which coverage formats to use,
  * in what order, and where to find each format's artifact.
  */
@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 export const SUPPORTED_FORMAT_TYPES = ["phpunit-html", "lcov"] as const;
-export type CovfluxFormatType = (typeof SUPPORTED_FORMAT_TYPES)[number];
+export type CoverageFormatType = (typeof SUPPORTED_FORMAT_TYPES)[number];
 
 export const PHPUNIT_HTML_SOURCE_SEGMENTS = [
   "app",
@@ -19,28 +19,28 @@ export const PHPUNIT_HTML_SOURCE_SEGMENTS = [
 export type PhpUnitHtmlSourceSegment =
   (typeof PHPUNIT_HTML_SOURCE_SEGMENTS)[number];
 
-export interface CovfluxFormatEntry {
+export interface CoverageFormatEntry {
   type: string;
   path: string;
   /** Only for type phpunit-html: source directory segment under workspace (default 'auto'). */
   sourceSegment?: PhpUnitHtmlSourceSegment;
 }
 
-export interface CovfluxConfig {
-  formats: CovfluxFormatEntry[];
+export interface CoverageConfig {
+  formats: CoverageFormatEntry[];
 }
 
-const CONFIG_FILENAMES = [".covflux.json", "covflux.json"];
+const CONFIG_FILENAMES = [".eyecov.json", "eyecov.json"];
 
-export const DEFAULT_CONFIG: CovfluxConfig = {
+export const DEFAULT_CONFIG: CoverageConfig = {
   formats: [
     { type: "phpunit-html", path: "coverage-html" },
     { type: "lcov", path: "coverage/lcov.info" },
   ],
 };
 
-function isSupportedFormatType(type: string): type is CovfluxFormatType {
-  return SUPPORTED_FORMAT_TYPES.includes(type as CovfluxFormatType);
+function isSupportedFormatType(type: string): type is CoverageFormatType {
+  return SUPPORTED_FORMAT_TYPES.includes(type as CoverageFormatType);
 }
 
 function isPhpUnitHtmlSourceSegment(
@@ -53,12 +53,12 @@ function isPhpUnitHtmlSourceSegment(
 }
 
 /**
- * Load Covflux config from the workspace root. Tries .covflux.json then covflux.json.
+ * Load coverage config from the workspace root. Tries .eyecov.json then eyecov.json.
  * Returns DEFAULT_CONFIG if no file is found or parsing fails.
  * Unknown or unsupported format types in the file are ignored; only
  * phpunit-html and lcov are used.
  */
-export function loadCovfluxConfig(workspaceRoot: string): CovfluxConfig {
+export function loadCoverageConfig(workspaceRoot: string): CoverageConfig {
   if (!workspaceRoot || !fs.existsSync(workspaceRoot)) {
     return DEFAULT_CONFIG;
   }
@@ -87,13 +87,13 @@ export function loadCovfluxConfig(workspaceRoot: string): CovfluxConfig {
           }>;
         }
       ).formats;
-      const formats: CovfluxFormatEntry[] = [];
+      const formats: CoverageFormatEntry[] = [];
       for (const entry of entries) {
         const type = typeof entry.type === "string" ? entry.type : "";
         const pathVal = typeof entry.path === "string" ? entry.path : "";
         if (!type || !pathVal) continue;
         if (!isSupportedFormatType(type)) continue;
-        const formatEntry: CovfluxFormatEntry = { type, path: pathVal };
+        const formatEntry: CoverageFormatEntry = { type, path: pathVal };
         if (
           type === "phpunit-html" &&
           isPhpUnitHtmlSourceSegment(entry.sourceSegment)
@@ -116,7 +116,7 @@ export function loadCovfluxConfig(workspaceRoot: string): CovfluxConfig {
 /**
  * Return the path for the first phpunit-html format in config, or the default.
  */
-export function getPhpUnitHtmlDir(config: CovfluxConfig): string {
+export function getPhpUnitHtmlDir(config: CoverageConfig): string {
   const entry = config.formats.find((f) => f.type === "phpunit-html");
   return entry?.path ?? DEFAULT_CONFIG.formats[0]!.path;
 }
@@ -126,7 +126,7 @@ export function getPhpUnitHtmlDir(config: CovfluxConfig): string {
  * One of 'app' | 'src' | 'lib' | 'auto'. Default is 'auto'.
  */
 export function getPhpUnitHtmlSourceSegment(
-  config: CovfluxConfig,
+  config: CoverageConfig,
 ): PhpUnitHtmlSourceSegment {
   const entry = config.formats.find((f) => f.type === "phpunit-html");
   return entry?.sourceSegment ?? "auto";
@@ -135,7 +135,7 @@ export function getPhpUnitHtmlSourceSegment(
 /**
  * Return the path for the first lcov format in config, or the default.
  */
-export function getLcovPath(config: CovfluxConfig): string {
+export function getLcovPath(config: CoverageConfig): string {
   const entry = config.formats.find((f) => f.type === "lcov");
   return entry?.path ?? DEFAULT_CONFIG.formats[1]!.path;
 }
@@ -146,7 +146,7 @@ export function getLcovPath(config: CovfluxConfig): string {
  * Returns empty array if config has no lcov format.
  */
 export function getLcovPathsToWatch(
-  config: CovfluxConfig,
+  config: CoverageConfig,
   workspaceRoots: string[],
 ): string[] {
   const lcovRelative = config.formats.find((f) => f.type === "lcov")?.path;

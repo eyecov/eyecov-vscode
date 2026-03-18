@@ -50,7 +50,7 @@ Node.js 22+ required (see `.nvmrc`; use `nvm use`).
 
 ## Architecture
 
-Covflux is a VS Code extension that reads coverage artifacts, normalizes them into a shared runtime model, and exposes that model to both the editor and AI tools via MCP.
+Eyecov is a VS Code extension that reads coverage artifacts, normalizes them into a shared runtime model, and exposes that model to both the editor and AI tools via MCP.
 
 ### Coverage pipeline
 
@@ -66,16 +66,16 @@ editor decorations + MCP server tools
 
 ### Key source files
 
-- **`src/extension.ts`** — Extension entry point. `CovfluxExtension` class handles activation, command registration, file watchers, editor decorations, edit tracking, prewarm, and MCP registration. Depends on `vscode` API; not unit-testable with Vitest.
+- **`src/extension.ts`** — Extension entry point. `CoverageExtension` class handles activation, command registration, file watchers, editor decorations, edit tracking, prewarm, and MCP registration. Depends on `vscode` API; not unit-testable with Vitest.
 - **`src/coverage-resolver.ts`** — `CoverageResolver` and `CoverageAdapter` interface. Tries adapters in config order; first non-null `CoverageRecord` wins. `createAdaptersFromConfig(config)` builds adapter list.
 - **`src/coverage-formats/phpunit-html/`** — `PhpUnitHtmlAdapter`; parses per-file HTML reports. Supports optional `sourceSegment` (`app` | `src` | `lib` | `auto`). Sets `testsByLine` and `lineStatuses` (S/M/L granularity) on the record.
 - **`src/coverage-formats/lcov/`** — `LcovAdapter`; reads a single `lcov.info` and finds the matching `SF:` record.
 - **`src/coverage-formats/fixture/`** — Deterministic test-only adapter; used in unit tests instead of real coverage artifacts.
-- **`src/covflux-config.ts`** — Reads `.covflux.json` / `covflux.json` from workspace root. Provides `DEFAULT_CONFIG`, format-path helpers.
+- **`src/coverage-config.ts`** — Reads `.eyecov.json` / `eyecov.json` from workspace root. Provides `DEFAULT_CONFIG`, format-path helpers.
 - **`src/coverage-runtime.ts`** — Path utilities: `toFileSystemPath`, `resolveFilePath`, `getCandidatePathsForQuery`.
 - **`src/coverage-staleness.ts`** — `isCoverageStale(sourcePath, artifactPath)`. Each adapter calls this before returning a record; stale → returns `null`.
 - **`src/coverage-aggregate.ts`** — On-demand path/project aggregation for MCP tools: `getPathAggregateResponse`, `getProjectAggregateResponse`, `listCoveredPaths`.
-- **`src/coverage-cache.ts`** — Persistent cache at `{workspaceRoot}/.covflux/coverage-cache.json`. Written by prewarm; read by MCP for fast path/project queries.
+- **`src/coverage-cache.ts`** — Persistent cache at `{workspaceRoot}/.eyecov/coverage-cache.json`. Written by prewarm; read by MCP for fast path/project queries.
 - **`src/coverage-prewarm.ts`** — Background crawl: `prewarmCoverageForRoot`. Batched with `setImmediate`; fire-and-forget from extension on startup.
 - **`src/edit-tracking.ts`** — Pure line-offset mapping for `trackCoverageThroughEdits`. `applyChanges` shifts line numbers on insert/delete; invalidates state when edits exceed thresholds.
 - **`src/coverage-data-mapper.ts`** — Maps `CoverageRecord` → `CoverageData` for decoration plan; `getStatusBarContent` for status bar.

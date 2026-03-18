@@ -5,7 +5,7 @@
  */
 
 import path from "node:path";
-import type { CovfluxConfig, CovfluxFormatType } from "./covflux-config";
+import type { CoverageConfig, CoverageFormatType } from "./coverage-config";
 import { PhpUnitHtmlAdapter } from "./coverage-formats/phpunit-html";
 import { LcovAdapter } from "./coverage-formats/lcov";
 
@@ -20,7 +20,7 @@ export interface CoverageRecord {
   uncoverableLines: Set<number>;
   lineCoveragePercent: number | null;
   /** Source format that produced this record (e.g. 'phpunit-html', 'lcov'). */
-  sourceFormat?: CovfluxFormatType;
+  sourceFormat?: CoverageFormatType;
   /** Set by PHPUnit HTML adapter; omitted for LCOV. */
   coverageHtmlPath?: string;
   /** Set by PHPUnit HTML adapter for per-line test data; omitted for LCOV. */
@@ -47,7 +47,7 @@ export interface CoverageAdapter {
 export interface CoverageResolverOptions {
   workspaceRoots: string[];
   adapters: CoverageAdapter[];
-  /** When set (e.g. when covflux.debug is true), log adapter tries and which adapter resolved. */
+  /** When set (e.g. when eyecov.debug is true), log adapter tries and which adapter resolved. */
   debugLog?: (message: string) => void;
   /** Labels for each adapter (e.g. ['phpunit-html', 'lcov']) for debug output. */
   adapterLabels?: string[];
@@ -57,7 +57,7 @@ export interface CoverageResolverOptions {
 export interface ResolverCoverageResult {
   record: CoverageRecord | null;
   rejectReason?: CoverageRejectReason;
-  sourceFormat?: CovfluxFormatType;
+  sourceFormat?: CoverageFormatType;
 }
 
 /** Tries adapters in order; returns first non-null record. */
@@ -99,7 +99,7 @@ export class CoverageResolver {
 
 /** Build adapters from config order and paths; unknown format types are skipped. */
 export function createAdaptersFromConfig(
-  config: CovfluxConfig,
+  config: CoverageConfig,
 ): CoverageAdapter[] {
   const adapters: CoverageAdapter[] = [];
   for (const entry of config.formats) {

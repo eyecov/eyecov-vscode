@@ -10,7 +10,7 @@ describe("isCoverageStale", () => {
   let artifactPath: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "covflux-stale-"));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "eyecov-stale-"));
     sourcePath = path.join(tmpDir, "source.php");
     artifactPath = path.join(tmpDir, "coverage.html");
     fs.writeFileSync(sourcePath, "<?php");

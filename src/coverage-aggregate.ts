@@ -5,7 +5,7 @@
  */
 
 import path from "node:path";
-import type { CovfluxConfig } from "./covflux-config";
+import type { CoverageConfig } from "./coverage-config";
 import type { CoverageCacheWritten } from "./coverage-cache";
 import type { CoverageRecord } from "./coverage-resolver";
 import { listCoverageHtmlSourcePaths } from "./coverage-formats/phpunit-html";
@@ -119,7 +119,7 @@ export async function aggregateCoverage(
 
 export interface ListCoveredPathsOptions {
   workspaceRoots: string[];
-  config: CovfluxConfig;
+  config: CoverageConfig;
   /** Optional single path prefix. Ignored when pathPrefixes is non-empty. */
   pathPrefix?: string | null;
   /** Optional array of path prefixes. Files under any prefix are included (union). */
@@ -189,7 +189,7 @@ export function listCoveredPaths(options: ListCoveredPathsOptions): string[] {
  */
 export function listCoveredPathsFromFirstFormat(
   workspaceRoots: string[],
-  config: CovfluxConfig,
+  config: CoverageConfig,
 ): { paths: string[]; formatType: string } {
   for (const entry of config.formats) {
     const paths =
@@ -225,7 +225,7 @@ export interface PathAggregateResponse {
 
 export interface GetPathAggregateResponseOptions {
   workspaceRoots: string[];
-  config: CovfluxConfig;
+  config: CoverageConfig;
   /** Single path prefix (use when querying one path). */
   path?: string;
   /** Multiple path prefixes; aggregate over union of files. Takes precedence over path when both provided. */
@@ -293,7 +293,7 @@ export interface ProjectAggregateResponse {
 
 export interface GetProjectAggregateResponseOptions {
   workspaceRoots: string[];
-  config: CovfluxConfig;
+  config: CoverageConfig;
   getCoverage: (path: string) => Promise<CoverageRecord | null>;
   worstFilesLimit?: number;
   zeroCoverageFilesLimit?: number;

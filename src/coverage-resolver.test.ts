@@ -10,14 +10,14 @@ import {
   FixtureAdapter,
   createAdaptersFromConfig,
 } from "./coverage-resolver";
-import { DEFAULT_CONFIG } from "./covflux-config";
+import { DEFAULT_CONFIG } from "./coverage-config";
 
 describe("CoverageResolver", () => {
   let tmpDir: string;
   let workspaceRoot: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "covflux-resolver-"));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "eyecov-resolver-"));
     workspaceRoot = path.join(tmpDir, "workspace");
     fs.mkdirSync(path.join(workspaceRoot, "app", "Domain", "Foo"), {
       recursive: true,

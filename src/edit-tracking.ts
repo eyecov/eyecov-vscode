@@ -7,6 +7,11 @@ import type { CoverageRecord } from "./coverage-resolver";
 import type { CoverageData } from "./coverage-types";
 import { LINE_STATUS } from "./coverage-types";
 
+export interface TrackedLineSnapshot {
+  status: number;
+  text: string;
+}
+
 /**
  * Single change from TextDocumentChangeEvent.contentChanges[].
  * range.end.line is VS Code's raw end line: the last line touched by the
@@ -105,6 +110,11 @@ export function applyOneChange(
     editEnd === editStart + 1 &&
     (change.range.end.character ?? 0) === 0 &&
     change.text === "";
+  const preservesEndLineOnJoin =
+    (change.range.start.character ?? 0) === 0 &&
+    editEnd === editStart + 1 &&
+    (change.range.end.character ?? 0) === 0 &&
+    change.text === "";
   const shiftsStartLine =
     change.shiftStartLine &&
     editStart === editEnd &&
@@ -118,6 +128,7 @@ export function applyOneChange(
   const mapLines = (lines: number[]): number[] => {
     return lines.flatMap((L) => {
       if (shiftsStartLine && L >= editStart) return [L + lineDelta];
+      if (preservesEndLineOnJoin && L === editEnd) return [L + lineDelta];
       if (inRange(L)) return [];
       if (L > editEnd) return [L + lineDelta];
       return [L];
@@ -242,6 +253,7 @@ export interface TrackedCoverageState {
   uncoverableLines: number[];
   baseDocumentVersion: number;
   lineCoveragePercent: number | null;
+  originalTrackedLineTexts: Map<number, TrackedLineSnapshot>;
 }
 
 /**
@@ -259,6 +271,7 @@ export function recordToTrackedState(
     uncoverableLines: toSortedArray(record.uncoverableLines),
     baseDocumentVersion: documentVersion,
     lineCoveragePercent: record.lineCoveragePercent ?? null,
+    originalTrackedLineTexts: new Map(),
   };
 }
 

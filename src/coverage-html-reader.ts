@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import type { PhpUnitHtmlSourceSegment } from "./covflux-config";
+import type { PhpUnitHtmlSourceSegment } from "./coverage-config";
 import type { CoverageData, FileCoverage } from "./coverage-types";
 import {
   resolveCoverageHtmlPath,

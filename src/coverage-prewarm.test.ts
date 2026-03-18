@@ -5,14 +5,14 @@ import os from "node:os";
 import { prewarmCoverageForRoot } from "./coverage-prewarm";
 import { readCoverageCache } from "./coverage-cache";
 import type { CoverageRecord } from "./coverage-resolver";
-import type { CovfluxConfig } from "./covflux-config";
+import type { CoverageConfig } from "./coverage-config";
 
 describe("coverage-prewarm", () => {
   let tmpDir: string;
   const BATCH_SIZE = 2;
 
   beforeEach(() => {
-    tmpDir = path.join(os.tmpdir(), `covflux-prewarm-${Date.now()}`);
+    tmpDir = path.join(os.tmpdir(), `eyecov-prewarm-${Date.now()}`);
     fs.mkdirSync(tmpDir, { recursive: true });
   });
 
@@ -28,7 +28,7 @@ describe("coverage-prewarm", () => {
     const pathA = path.join(tmpDir, "app/A.php");
     const pathB = path.join(tmpDir, "app/B.php");
     const pathC = path.join(tmpDir, "app/C.php");
-    const _config: CovfluxConfig = {
+    const _config: CoverageConfig = {
       formats: [
         { type: "phpunit-html", path: path.join(tmpDir, "coverage-html") },
       ],
@@ -74,7 +74,7 @@ describe("coverage-prewarm", () => {
 
   it("does not write cache when signal is aborted before completion", async () => {
     const pathA = path.join(tmpDir, "app/A.php");
-    const _config: CovfluxConfig = {
+    const _config: CoverageConfig = {
       formats: [
         { type: "phpunit-html", path: path.join(tmpDir, "coverage-html") },
       ],

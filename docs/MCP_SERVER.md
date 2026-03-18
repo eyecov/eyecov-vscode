@@ -2,12 +2,12 @@
 
 For the canonical shared model behind these tools, see [COVERAGE_MODEL.md](COVERAGE_MODEL.md).
 
-The Covflux extension runs an MCP server in supported VS Code/Cursor versions. The server uses the same coverage runtime model and adapters as the editor; there is no separate coverage pipeline. When `covflux.prewarmCoverageCache` is true, the extension builds a coverage cache in the background (`.covflux/coverage-cache.json` per workspace root); the MCP server uses that cache for `coverage_path`, `coverage_project`, and `coverage_test_priority` when valid, avoiding re-aggregation.
+The Eyecov extension runs an MCP server in supported VS Code/Cursor versions. The server uses the same coverage runtime model and adapters as the editor; there is no separate coverage pipeline. When `eyecov.prewarmCoverageCache` is true, the extension builds a coverage cache in the background (`.eyecov/coverage-cache.json` per workspace root); the MCP server uses that cache for `coverage_path`, `coverage_project`, and `coverage_test_priority` when valid, avoiding re-aggregation.
 
 ## Workspace roots
 
 - From the host (e.g. `listRoots`).
-- Plus `COVFLUX_WORKSPACE_ROOTS` environment variable (path-delimited).
+- Plus `EYECOV_WORKSPACE_ROOTS` environment variable (path-delimited).
 
 ## Tools
 
@@ -107,7 +107,7 @@ Aggregates workspace-wide coverage (no path filter).
 - **zeroCoverageFilesLimit** — When set with **coveredLinesCutoff**, include up to this many files with covered lines ≤ cutoff in **zeroCoverageFiles**.
 - **coveredLinesCutoff** — Used with zeroCoverageFilesLimit: files with covered lines ≤ this go into zeroCoverageFiles.
 
-**Behavior:** When a valid prewarm cache exists at `{workspaceRoot}/.covflux/coverage-cache.json`, returns the pre-aggregated project totals from the cache (no resolver calls; zeroCoverageFiles not from cache). Otherwise uses the first configured coverage format that has data: discovers paths, resolves coverage for each, and returns aggregate stats plus that format as detectedFormat and cache state; when options are set, response can include zeroCoverageFiles.
+**Behavior:** When a valid prewarm cache exists at `{workspaceRoot}/.eyecov/coverage-cache.json`, returns the pre-aggregated project totals from the cache (no resolver calls; zeroCoverageFiles not from cache). Otherwise uses the first configured coverage format that has data: discovers paths, resolves coverage for each, and returns aggregate stats plus that format as detectedFormat and cache state; when options are set, response can include zeroCoverageFiles.
 
 **Response:**
 
@@ -222,20 +222,20 @@ Returns covering tests for a file and line(s).
 
 1. Run `npm run compile`.
 2. Start the extension in Extension Development Host (VS Code 1.101+).
-3. Open **MCP: List Servers** and confirm the covflux server appears.
+3. Open **MCP: List Servers** and confirm the eyecov server appears.
 4. Call `coverage_file`, `coverage_path`, `coverage_project`, `coverage_test_priority`, or `coverage_line_tests` from chat/agent and confirm responses match workspace coverage.
 
 ## AI Workflow: Generate tests for uncovered code
 
 When working in the editor, developers may notice uncovered lines highlighted
-by Covflux. AI assistants can use this information to generate tests that
+by Eyecov. AI assistants can use this information to generate tests that
 target those gaps.
 
 Typical workflow:
 
 1. The developer sees uncovered (red) lines in the editor.
 2. The developer asks the AI assistant to generate tests covering those lines.
-3. The AI queries Covflux for coverage information for the file.
+3. The AI queries Eyecov for coverage information for the file.
 4. The AI inspects the surrounding code and identifies the uncovered branches.
 5. The AI generates targeted tests designed to execute those branches.
 6. The developer runs the tests and coverage is updated.

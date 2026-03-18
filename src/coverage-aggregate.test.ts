@@ -11,7 +11,7 @@ import {
   pathAggregateFromCache,
 } from "./coverage-aggregate";
 import type { CoverageRecord } from "./coverage-resolver";
-import type { CovfluxConfig } from "./covflux-config";
+import type { CoverageConfig } from "./coverage-config";
 
 describe("coverage-aggregate", () => {
   describe("aggregateCoverage", () => {
@@ -129,7 +129,7 @@ describe("coverage-aggregate", () => {
   describe("listCoveredPaths", () => {
     let tmpDir: string;
     let workspaceRoot: string;
-    const config: CovfluxConfig = {
+    const config: CoverageConfig = {
       formats: [
         { type: "phpunit-html", path: "coverage-html" },
         { type: "lcov", path: "coverage/lcov.info" },
@@ -137,7 +137,7 @@ describe("coverage-aggregate", () => {
     };
 
     beforeEach(() => {
-      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "covflux-aggregate-"));
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "eyecov-aggregate-"));
       workspaceRoot = path.join(tmpDir, "workspace");
       fs.mkdirSync(path.join(workspaceRoot, "app", "Domain", "Foo"), {
         recursive: true,
@@ -444,7 +444,7 @@ describe("coverage-aggregate", () => {
 
   describe("pathAggregateFromCache", () => {
     it("filters cache files by path prefix and returns path aggregate with cacheState full", () => {
-      const workspaceRoot = path.join(os.tmpdir(), "covflux-path-cache-test");
+      const workspaceRoot = path.join(os.tmpdir(), "eyecov-path-cache-test");
       const cache = {
         version: 1,
         generatedAt: "2025-03-14T12:00:00.000Z",

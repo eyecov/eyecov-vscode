@@ -11,7 +11,7 @@
 2. Install and build:
 
 ```bash
-cd covflux-vscode
+cd eyecov-vscode
 npm install
 npm run compile
 ```

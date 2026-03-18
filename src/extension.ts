@@ -10,11 +10,11 @@ import {
 import { CoverageData, LINE_STATUS } from "./coverage-types";
 import { CoverageHtmlReader } from "./coverage-html-reader";
 import {
-  loadCovfluxConfig,
+  loadCoverageConfig,
   getPhpUnitHtmlDir,
   getPhpUnitHtmlSourceSegment,
   getLcovPathsToWatch,
-} from "./covflux-config";
+} from "./coverage-config";
 import { listCoveredPathsFromFirstFormat } from "./coverage-aggregate";
 import { deleteCoverageCache } from "./coverage-cache";
 import { prewarmCoverageForRoot } from "./coverage-prewarm";
@@ -35,7 +35,12 @@ import {
   trackedStateToCoverageData,
 } from "./edit-tracking";
 import {
+  shouldPreserveStartLineOnInsert,
+  shouldShiftStartLineOnInsert,
+} from "./edit-boundary-detection";
+import {
   createTrackedCoverageEntry,
+  pushRecoverableEntry,
   tryRestoreTrackedCoverageEntry,
   type TrackedCoverageEntry,
 } from "./edit-recovery";
@@ -178,9 +183,9 @@ class CoverageDecorations {
 /**
  * Main extension class
  */
-const MCP_SERVER_DEFINITION_PROVIDER_ID = "covflux.builtin";
+const MCP_SERVER_DEFINITION_PROVIDER_ID = "eyecov.builtin";
 
-class CovfluxExtension {
+class CoverageExtension {
   private coverageHtml: CoverageHtmlReader | null = null;
   private resolver: CoverageResolver | null = null;
   private decorations: CoverageDecorations;
@@ -192,23 +197,22 @@ class CovfluxExtension {
   private workspaceFolder: string | undefined;
   private outputChannel: vscode.OutputChannel;
   private trackedByUri = new Map<string, TrackedCoverageEntry>();
-  private recoverableByUri = new Map<string, TrackedCoverageEntry>();
+  private recoverableByUri = new Map<string, TrackedCoverageEntry[]>();
 
   constructor(context: vscode.ExtensionContext) {
     this.decorations = new CoverageDecorations(
       this.isDarkTheme(),
       context.asAbsolutePath("media"),
     );
-    this.outputChannel = vscode.window.createOutputChannel("Covflux");
+    this.outputChannel = vscode.window.createOutputChannel("Eyecov");
 
     // Create status bar items
     this.statusBarCoverage = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
       100,
     );
-    this.statusBarCoverage.command = "covflux.toggleCoverage";
-    this.statusBarCoverage.tooltip =
-      "Covflux: Click to toggle coverage display";
+    this.statusBarCoverage.command = "eyecov.toggleCoverage";
+    this.statusBarCoverage.tooltip = "Eyecov: Click to toggle coverage display";
   }
 
   /**
@@ -216,14 +220,14 @@ class CovfluxExtension {
    */
   async activate(context: vscode.ExtensionContext): Promise<void> {
     this.log(
-      "Covflux activated. Open a file to see coverage; output will appear here.",
+      "Eyecov activated. Open a file to see coverage; output will appear here.",
     );
     this.registerMcpServer(context);
     await this.initializeCoverage();
 
     // Register commands
     const showCommand = vscode.commands.registerCommand(
-      "covflux.showCoverage",
+      "eyecov.showCoverage",
       () => {
         this.coverageEnabled = true;
         this.updateAllEditors();
@@ -232,7 +236,7 @@ class CovfluxExtension {
     );
 
     const hideCommand = vscode.commands.registerCommand(
-      "covflux.hideCoverage",
+      "eyecov.hideCoverage",
       () => {
         this.coverageEnabled = false;
         this.clearAllDecorations();
@@ -241,7 +245,7 @@ class CovfluxExtension {
     );
 
     const toggleCommand = vscode.commands.registerCommand(
-      "covflux.toggleCoverage",
+      "eyecov.toggleCoverage",
       () => {
         this.coverageEnabled = !this.coverageEnabled;
         if (this.coverageEnabled) {
@@ -256,18 +260,18 @@ class CovfluxExtension {
     );
 
     const showInfoCommand = vscode.commands.registerCommand(
-      "covflux.showCoverageInfo",
+      "eyecov.showCoverageInfo",
       () => {
         if (!this.hasCoverageSource()) {
           vscode.window.showWarningMessage(
-            "Covflux: No coverage source (no PHPUnit HTML or LCOV coverage found in workspace)",
+            "Eyecov: No coverage source (no PHPUnit HTML or LCOV coverage found in workspace)",
           );
           return;
         }
 
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
-          vscode.window.showInformationMessage("Covflux: No active editor");
+          vscode.window.showInformationMessage("Eyecov: No active editor");
           return;
         }
 
@@ -276,7 +280,7 @@ class CovfluxExtension {
           .then((result) => {
             if ("noCoverage" in result) {
               vscode.window.showInformationMessage(
-                `Covflux: No coverage data for ${path.basename(filePath)} (${result.reason})`,
+                `Eyecov: No coverage data for ${path.basename(filePath)} (${result.reason})`,
               );
               return;
             }
@@ -300,24 +304,39 @@ class CovfluxExtension {
             const message =
               error instanceof Error ? error.message : String(error);
             vscode.window.showErrorMessage(
-              `Covflux: Error getting coverage info: ${message}`,
+              `Eyecov: Error getting coverage info: ${message}`,
             );
           });
       },
     );
 
     const rereadCoverageCommand = vscode.commands.registerCommand(
-      "covflux.rereadCoverage",
+      "eyecov.rereadCoverage",
       async () => {
         await this.rereadCoverage();
-        vscode.window.showInformationMessage("Covflux: Coverage re-read");
+        vscode.window.showInformationMessage("Eyecov: Coverage re-read");
+      },
+    );
+
+    const showDebugOutputCommand = vscode.commands.registerCommand(
+      "eyecov.showDebugOutput",
+      () => {
+        try {
+          this.outputChannel.show(false);
+        } catch (error: unknown) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          vscode.window.showErrorMessage(
+            `Eyecov: Could not show debug output: ${message}`,
+          );
+        }
       },
     );
 
     const toggleGutterCommand = vscode.commands.registerCommand(
-      "covflux.toggleGutterCoverage",
+      "eyecov.toggleGutterCoverage",
       async () => {
-        const config = vscode.workspace.getConfiguration("covflux");
+        const config = vscode.workspace.getConfiguration("eyecov");
         const current = config.get<boolean>("showGutterCoverage", true);
         await config.update(
           "showGutterCoverage",
@@ -326,15 +345,15 @@ class CovfluxExtension {
         );
         if (this.coverageEnabled) this.updateAllEditors();
         vscode.window.showInformationMessage(
-          `Covflux: Gutter coverage ${!current ? "on" : "off"}`,
+          `Eyecov: Gutter coverage ${!current ? "on" : "off"}`,
         );
       },
     );
 
     const toggleLineCommand = vscode.commands.registerCommand(
-      "covflux.toggleLineCoverage",
+      "eyecov.toggleLineCoverage",
       async () => {
-        const config = vscode.workspace.getConfiguration("covflux");
+        const config = vscode.workspace.getConfiguration("eyecov");
         const current = config.get<boolean>("showLineCoverage", true);
         await config.update(
           "showLineCoverage",
@@ -343,16 +362,16 @@ class CovfluxExtension {
         );
         if (this.coverageEnabled) this.updateAllEditors();
         vscode.window.showInformationMessage(
-          `Covflux: Line highlight ${!current ? "on" : "off"}`,
+          `Eyecov: Line highlight ${!current ? "on" : "off"}`,
         );
       },
     );
 
     const toggleTrackCoverageThroughEditsCommand =
       vscode.commands.registerCommand(
-        "covflux.toggleTrackCoverageThroughEdits",
+        "eyecov.toggleTrackCoverageThroughEdits",
         async () => {
-          const config = vscode.workspace.getConfiguration("covflux");
+          const config = vscode.workspace.getConfiguration("eyecov");
           const current = config.get<boolean>(
             "trackCoverageThroughEdits",
             true,
@@ -367,18 +386,18 @@ class CovfluxExtension {
           }
           if (this.coverageEnabled) this.updateAllEditors();
           vscode.window.showInformationMessage(
-            `Covflux: Track coverage through edits ${!current ? "on" : "off"}`,
+            `Eyecov: Track coverage through edits ${!current ? "on" : "off"}`,
           );
         },
       );
 
     const debugGetTrackedStateCommand = vscode.commands.registerCommand(
-      "covflux._debugGetTrackedState",
+      "eyecov._debugGetTrackedState",
       () => Array.from(this.trackedByUri.keys()),
     );
 
     const debugGetTrackedStateDetailsCommand = vscode.commands.registerCommand(
-      "covflux._debugGetTrackedStateDetails",
+      "eyecov._debugGetTrackedStateDetails",
       () => {
         const result: Record<
           string,
@@ -400,7 +419,7 @@ class CovfluxExtension {
     );
 
     const debugClearTrackedStateForUriCommand = vscode.commands.registerCommand(
-      "covflux._debugClearTrackedStateForUri",
+      "eyecov._debugClearTrackedStateForUri",
       (uriString: string) => {
         if (typeof uriString === "string") {
           this.clearTrackedStateForUri(uriString);
@@ -409,7 +428,7 @@ class CovfluxExtension {
     );
 
     const debugReloadCoverageCommand = vscode.commands.registerCommand(
-      "covflux._debugReloadCoverage",
+      "eyecov._debugReloadCoverage",
       () => this.reloadCoverage(),
     );
 
@@ -419,6 +438,7 @@ class CovfluxExtension {
       toggleCommand,
       showInfoCommand,
       rereadCoverageCommand,
+      showDebugOutputCommand,
       toggleGutterCommand,
       toggleLineCommand,
       toggleTrackCoverageThroughEditsCommand,
@@ -443,7 +463,7 @@ class CovfluxExtension {
     const onDidChangeTextDocument = vscode.workspace.onDidChangeTextDocument(
       (event) => {
         const trackThroughEdits = vscode.workspace
-          .getConfiguration("covflux")
+          .getConfiguration("eyecov")
           .get<boolean>("trackCoverageThroughEdits", true);
         if (!trackThroughEdits) {
           if (
@@ -463,15 +483,47 @@ class CovfluxExtension {
         );
         const recoverable = this.recoverableByUri.get(uriKey);
 
+        // Cursor can emit document change events with no content changes.
+        // Treat them as no-ops so they do not overwrite the recoverable
+        // snapshot needed for the following real undo/redo event.
+        if (event.contentChanges.length === 0) {
+          return;
+        }
+
         const restored = tryRestoreTrackedCoverageEntry({
           reason: event.reason,
           currentDocumentText: event.document.getText(),
-          recoverableEntry: recoverable,
+          recoverableEntries: recoverable,
         });
+        const debugEdits = vscode.workspace
+          .getConfiguration("eyecov")
+          .get<boolean>("debug", false);
+        if (debugEdits) {
+          this.log(
+            `[edit] reason=${String(event.reason)} tracked=${tracked != null} recoverable=${recoverable != null} restored=${restored != null} changes=${JSON.stringify(
+              event.contentChanges.map((change) => ({
+                range: {
+                  start: {
+                    line: change.range.start.line,
+                    character: change.range.start.character,
+                  },
+                  end: {
+                    line: change.range.end.line,
+                    character: change.range.end.character,
+                  },
+                },
+                text: change.text,
+              })),
+            )}`,
+          );
+        }
         if (this.coverageEnabled && restored) {
           this.trackedByUri.set(uriKey, restored);
           if (tracked) {
-            this.recoverableByUri.set(uriKey, tracked);
+            this.recoverableByUri.set(
+              uriKey,
+              pushRecoverableEntry(recoverable, tracked),
+            );
           } else {
             this.recoverableByUri.delete(uriKey);
           }
@@ -508,8 +560,17 @@ class CovfluxExtension {
 
         const { state: existingState, editCount: editCountBefore } = tracked;
         const contentChanges = event.contentChanges.map(
-          (change): ContentChange =>
-            normalizeContentChangeFromZeroBased({
+          (change): ContentChange => {
+            const currentLineText = event.document.lineAt(
+              change.range.start.line,
+            ).text;
+            const nextLineIndex = change.range.start.line + 1;
+            const nextLineText =
+              nextLineIndex < event.document.lineCount
+                ? event.document.lineAt(nextLineIndex).text
+                : "";
+
+            return normalizeContentChangeFromZeroBased({
               range: {
                 start: {
                   line: change.range.start.line,
@@ -522,11 +583,17 @@ class CovfluxExtension {
               },
               text: change.text,
               preserveStartLine: shouldPreserveStartLineOnInsert(
-                event.document,
+                currentLineText,
+                nextLineText,
                 change,
               ),
-              shiftStartLine: shouldShiftStartLineOnInsert(change),
-            }),
+              shiftStartLine: shouldShiftStartLineOnInsert(
+                currentLineText,
+                nextLineText,
+                change,
+              ),
+            });
+          },
         );
         const result = applyContentChangesToTrackedState(
           existingState,
@@ -535,13 +602,19 @@ class CovfluxExtension {
         );
 
         if (result.kind === "invalidated") {
-          this.recoverableByUri.set(uriKey, tracked);
+          this.recoverableByUri.set(
+            uriKey,
+            pushRecoverableEntry(recoverable, tracked),
+          );
           this.trackedByUri.delete(uriKey);
           this.clearDecorationsForEditor(editor);
           return;
         }
 
-        this.recoverableByUri.set(uriKey, tracked);
+        this.recoverableByUri.set(
+          uriKey,
+          pushRecoverableEntry(recoverable, tracked),
+        );
         this.trackedByUri.set(
           uriKey,
           createTrackedCoverageEntry(
@@ -575,7 +648,7 @@ class CovfluxExtension {
 
     if (this.coverageEnabled) {
       const showOnOpen = vscode.workspace
-        .getConfiguration("covflux")
+        .getConfiguration("eyecov")
         .get<boolean>("showCoverageOnOpen", true);
       if (showOnOpen) {
         this.updateAllEditors();
@@ -604,9 +677,9 @@ class CovfluxExtension {
   }
 
   private registerMcpServer(context: vscode.ExtensionContext): void {
-    const covfluxConfig = vscode.workspace.getConfiguration("covflux");
-    if (!isMcpServerEnabled(covfluxConfig)) {
-      this.log("MCP server is disabled by setting covflux.enableMcpServer.");
+    const workspaceConfig = vscode.workspace.getConfiguration("eyecov");
+    if (!isMcpServerEnabled(workspaceConfig)) {
+      this.log("MCP server is disabled by setting eyecov.enableMcpServer.");
       return;
     }
     const registerProvider = vscode.lm?.registerMcpServerDefinitionProvider;
@@ -632,11 +705,11 @@ class CovfluxExtension {
     const provider = registerProvider(MCP_SERVER_DEFINITION_PROVIDER_ID, {
       provideMcpServerDefinitions: () => {
         const serverDefinition = new vscode.McpStdioServerDefinition(
-          "Covflux",
+          "Eyecov",
           process.execPath,
           [serverScriptPath],
           {
-            COVFLUX_EXTENSION_VERSION: extensionVersion,
+            EYECOV_EXTENSION_VERSION: extensionVersion,
           },
           extensionVersion,
         );
@@ -685,14 +758,14 @@ class CovfluxExtension {
   }
 
   /**
-   * Initialize coverage from config (.covflux.json / covflux.json) or defaults.
+   * Initialize coverage from config (.eyecov.json / eyecov.json) or defaults.
    */
   private async initializeCoverage(): Promise<void> {
     this.workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     const workspaceFolders =
       vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) ??
       [];
-    const config = loadCovfluxConfig(this.workspaceFolder ?? "");
+    const config = loadCoverageConfig(this.workspaceFolder ?? "");
     const adapters = createAdaptersFromConfig(config);
     const coverageHtmlDir = getPhpUnitHtmlDir(config);
     const coverageRoots = CoverageHtmlReader.findCoverageRoots(
@@ -700,8 +773,8 @@ class CovfluxExtension {
       coverageHtmlDir,
     );
 
-    const covfluxConfig = vscode.workspace.getConfiguration("covflux");
-    const debug = covfluxConfig.get<boolean>("debug", false);
+    const workspaceConfig = vscode.workspace.getConfiguration("eyecov");
+    const debug = workspaceConfig.get<boolean>("debug", false);
     this.resolver = new CoverageResolver({
       workspaceRoots: workspaceFolders,
       adapters,
@@ -734,7 +807,7 @@ class CovfluxExtension {
   private watchCoverage(): void {
     const workspaceFolders =
       vscode.workspace.workspaceFolders?.map((f) => f.uri.fsPath) ?? [];
-    const config = loadCovfluxConfig(this.workspaceFolder ?? "");
+    const config = loadCoverageConfig(this.workspaceFolder ?? "");
     const onChanged = () => {
       for (const root of workspaceFolders) {
         deleteCoverageCache(root);
@@ -764,12 +837,12 @@ class CovfluxExtension {
   }
 
   /**
-   * Start background prewarm after a short delay when covflux.prewarmCoverageCache is true.
+   * Start background prewarm after a short delay when eyecov.prewarmCoverageCache is true.
    * Fire-and-forget: does not block activation.
    */
   private startPrewarmIfEnabled(): void {
-    const covfluxConfig = vscode.workspace.getConfiguration("covflux");
-    if (!isPrewarmCoverageCacheEnabled(covfluxConfig)) {
+    const workspaceConfig = vscode.workspace.getConfiguration("eyecov");
+    if (!isPrewarmCoverageCacheEnabled(workspaceConfig)) {
       return;
     }
     const delayMs = 2000;
@@ -780,7 +853,7 @@ class CovfluxExtension {
         return;
       }
       for (const root of workspaceFolders) {
-        const config = loadCovfluxConfig(root);
+        const config = loadCoverageConfig(root);
         prewarmCoverageForRoot(root, {
           listPaths: () => listCoveredPathsFromFirstFormat([root], config),
           getCoverage: (p) =>
@@ -789,7 +862,7 @@ class CovfluxExtension {
         }).catch((err: unknown) => {
           // Cache will be built on-demand if prewarm fails.
           console.error(
-            `[Covflux] prewarm error: ${err instanceof Error ? err.message : String(err)}`,
+            `[Eyecov] prewarm error: ${err instanceof Error ? err.message : String(err)}`,
           );
         });
       }
@@ -820,11 +893,36 @@ class CovfluxExtension {
     );
   }
 
+  private appendDebugLogToFile(msg: string): void {
+    const workspaceRoot =
+      this.workspaceFolder ??
+      vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!workspaceRoot) {
+      return;
+    }
+
+    try {
+      const dir = path.join(workspaceRoot, ".eyecov");
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      const logPath = path.join(dir, "debug.log");
+      fs.appendFileSync(
+        logPath,
+        `${new Date().toISOString()} ${msg}\n`,
+        "utf8",
+      );
+    } catch {
+      // Ignore file logging failures; output channel is still attempted below.
+    }
+  }
+
   private log(msg: string): void {
     if (
-      !vscode.workspace.getConfiguration("covflux").get<boolean>("debug", false)
+      !vscode.workspace.getConfiguration("eyecov").get<boolean>("debug", false)
     )
       return;
+    this.appendDebugLogToFile(msg);
     this.outputChannel.appendLine(msg);
   }
 
@@ -850,7 +948,7 @@ class CovfluxExtension {
     try {
       const uriKey = editor.document.uri.toString();
       const trackThroughEdits = vscode.workspace
-        .getConfiguration("covflux")
+        .getConfiguration("eyecov")
         .get<boolean>("trackCoverageThroughEdits", true);
       const existingState = this.trackedByUri.get(uriKey)?.state;
 
@@ -913,10 +1011,10 @@ class CovfluxExtension {
       this.updateCoverageStatus(null);
       const message = error instanceof Error ? error.message : String(error);
       console.error(
-        `[Covflux] error updating coverage for ${filePath}: ${message}`,
+        `[Eyecov] error updating coverage for ${filePath}: ${message}`,
       );
       vscode.window.showErrorMessage(
-        `Covflux: Error loading coverage - ${message}`,
+        `Eyecov: Error loading coverage - ${message}`,
       );
     }
   }
@@ -961,7 +1059,7 @@ class CovfluxExtension {
     editor: vscode.TextEditor,
     coverage: CoverageData,
   ): Promise<void> {
-    const config = vscode.workspace.getConfiguration("covflux");
+    const config = vscode.workspace.getConfiguration("eyecov");
     const showCovered = config.get<boolean>("showCovered", true);
     const showUncovered = config.get<boolean>("showUncovered", true);
     const showLineCoverage = config.get<boolean>("showLineCoverage", true);
@@ -1104,47 +1202,10 @@ class CovfluxExtension {
   }
 }
 
-function shouldPreserveStartLineOnInsert(
-  document: vscode.TextDocument,
-  change: vscode.TextDocumentContentChangeEvent,
-): boolean {
-  if (change.range.start.line !== change.range.end.line) {
-    return false;
-  }
-  if (change.range.start.character !== change.range.end.character) {
-    return false;
-  }
-  const newlineParts = change.text.split("\n");
-  if (newlineParts.length !== 2) {
-    return false;
-  }
-  const nextLineIndex = change.range.start.line + 1;
-  if (nextLineIndex >= document.lineCount) {
-    return false;
-  }
-  const nextLineText = document.lineAt(nextLineIndex).text;
-
-  // Enter at EOL inserts a blank next line while keeping the current line's
-  // content on the same line number.
-  return newlineParts[1] === "" && nextLineText === "";
-}
-
-function shouldShiftStartLineOnInsert(
-  change: vscode.TextDocumentContentChangeEvent,
-): boolean {
-  if (change.range.start.line !== change.range.end.line) {
-    return false;
-  }
-  if (change.range.start.character !== 0 || change.range.end.character !== 0) {
-    return false;
-  }
-  return change.text.includes("\n") && change.text.endsWith("\n");
-}
-
-let extension: CovfluxExtension | null = null;
+let extension: CoverageExtension | null = null;
 
 export function activate(context: vscode.ExtensionContext): void {
-  extension = new CovfluxExtension(context);
+  extension = new CoverageExtension(context);
   extension.activate(context);
 }
 

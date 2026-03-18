@@ -10,7 +10,7 @@ export interface TrackedCoverageEntry {
 export interface RestoreTrackedCoverageOptions {
   reason: number | undefined;
   currentDocumentText: string;
-  recoverableEntry: TrackedCoverageEntry | undefined;
+  recoverableEntries: TrackedCoverageEntry[] | undefined;
 }
 
 export function fingerprintDocumentText(text: string): string {
@@ -32,15 +32,28 @@ export function createTrackedCoverageEntry(
 export function tryRestoreTrackedCoverageEntry(
   options: RestoreTrackedCoverageOptions,
 ): TrackedCoverageEntry | null {
-  const { reason, currentDocumentText, recoverableEntry } = options;
-  if (!recoverableEntry) {
+  const { currentDocumentText, recoverableEntries } = options;
+  if (!recoverableEntries || recoverableEntries.length === 0) {
     return null;
   }
-  if (reason !== 1 && reason !== 2) {
-    return null;
+  const fingerprint = fingerprintDocumentText(currentDocumentText);
+  for (let i = recoverableEntries.length - 1; i >= 0; i -= 1) {
+    if (recoverableEntries[i].fingerprint === fingerprint) {
+      return recoverableEntries[i];
+    }
   }
-  return fingerprintDocumentText(currentDocumentText) ===
-    recoverableEntry.fingerprint
-    ? recoverableEntry
-    : null;
+  return null;
+}
+
+export function pushRecoverableEntry(
+  entries: TrackedCoverageEntry[] | undefined,
+  entry: TrackedCoverageEntry,
+): TrackedCoverageEntry[] {
+  const existing = entries ?? [];
+  const last = existing[existing.length - 1];
+  if (last?.fingerprint === entry.fingerprint) {
+    return existing;
+  }
+  const next = [...existing, entry];
+  return next.length > 50 ? next.slice(next.length - 50) : next;
 }

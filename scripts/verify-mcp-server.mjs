@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Verify the Covflux MCP server runs and responds to initialize + tools/call.
+ * Verify the Eyecov MCP server runs and responds to initialize + tools/call.
  * Spawns out/mcp/server.js, drives it via stdio (newline-delimited JSON-RPC),
  * and exits 0 only if coverage_file returns a valid response.
  */
@@ -13,6 +13,8 @@ import path from "node:path";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 const serverPath = path.join(repoRoot, "out", "mcp", "server.js");
+const ansiTextLogo =
+  "\u001b[48;2;0;0;0m\u001b[38;2;90;12;163m \u25ae\u001b[38;2;124;58;237m\u25ae\u001b[38;2;159;103;255m\u25ae\u001b[38;2;255;255;255meyecov \u001b[0m";
 
 function send(obj) {
   const line = JSON.stringify(obj) + "\n";
@@ -30,6 +32,8 @@ let proc;
 let rl;
 
 async function main() {
+  console.error(ansiTextLogo);
+
   proc = spawn(process.execPath, [serverPath], {
     cwd: repoRoot,
     stdio: ["pipe", "pipe", "inherit"],

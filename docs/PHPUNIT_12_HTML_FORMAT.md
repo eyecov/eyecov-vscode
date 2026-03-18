@@ -179,9 +179,9 @@ Colors are defined in [style.css](vendor/phpunit/php-code-coverage/src/Report/Ht
 - **Empty or minimal reports**: Root index/dashboard always exist. A report with no files still has `index.html` and `dashboard.html`; directory listing may have only the “Total” row. File pages for 0-line files yield an empty `#code` tbody. Parser should handle empty tables and missing rows.
 - **Custom CSS**: Users can supply a custom CSS file. It can override `.popover-body`, table styles, or layout. Do not rely on specific dimensions or visibility; rely on structure (elements, classes, IDs) and content.
 
-### 7. Covflux parser behavior
+### 7. Eyecov parser behavior
 
-The Covflux PHPUnit HTML adapter implements the above with these specifics:
+The Eyecov PHPUnit HTML adapter implements the above with these specifics:
 
 - **File discovery:** Only per-file HTML pages (`{file_id}.html`) are considered; `index.html` and `dashboard.html` (root and per-directory) are excluded from the list of coverage source files.
 - **Source segment:** Config can set `sourceSegment` to `app`, `src`, `lib`, or `auto`. When `auto`, the adapter tries those segments per workspace root to resolve source paths under the coverage root.

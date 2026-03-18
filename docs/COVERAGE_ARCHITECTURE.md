@@ -44,12 +44,12 @@ This flow should be asynchronous but avoid unnecessary work on repeated opens of
 - **`src/coverage-resolver.ts`** — `CoverageResolver`, `CoverageRecord`, `CoverageAdapter`, `createAdaptersFromConfig(config)`. Adapters are built from config (order and paths).
 - **`src/coverage-staleness.ts`** — `isCoverageStale(sourcePath, artifactPath)`. Used by adapters to reject coverage when source is newer than artifact or either path is missing.
 - **`src/coverage-runtime.ts`** — `toFileSystemPath`, `resolveFilePath`, `getCandidatePathsForQuery` (query → candidate file paths; extension and MCP then use `CoverageResolver.getCoverage(path)` for each).
-- **`src/covflux-config.ts`** — `loadCovfluxConfig(workspaceRoot)`, `DEFAULT_CONFIG`, `getPhpUnitHtmlDir`, `getLcovPath`. Reads `.covflux.json` or `covflux.json`.
+- **`src/coverage-config.ts`** — `loadCoverageConfig(workspaceRoot)`, `DEFAULT_CONFIG`, `getPhpUnitHtmlDir`, `getLcovPath`. Reads `.eyecov.json` or `eyecov.json`.
 - **`src/coverage-formats/phpunit-html/`** — Parser, adapter (`PhpUnitHtmlAdapter`), types; path/read/parse live here. Default dir `coverage-html/`.
 - **`src/coverage-formats/lcov/`** — Parser, adapter (`LcovAdapter`); default path `coverage/lcov.info`.
 - **`src/coverage-aggregate.ts`** — On-demand path/project aggregation: `listCoveredPaths`, `listCoveredPathsFromFirstFormat`, `aggregateCoverage`, `getPathAggregateResponse`, `getProjectAggregateResponse`. Supports `worstFilesLimit`, `zeroCoverageFilesLimit`, `coveredLinesCutoff`; results include `worstFiles` and optional `zeroCoverageFiles`. Cache-based helpers: `projectAggregateFromCache`, `pathAggregateFromCache` (used by MCP when a valid cache exists).
-- **`src/coverage-cache.ts`** — Coverage cache for path/project tools: `writeCoverageCache`, `readCoverageCache`, `deleteCoverageCache`, `buildCoverageCachePayload`. Cache file: `{workspaceRoot}/.covflux/coverage-cache.json` (per-file entries + pre-aggregated project totals).
-- **`src/coverage-prewarm.ts`** — Background prewarm: `prewarmCoverageForRoot(workspaceRoot, options)` runs `listPaths` + `getCoverage` in batches (with `setImmediate` between batches), then writes the cache. Used by the extension when `covflux.prewarmCoverageCache` is true (fire-and-forget after a short delay).
+- **`src/coverage-cache.ts`** — Coverage cache for path/project tools: `writeCoverageCache`, `readCoverageCache`, `deleteCoverageCache`, `buildCoverageCachePayload`. Cache file: `{workspaceRoot}/.eyecov/coverage-cache.json` (per-file entries + pre-aggregated project totals).
+- **`src/coverage-prewarm.ts`** — Background prewarm: `prewarmCoverageForRoot(workspaceRoot, options)` runs `listPaths` + `getCoverage` in batches (with `setImmediate` between batches), then writes the cache. Used by the extension when `eyecov.prewarmCoverageCache` is true (fire-and-forget after a short delay).
 
 **Adapter interface (current):**
 
@@ -81,7 +81,7 @@ interface CoverageRecord {
 
 Optimized for fast line lookup and decoration generation. Optional `coverageHtmlPath` and `testsByLine` are set by the PHPUnit HTML adapter. When present, `lineStatuses` encodes per-line state (e.g. covered-small, covered-medium, covered-large, uncovered, warning, uncoverable) in a single compact map used for editor decorations.
 
-**Coverage cache (prewarm):** When `covflux.prewarmCoverageCache` is true, the extension starts a fire-and-forget prewarm after a short delay: for each workspace root it calls `listCoveredPathsFromFirstFormat` and then `getCoverage` in batches, builds a payload with `buildCoverageCachePayload`, and writes `.covflux/coverage-cache.json`. On coverage or config change the extension deletes the cache (invalidation). The MCP server reads the cache when handling `coverage_path` and `coverage_project`; if valid it returns aggregates from the cache with `cacheState: "full"`, otherwise it aggregates on demand and returns `cacheState: "on-demand"`.
+**Coverage cache (prewarm):** When `eyecov.prewarmCoverageCache` is true, the extension starts a fire-and-forget prewarm after a short delay: for each workspace root it calls `listCoveredPathsFromFirstFormat` and then `getCoverage` in batches, builds a payload with `buildCoverageCachePayload`, and writes `.eyecov/coverage-cache.json`. On coverage or config change the extension deletes the cache (invalidation). The MCP server reads the cache when handling `coverage_path` and `coverage_project`; if valid it returns aggregates from the cache with `cacheState: "full"`, otherwise it aggregates on demand and returns `cacheState: "on-demand"`.
 
 ## Main Components
 
@@ -138,7 +138,7 @@ Rules: keep `findCoverageForFile` cheap; do heavy parsing in `read` after freshn
 
 ## Edit Tracking
 
-**Implemented.** When `covflux.trackCoverageThroughEdits` is true (default), the extension keeps coverage line numbers in sync with simple edits via a lightweight line-offset mapping from document change events; insert/delete shifts are applied first. When edits overlap coverage lines or exceed size/count thresholds, tracked state is invalidated and highlighting is cleared until coverage is reloaded. Behavior, setting, and toggle command are documented in [COVERAGE_FEATURES.md](COVERAGE_FEATURES.md#edit-tolerant-tracking). Implementation: `src/edit-tracking.ts` (pure mapping) and extension state in `src/extension.ts`.
+**Implemented.** When `eyecov.trackCoverageThroughEdits` is true (default), the extension keeps coverage line numbers in sync with simple edits via a lightweight line-offset mapping from document change events; insert/delete shifts are applied first. When edits overlap coverage lines or exceed size/count thresholds, tracked state is invalidated and highlighting is cleared until coverage is reloaded. Behavior, setting, and toggle command are documented in [COVERAGE_FEATURES.md](COVERAGE_FEATURES.md#edit-tolerant-tracking). Implementation: `src/edit-tracking.ts` (pure mapping) and extension state in `src/extension.ts`.
 
 ## Caching
 

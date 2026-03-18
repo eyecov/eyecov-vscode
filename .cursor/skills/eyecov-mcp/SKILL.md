@@ -1,11 +1,11 @@
 ---
-name: covflux-mcp
-description: Use the Covflux MCP server to answer file-level coverage, path/project aggregates, "where to add tests first", and covering-tests questions. Use when the user asks about coverage for a file, uncovered lines, which tests cover a line, coverage for a folder/project, or where to add tests.
+name: eyecov-mcp
+description: Use the Eyecov MCP server to answer file-level coverage, path/project aggregates, "where to add tests first", and covering-tests questions. Use when the user asks about coverage for a file, uncovered lines, which tests cover a line, coverage for a folder/project, or where to add tests.
 ---
 
-# Covflux MCP — Coverage Queries
+# Eyecov MCP — Coverage Queries
 
-When the user asks about **code coverage for a file**, **path or project coverage**, **where to add tests first**, or **which tests cover a line**, use the Covflux MCP tools. The server uses the same coverage runtime as the editor (PHPUnit HTML and LCOV).
+When the user asks about **code coverage for a file**, **path or project coverage**, **where to add tests first**, or **which tests cover a line**, use the Eyecov MCP tools. The server uses the same coverage runtime as the editor (PHPUnit HTML and LCOV).
 
 ## Tools
 

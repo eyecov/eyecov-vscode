@@ -14,7 +14,7 @@ describe("coverage-cache", () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = path.join(os.tmpdir(), `covflux-cache-${Date.now()}`);
+    tmpDir = path.join(os.tmpdir(), `eyecov-cache-${Date.now()}`);
     fs.mkdirSync(tmpDir, { recursive: true });
   });
 
@@ -27,7 +27,7 @@ describe("coverage-cache", () => {
   });
 
   describe("writeCoverageCache", () => {
-    it("writes valid JSON at workspaceRoot/.covflux/coverage-cache.json with version, workspaceRoot, generatedAt", () => {
+    it("writes valid JSON at workspaceRoot/.eyecov/coverage-cache.json with version, workspaceRoot, generatedAt", () => {
       const payload = {
         workspaceRoot: tmpDir,
         detectedFormat: "phpunit-html",
@@ -49,7 +49,7 @@ describe("coverage-cache", () => {
 
       writeCoverageCache(tmpDir, payload);
 
-      const cachePath = path.join(tmpDir, ".covflux", "coverage-cache.json");
+      const cachePath = path.join(tmpDir, ".eyecov", "coverage-cache.json");
       expect(fs.existsSync(cachePath)).toBe(true);
       const raw = fs.readFileSync(cachePath, "utf-8");
       const parsed = JSON.parse(raw);
@@ -109,7 +109,7 @@ describe("coverage-cache", () => {
     });
 
     it("returns null when cache file is malformed JSON", () => {
-      const dir = path.join(tmpDir, ".covflux");
+      const dir = path.join(tmpDir, ".eyecov");
       fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(
         path.join(dir, "coverage-cache.json"),
@@ -122,7 +122,7 @@ describe("coverage-cache", () => {
     });
 
     it("returns null when cache has wrong version or missing required fields", () => {
-      const dir = path.join(tmpDir, ".covflux");
+      const dir = path.join(tmpDir, ".eyecov");
       fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(
         path.join(dir, "coverage-cache.json"),
@@ -135,7 +135,7 @@ describe("coverage-cache", () => {
     });
 
     it("treats missing missingPaths key as empty array for backward compatibility", () => {
-      const dir = path.join(tmpDir, ".covflux");
+      const dir = path.join(tmpDir, ".eyecov");
       fs.mkdirSync(dir, { recursive: true });
       const legacyCache = {
         version: 1,

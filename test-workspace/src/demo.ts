@@ -1,7 +1,9 @@
-// Line 1: covered
-// Line 2: uncovered
-// Line 3: covered
-// Line 4: uncovered
-export function demo() {
-  return 1;
+export function demo(value = true) {
+  const result = value ? 1 : 0;
+
+  if (result === 1) {
+    return result;
+  }
+
+  return 0;
 }

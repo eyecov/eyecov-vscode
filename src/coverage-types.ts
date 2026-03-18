@@ -2,7 +2,7 @@
  * Editor-facing coverage types. Used by the extension for status and decorations.
  */
 
-import type { CovfluxFormatType } from "./covflux-config";
+import type { CoverageFormatType } from "./coverage-config";
 
 /** Line status codes for coverage (compact, fast lookup). Used in lineStatuses Map<line, code>. */
 export const LINE_STATUS = {
@@ -23,7 +23,7 @@ export interface FileCoverage {
   totalLines: number | null;
   coveredLines: number | null;
   /** Source format that produced this coverage (e.g. 'phpunit-html', 'lcov'). */
-  sourceFormat?: CovfluxFormatType;
+  sourceFormat?: CoverageFormatType;
 }
 
 export interface CoverageData {

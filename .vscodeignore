@@ -13,7 +13,7 @@ tsconfig.json
 tsconfig.test.json
 vitest.config.ts
 .vscodeignore
-.covflux/**
+.eyecov/**
 *.md
 *.map
 docs/**
@@ -21,7 +21,7 @@ docs/**
 .specstory/**
 .cursorindexingignore
 file:/**
-images/covflux-logo-2048.png
-covflux-vscode-*.vsix
+images/eyecov-logo-2048.png
+eyecov-vscode-*.vsix
 package-lock.json
 node_modules/**

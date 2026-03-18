@@ -9,7 +9,7 @@ describe("FixtureAdapter", () => {
   let workspaceRoot: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "covflux-fixture-"));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "eyecov-fixture-"));
     workspaceRoot = path.join(tmpDir, "workspace");
     fs.mkdirSync(path.join(workspaceRoot, "src"), { recursive: true });
     fs.mkdirSync(path.join(workspaceRoot, "coverage"), { recursive: true });

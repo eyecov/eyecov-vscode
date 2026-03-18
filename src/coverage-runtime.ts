@@ -7,7 +7,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { PhpUnitHtmlSourceSegment } from "./covflux-config";
+import type { PhpUnitHtmlSourceSegment } from "./coverage-config";
 import { findCoverageHtmlBasenameMatches } from "./coverage-formats/phpunit-html";
 
 export type { ParsedCoverageFileResult } from "./coverage-formats/phpunit-html";
