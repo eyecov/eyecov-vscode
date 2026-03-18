@@ -1,5 +1,7 @@
 # Eyecov
 
+<img width="464" height="144" alt="eyecov-logo-w-margin" src="https://github.com/user-attachments/assets/afc5683b-ed3b-4a15-a17b-cadf2853dc3a" />
+
 **Coverage in your editor. Coverage for your AI tools.**
 
 Eyecov is built around a shared runtime coverage model. External coverage
