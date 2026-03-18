@@ -5,6 +5,10 @@ import { isCoverageStale } from "../coverage-staleness";
 import type { CoverageRecord } from "../coverage-resolver";
 import { parseCoveragePyJson } from "../coverage-formats/coveragepy-json";
 import {
+  readArtifactUtf8WithLimit,
+  toCoverageArtifactWarning,
+} from "../coverage-formats/artifact-guardrails";
+import {
   parseCoberturaXml,
   type CoberturaParseResult,
 } from "../coverage-formats/cobertura";
@@ -109,6 +113,24 @@ function resolveSharedSourcePath(
   return fs.existsSync(resolved) ? path.resolve(resolved) : null;
 }
 
+function rejectedArtifact(
+  format: Exclude<CoverageFormatType, "phpunit-html">,
+  artifactPath: string,
+  workspaceRoot: string,
+  warning: string,
+): LoadedArtifact {
+  return {
+    format,
+    artifactPath,
+    workspaceRoot,
+    records: [],
+    warnings: [warning],
+    reportTotals: null,
+    derivedTotals: null,
+    hasUnresolvedEntries: false,
+  };
+}
+
 export async function loadSharedArtifact(
   format: Exclude<CoverageFormatType, "phpunit-html">,
   artifactPath: string,
@@ -157,7 +179,19 @@ export async function loadSharedArtifact(
   if (format === "go-coverprofile") {
     const warnings: string[] = [];
     const records: CoverageRecord[] = [];
-    const parsed = parseGoCoverprofile(fs.readFileSync(artifactPath, "utf8"));
+    let parsed;
+    try {
+      parsed = parseGoCoverprofile(
+        readArtifactUtf8WithLimit(artifactPath, "go coverprofile"),
+      );
+    } catch (error) {
+      return rejectedArtifact(
+        format,
+        artifactPath,
+        workspaceRoot,
+        toCoverageArtifactWarning(error, "go coverprofile"),
+      );
+    }
     let hasUnresolvedEntries = false;
 
     for (const entry of parsed.files) {
@@ -237,7 +271,19 @@ export async function loadSharedArtifact(
   if (format === "istanbul-json") {
     const warnings: string[] = [];
     const records: CoverageRecord[] = [];
-    const parsed = parseIstanbulJson(fs.readFileSync(artifactPath, "utf8"));
+    let parsed;
+    try {
+      parsed = parseIstanbulJson(
+        readArtifactUtf8WithLimit(artifactPath, "Istanbul JSON"),
+      );
+    } catch (error) {
+      return rejectedArtifact(
+        format,
+        artifactPath,
+        workspaceRoot,
+        toCoverageArtifactWarning(error, "Istanbul JSON"),
+      );
+    }
     let hasUnresolvedEntries = false;
 
     for (const entry of parsed.files) {

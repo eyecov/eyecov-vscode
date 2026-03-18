@@ -6,6 +6,7 @@ import type {
 } from "../../coverage-resolver";
 import { isCoverageStale } from "../../coverage-staleness";
 import { lineCoveragePercent } from "../xml/shared";
+import { readArtifactUtf8WithLimit } from "../artifact-guardrails";
 import { parseGoCoverprofile } from "./parser";
 
 const DEFAULT_GO_COVERPROFILE_PATH = "coverage.out";
@@ -27,7 +28,14 @@ export function listGoCoverprofileSourcePaths(
     if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) {
       continue;
     }
-    const parsed = parseGoCoverprofile(fs.readFileSync(fullPath, "utf8"));
+    let parsed;
+    try {
+      parsed = parseGoCoverprofile(
+        readArtifactUtf8WithLimit(fullPath, "go coverprofile"),
+      );
+    } catch {
+      continue;
+    }
     for (const record of parsed.files) {
       const resolved = path.resolve(root, record.sourcePath);
       if (seen.has(resolved)) continue;
@@ -56,7 +64,17 @@ export class GoCoverprofileAdapter implements CoverageAdapter {
       if (!fs.existsSync(artifactPath) || !fs.statSync(artifactPath).isFile()) {
         continue;
       }
-      const parsed = parseGoCoverprofile(fs.readFileSync(artifactPath, "utf8"));
+      let parsed;
+      try {
+        parsed = parseGoCoverprofile(
+          readArtifactUtf8WithLimit(artifactPath, "go coverprofile"),
+        );
+      } catch {
+        return {
+          record: null,
+          rejectReason: "no-artifact",
+        };
+      }
       for (const record of parsed.files) {
         if (path.resolve(root, record.sourcePath) !== normalizedPath) {
           continue;

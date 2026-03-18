@@ -1,4 +1,8 @@
 import { lineCoveragePercent } from "../xml/shared";
+import {
+  COVERAGE_ARTIFACT_LIMITS,
+  CoverageArtifactError,
+} from "../artifact-guardrails";
 
 export interface GoCoverprofileFileRecord {
   sourcePath: string;
@@ -23,7 +27,14 @@ export function parseGoCoverprofile(
     { coveredLines: Set<number>; uncoveredLines: Set<number> }
   >();
 
-  for (const rawLine of content.split(/\r?\n/)) {
+  const lines = content.split(/\r?\n/);
+  if (lines.length > COVERAGE_ARTIFACT_LIMITS.maxGoCoverprofileLines) {
+    throw new CoverageArtifactError(
+      `go coverprofile artifact has too many lines (${lines.length}). Maximum supported line count is ${COVERAGE_ARTIFACT_LIMITS.maxGoCoverprofileLines}.`,
+    );
+  }
+
+  for (const rawLine of lines) {
     const line = rawLine.trim();
     if (!line || line.startsWith("mode:")) {
       continue;

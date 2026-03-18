@@ -1,4 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  vi,
+  afterEach as vitestAfterEach,
+} from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -67,6 +75,46 @@ describe("coverage-cache", () => {
       expect(parsed.files[0].coveredLines).toBe(120);
       expect(parsed.files[0].uncoveredLines).toBe(20);
       expect(parsed.files[0].uncoverableLines).toBe(5);
+    });
+
+    it("preserves the existing cache when atomic finalization fails", () => {
+      const initialPayload = {
+        workspaceRoot: tmpDir,
+        detectedFormat: "phpunit-html",
+        aggregateCoveragePercent: 81.1,
+        totalFiles: 320,
+        coveredFiles: 280,
+        missingCoverageFiles: 22,
+        staleCoverageFiles: 0,
+        files: [],
+      };
+      writeCoverageCache(tmpDir, initialPayload);
+
+      const renameSpy = vi
+        .spyOn(fs, "renameSync")
+        .mockImplementation((): never => {
+          throw new Error("rename failed");
+        });
+
+      expect(() =>
+        writeCoverageCache(tmpDir, {
+          ...initialPayload,
+          detectedFormat: "lcov",
+          aggregateCoveragePercent: 50,
+        }),
+      ).toThrow("rename failed");
+
+      renameSpy.mockRestore();
+
+      const cache = readCoverageCache(tmpDir);
+      expect(cache).not.toBeNull();
+      expect(cache!.detectedFormat).toBe("phpunit-html");
+      expect(cache!.aggregateCoveragePercent).toBe(81.1);
+      expect(
+        fs
+          .readdirSync(path.join(tmpDir, ".eyecov"))
+          .filter((entry) => entry.includes(".tmp")),
+      ).toEqual([]);
     });
   });
 
@@ -282,4 +330,8 @@ describe("coverage-cache", () => {
       expect(() => deleteCoverageCache(tmpDir)).not.toThrow();
     });
   });
+});
+
+vitestAfterEach(() => {
+  vi.restoreAllMocks();
 });

@@ -185,7 +185,14 @@ class CoverageDecorations {
  */
 const MCP_SERVER_DEFINITION_PROVIDER_ID = "eyecov.builtin";
 
-class CoverageExtension {
+interface StatusBarRenderState {
+  text: string;
+  tooltip?: string;
+  backgroundColor?: string;
+  show: boolean;
+}
+
+export class CoverageExtension implements vscode.Disposable {
   private coverageHtml: CoverageHtmlReader | null = null;
   private resolver: CoverageResolver | null = null;
   private decorations: CoverageDecorations;
@@ -198,21 +205,38 @@ class CoverageExtension {
   private outputChannel: vscode.OutputChannel;
   private trackedByUri = new Map<string, TrackedCoverageEntry>();
   private recoverableByUri = new Map<string, TrackedCoverageEntry[]>();
+  private readonly mediaDir: string;
+  private lastStatusBarRender: StatusBarRenderState | null = null;
+  private prewarmTimer: ReturnType<typeof setTimeout> | null = null;
+  private disposed = false;
 
   constructor(context: vscode.ExtensionContext) {
-    this.decorations = new CoverageDecorations(
-      this.isDarkTheme(),
-      context.asAbsolutePath("media"),
+    this.mediaDir = context.asAbsolutePath("media");
+    this.decorations = this.createDecorations();
+    this.outputChannel = this.trackDisposable(
+      vscode.window.createOutputChannel("EyeCov"),
     );
-    this.outputChannel = vscode.window.createOutputChannel("EyeCov");
 
     // Create status bar items
-    this.statusBarCoverage = vscode.window.createStatusBarItem(
-      vscode.StatusBarAlignment.Right,
-      100,
+    this.statusBarCoverage = this.trackDisposable(
+      vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100),
     );
     this.statusBarCoverage.command = "eyecov.toggleCoverage";
     this.statusBarCoverage.tooltip = "EyeCov: Click to toggle coverage display";
+  }
+
+  private createDecorations(): CoverageDecorations {
+    const decorations = new CoverageDecorations(
+      this.isDarkTheme(),
+      this.mediaDir,
+    );
+    this.trackDisposable(decorations);
+    return decorations;
+  }
+
+  private trackDisposable<T extends vscode.Disposable>(disposable: T): T {
+    this.disposables.push(disposable);
+    return disposable;
   }
 
   /**
@@ -432,21 +456,19 @@ class CoverageExtension {
       () => this.reloadCoverage(),
     );
 
-    context.subscriptions.push(
-      showCommand,
-      hideCommand,
-      toggleCommand,
-      showInfoCommand,
-      rereadCoverageCommand,
-      showDebugOutputCommand,
-      toggleGutterCommand,
-      toggleLineCommand,
-      toggleTrackCoverageThroughEditsCommand,
-      debugGetTrackedStateCommand,
-      debugGetTrackedStateDetailsCommand,
-      debugClearTrackedStateForUriCommand,
-      debugReloadCoverageCommand,
-    );
+    this.trackDisposable(showCommand);
+    this.trackDisposable(hideCommand);
+    this.trackDisposable(toggleCommand);
+    this.trackDisposable(showInfoCommand);
+    this.trackDisposable(rereadCoverageCommand);
+    this.trackDisposable(showDebugOutputCommand);
+    this.trackDisposable(toggleGutterCommand);
+    this.trackDisposable(toggleLineCommand);
+    this.trackDisposable(toggleTrackCoverageThroughEditsCommand);
+    this.trackDisposable(debugGetTrackedStateCommand);
+    this.trackDisposable(debugGetTrackedStateDetailsCommand);
+    this.trackDisposable(debugClearTrackedStateForUriCommand);
+    this.trackDisposable(debugReloadCoverageCommand);
 
     // Watch for editor changes
     const onDidChangeActiveEditor = vscode.window.onDidChangeActiveTextEditor(
@@ -634,11 +656,15 @@ class CoverageExtension {
       },
     );
 
-    context.subscriptions.push(
-      onDidChangeActiveEditor,
-      onDidChangeTextDocument,
-      onDidCloseTextDocument,
-    );
+    const onDidChangeActiveColorTheme =
+      vscode.window.onDidChangeActiveColorTheme(() => {
+        this.recreateDecorationsForTheme();
+      });
+
+    this.trackDisposable(onDidChangeActiveEditor);
+    this.trackDisposable(onDidChangeTextDocument);
+    this.trackDisposable(onDidCloseTextDocument);
+    this.trackDisposable(onDidChangeActiveColorTheme);
 
     this.watchCoverage();
 
@@ -655,9 +681,7 @@ class CoverageExtension {
       }
     }
 
-    // Store disposables
-    context.subscriptions.push(this.statusBarCoverage);
-    this.disposables.push(...context.subscriptions);
+    context.subscriptions.push(this);
   }
 
   private hasCoverageSource(): boolean {
@@ -723,7 +747,7 @@ class CoverageExtension {
       },
     });
 
-    context.subscriptions.push(provider);
+    this.trackDisposable(provider);
   }
 
   /**
@@ -821,9 +845,10 @@ class CoverageExtension {
     const htmlRoots = this.coverageHtml?.getCoverageRoots() ?? [];
     for (const htmlRoot of htmlRoots) {
       const htmlGlob = `${htmlRoot.replace(/\\/g, "/")}/**/*.html`;
-      const htmlWatcher = vscode.workspace.createFileSystemWatcher(htmlGlob);
-      htmlWatcher.onDidChange(onChanged);
-      this.disposables.push(htmlWatcher);
+      const htmlWatcher = this.trackDisposable(
+        vscode.workspace.createFileSystemWatcher(htmlGlob),
+      );
+      this.trackDisposable(htmlWatcher.onDidChange(onChanged));
     }
 
     // Watch shared-file coverage artifact path(s) per workspace root
@@ -832,11 +857,11 @@ class CoverageExtension {
       workspaceFolders,
     );
     for (const artifactPath of artifactPaths) {
-      const artifactWatcher =
-        vscode.workspace.createFileSystemWatcher(artifactPath);
-      artifactWatcher.onDidChange(onChanged);
-      artifactWatcher.onDidCreate(onChanged);
-      this.disposables.push(artifactWatcher);
+      const artifactWatcher = this.trackDisposable(
+        vscode.workspace.createFileSystemWatcher(artifactPath),
+      );
+      this.trackDisposable(artifactWatcher.onDidChange(onChanged));
+      this.trackDisposable(artifactWatcher.onDidCreate(onChanged));
     }
   }
 
@@ -850,7 +875,8 @@ class CoverageExtension {
       return;
     }
     const delayMs = 2000;
-    setTimeout(() => {
+    this.prewarmTimer = setTimeout(() => {
+      this.prewarmTimer = null;
       const workspaceFolders =
         vscode.workspace.workspaceFolders?.map((f) => f.uri.fsPath) ?? [];
       if (!this.resolver || workspaceFolders.length === 0) {
@@ -858,19 +884,39 @@ class CoverageExtension {
       }
       for (const root of workspaceFolders) {
         const config = loadCoverageConfig(root);
+        const listed = listCoveredPathsFromFirstFormat([root], config);
+        this.log(
+          `[prewarm] starting for ${root} (${listed.formatType}, ${listed.paths.length} path(s))`,
+        );
         prewarmCoverageForRoot(root, {
-          listPaths: () => listCoveredPathsFromFirstFormat([root], config),
+          listPaths: () => listed,
           getCoverage: (p) =>
             this.resolver!.getCoverage(p).then((r) => r.record),
           batchSize: 20,
-        }).catch((err: unknown) => {
-          // Cache will be built on-demand if prewarm fails.
-          console.error(
-            `[EyeCov] prewarm error: ${err instanceof Error ? err.message : String(err)}`,
-          );
-        });
+        })
+          .then(() => {
+            this.log(`[prewarm] completed for ${root}`);
+          })
+          .catch((err: unknown) => {
+            const message = err instanceof Error ? err.message : String(err);
+            this.log(`[prewarm] failed for ${root}: ${message}`);
+            // Cache will be built on-demand if prewarm fails.
+            console.error(`[EyeCov] prewarm error: ${message}`);
+          });
       }
     }, delayMs);
+  }
+
+  private recreateDecorationsForTheme(): void {
+    const previous = this.decorations;
+    this.decorations = this.createDecorations();
+    previous.dispose();
+    this.disposables = this.disposables.filter((entry) => entry !== previous);
+    if (this.coverageEnabled) {
+      this.updateAllEditors();
+    } else {
+      this.clearAllDecorations();
+    }
   }
 
   private async reloadCoverage(): Promise<void> {
@@ -1044,6 +1090,22 @@ class CoverageExtension {
       coverageEnabled: this.coverageEnabled,
       noCoverageContext: noCovCtx,
     });
+    const nextState: StatusBarRenderState = {
+      text: content.text,
+      tooltip: content.tooltip,
+      backgroundColor: content.backgroundColor,
+      show: content.show,
+    };
+    if (
+      this.lastStatusBarRender &&
+      this.lastStatusBarRender.text === nextState.text &&
+      this.lastStatusBarRender.tooltip === nextState.tooltip &&
+      this.lastStatusBarRender.backgroundColor === nextState.backgroundColor &&
+      this.lastStatusBarRender.show === nextState.show
+    ) {
+      return;
+    }
+    this.lastStatusBarRender = nextState;
     this.statusBarCoverage.text = content.text;
     this.statusBarCoverage.tooltip = content.tooltip;
     this.statusBarCoverage.backgroundColor = content.backgroundColor
@@ -1196,13 +1258,24 @@ class CoverageExtension {
   /**
    * Deactivate the extension
    */
-  async deactivate(): Promise<void> {
+  dispose(): void {
+    if (this.disposed) {
+      return;
+    }
+    this.disposed = true;
+    if (this.prewarmTimer) {
+      clearTimeout(this.prewarmTimer);
+      this.prewarmTimer = null;
+    }
     this.clearAllDecorations();
-    this.decorations.dispose();
-    this.statusBarCoverage.dispose();
+    for (const disposable of [...this.disposables].reverse()) {
+      disposable.dispose();
+    }
+    this.disposables = [];
+  }
 
-    // Dispose all disposables
-    this.disposables.forEach((d) => d.dispose());
+  async deactivate(): Promise<void> {
+    this.dispose();
   }
 }
 
@@ -1210,7 +1283,7 @@ let extension: CoverageExtension | null = null;
 
 export function activate(context: vscode.ExtensionContext): void {
   extension = new CoverageExtension(context);
-  extension.activate(context);
+  void extension.activate(context);
 }
 
 export function deactivate(): Promise<void> {

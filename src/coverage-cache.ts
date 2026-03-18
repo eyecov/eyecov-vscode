@@ -58,6 +58,10 @@ export function writeCoverageCache(
     fs.mkdirSync(dir, { recursive: true });
   }
   const cachePath = path.join(dir, COVERAGE_CACHE_FILENAME);
+  const tempPath = path.join(
+    dir,
+    `${COVERAGE_CACHE_FILENAME}.${process.pid}.${Date.now()}.tmp`,
+  );
   const written: CoverageCacheWritten = {
     version: 1,
     generatedAt: new Date().toISOString(),
@@ -73,7 +77,30 @@ export function writeCoverageCache(
       ? { missingPaths: payload.missingPaths }
       : {}),
   };
-  fs.writeFileSync(cachePath, JSON.stringify(written, null, 0), "utf-8");
+  const serialized = JSON.stringify(written, null, 0);
+  let fd: number | undefined;
+  try {
+    fd = fs.openSync(tempPath, "w");
+    fs.writeFileSync(fd, serialized, "utf-8");
+    fs.fsyncSync(fd);
+    fs.closeSync(fd);
+    fd = undefined;
+    fs.renameSync(tempPath, cachePath);
+  } catch (error) {
+    if (fd !== undefined) {
+      try {
+        fs.closeSync(fd);
+      } catch {
+        // ignore close failure while surfacing original error
+      }
+    }
+    try {
+      fs.unlinkSync(tempPath);
+    } catch {
+      // ignore temp cleanup failure
+    }
+    throw error;
+  }
 }
 
 export interface BuildCoverageCachePayloadOptions {

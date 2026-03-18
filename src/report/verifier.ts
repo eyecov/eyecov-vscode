@@ -80,6 +80,9 @@ export function verifyLoadedArtifact(
       reportTotals.coveredLines === aggregated.totals.coveredLines;
     const executableLinesDrift =
       reportTotals.executableLines !== aggregated.totals.executableLines;
+    const executableLineDriftWithinTolerance =
+      aggregated.totals.executableLines > 0 &&
+      reportTotals.executableLines <= aggregated.totals.executableLines * 2;
     const derivedTotalsMatchAggregate =
       loaded.derivedTotals?.coveredLines === aggregated.totals.coveredLines &&
       loaded.derivedTotals?.executableLines ===
@@ -98,6 +101,7 @@ export function verifyLoadedArtifact(
     const toleratedArtifactDrift =
       coveredLinesMatch &&
       executableLinesDrift &&
+      executableLineDriftWithinTolerance &&
       derivedTotalsMatchAggregate &&
       Boolean(derivedTotalsDriftFromReport);
     const metrics = toleratedArtifactDrift

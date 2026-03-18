@@ -1,4 +1,8 @@
 import { lineCoveragePercent } from "../xml/shared";
+import {
+  COVERAGE_ARTIFACT_LIMITS,
+  CoverageArtifactError,
+} from "../artifact-guardrails";
 
 export interface IstanbulJsonFileRecord {
   sourcePath: string;
@@ -20,6 +24,23 @@ export function parseIstanbulJson(content: string): IstanbulJsonParseResult {
 
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     return { files: [] };
+  }
+
+  let statementCount = 0;
+  for (const value of Object.values(parsed as Record<string, unknown>)) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      continue;
+    }
+
+    statementCount += Object.keys(
+      (value as { statementMap?: Record<string, unknown> }).statementMap ?? {},
+    ).length;
+
+    if (statementCount > COVERAGE_ARTIFACT_LIMITS.maxIstanbulStatements) {
+      throw new CoverageArtifactError(
+        `Istanbul JSON artifact has too many statements (${statementCount}). Maximum supported statement count is ${COVERAGE_ARTIFACT_LIMITS.maxIstanbulStatements}.`,
+      );
+    }
   }
 
   const files = Object.entries(parsed as Record<string, unknown>)

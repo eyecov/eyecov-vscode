@@ -262,6 +262,58 @@ describe("loadCoverageArtifact", () => {
     });
   });
 
+  it("rejects oversized go coverprofile artifacts without crashing", async () => {
+    const workspaceRoot = createWorkspace();
+    const artifactPath = path.join(workspaceRoot, "coverage.out");
+    fs.writeFileSync(artifactPath, `mode: set\n${"x".repeat(6 * 1024 * 1024)}`);
+
+    const result = await loadCoverageArtifact({
+      artifactPath,
+      format: "go-coverprofile",
+      workspaceRoot,
+    });
+
+    expect(result.records).toEqual([]);
+    expect(result.reportTotals).toBeNull();
+    expect(result.derivedTotals).toBeNull();
+    expect(result.warnings).toEqual([expect.stringContaining("too large")]);
+  });
+
+  it("rejects Istanbul JSON artifacts with excessive statement counts without crashing", async () => {
+    const workspaceRoot = createWorkspace();
+    fs.mkdirSync(path.join(workspaceRoot, "src"), { recursive: true });
+    const artifactPath = path.join(workspaceRoot, "coverage-final.json");
+    const statementMap: Record<string, { start: { line: number } }> = {};
+    const counts: Record<string, number> = {};
+    for (let i = 0; i < 10050; i++) {
+      statementMap[String(i)] = { start: { line: i + 1 } };
+      counts[String(i)] = i % 2;
+    }
+    fs.writeFileSync(
+      artifactPath,
+      JSON.stringify({
+        "src/foo.ts": {
+          path: "src/foo.ts",
+          statementMap,
+          s: counts,
+        },
+      }),
+    );
+
+    const result = await loadCoverageArtifact({
+      artifactPath,
+      format: "istanbul-json",
+      workspaceRoot,
+    });
+
+    expect(result.records).toEqual([]);
+    expect(result.reportTotals).toBeNull();
+    expect(result.derivedTotals).toBeNull();
+    expect(result.warnings).toEqual([
+      expect.stringContaining("too many statements"),
+    ]);
+  });
+
   it("loads JaCoCo and OpenCover records", async () => {
     const workspaceRoot = createWorkspace();
     fs.mkdirSync(path.join(workspaceRoot, "src"), { recursive: true });

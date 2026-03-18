@@ -6,6 +6,7 @@ import type {
 } from "../../coverage-resolver";
 import { isCoverageStale } from "../../coverage-staleness";
 import { lineCoveragePercent } from "../xml/shared";
+import { readArtifactUtf8WithLimit } from "../artifact-guardrails";
 import { parseIstanbulJson } from "./parser";
 
 const DEFAULT_ISTANBUL_JSON_PATH = "coverage/coverage-final.json";
@@ -27,7 +28,14 @@ export function listIstanbulJsonSourcePaths(
     if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) {
       continue;
     }
-    const parsed = parseIstanbulJson(fs.readFileSync(fullPath, "utf8"));
+    let parsed;
+    try {
+      parsed = parseIstanbulJson(
+        readArtifactUtf8WithLimit(fullPath, "Istanbul JSON"),
+      );
+    } catch {
+      continue;
+    }
     for (const record of parsed.files) {
       const resolved = path.resolve(root, record.sourcePath);
       if (seen.has(resolved)) continue;
@@ -56,7 +64,14 @@ export class IstanbulJsonAdapter implements CoverageAdapter {
       if (!fs.existsSync(artifactPath) || !fs.statSync(artifactPath).isFile()) {
         continue;
       }
-      const parsed = parseIstanbulJson(fs.readFileSync(artifactPath, "utf8"));
+      let parsed;
+      try {
+        parsed = parseIstanbulJson(
+          readArtifactUtf8WithLimit(artifactPath, "Istanbul JSON"),
+        );
+      } catch {
+        return { record: null, rejectReason: "no-artifact" };
+      }
       for (const record of parsed.files) {
         if (path.resolve(root, record.sourcePath) !== normalizedPath) {
           continue;

@@ -167,6 +167,88 @@ describe("verifyLoadedArtifact", () => {
     });
   });
 
+  it("treats missing Cobertura totals as unsupported verification", () => {
+    const loaded = createLoadedArtifact("cobertura", {
+      reportTotals: null,
+    });
+    const aggregated = aggregateReportRecords(loaded.records, 10);
+
+    expect(verifyLoadedArtifact(loaded, aggregated)).toEqual({
+      supported: false,
+      matches: null,
+      metrics: [],
+      warning: expect.stringContaining("unavailable"),
+    });
+  });
+
+  it("keeps zero-coverage Cobertura totals matched when the aggregate is also zero", () => {
+    const loaded = createLoadedArtifact("cobertura", {
+      records: [createRecord("/tmp/workspace/a.ts", [], [1, 2], "cobertura")],
+      reportTotals: {
+        coveredLines: 0,
+        executableLines: 2,
+        aggregateCoveragePercent: 0,
+      },
+      derivedTotals: {
+        coveredLines: 0,
+        executableLines: 2,
+        aggregateCoveragePercent: 0,
+      },
+    });
+    const aggregated = aggregateReportRecords(loaded.records, 10);
+
+    expect(verifyLoadedArtifact(loaded, aggregated)).toEqual({
+      supported: true,
+      matches: true,
+      metrics: [
+        { name: "coveredLines", report: 0, eyecov: 0, match: true },
+        { name: "executableLines", report: 2, eyecov: 2, match: true },
+        {
+          name: "aggregateCoveragePercent",
+          report: 0,
+          eyecov: 0,
+          match: true,
+        },
+      ],
+    });
+  });
+
+  it("does not tolerate extreme Cobertura executable-line drift when the percent also diverges from EyeCov totals", () => {
+    const loaded = createLoadedArtifact("cobertura", {
+      reportTotals: {
+        coveredLines: 1,
+        executableLines: 10_000,
+        aggregateCoveragePercent: 0.01,
+      },
+      derivedTotals: {
+        coveredLines: 1,
+        executableLines: 2,
+        aggregateCoveragePercent: 50,
+      },
+    });
+    const aggregated = aggregateReportRecords(loaded.records, 10);
+
+    expect(verifyLoadedArtifact(loaded, aggregated)).toEqual({
+      supported: true,
+      matches: false,
+      metrics: [
+        { name: "coveredLines", report: 1, eyecov: 1, match: true },
+        {
+          name: "executableLines",
+          report: 10_000,
+          eyecov: 2,
+          match: false,
+        },
+        {
+          name: "aggregateCoveragePercent",
+          report: 0.01,
+          eyecov: 50,
+          match: false,
+        },
+      ],
+    });
+  });
+
   it("verifies only aggregate percent for Clover", () => {
     const loaded = createLoadedArtifact("clover", {
       reportTotals: {
