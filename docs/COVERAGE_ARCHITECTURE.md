@@ -44,9 +44,12 @@ This flow should be asynchronous but avoid unnecessary work on repeated opens of
 - **`src/coverage-resolver.ts`** — `CoverageResolver`, `CoverageRecord`, `CoverageAdapter`, `createAdaptersFromConfig(config)`. Adapters are built from config (order and paths).
 - **`src/coverage-staleness.ts`** — `isCoverageStale(sourcePath, artifactPath)`. Used by adapters to reject coverage when source is newer than artifact or either path is missing.
 - **`src/coverage-runtime.ts`** — `toFileSystemPath`, `resolveFilePath`, `getCandidatePathsForQuery` (query → candidate file paths; extension and MCP then use `CoverageResolver.getCoverage(path)` for each).
-- **`src/coverage-config.ts`** — `loadCoverageConfig(workspaceRoot)`, `DEFAULT_CONFIG`, `getPhpUnitHtmlDir`, `getLcovPath`. Reads `.eyecov.json` or `eyecov.json`.
+- **`src/coverage-config.ts`** — `loadCoverageConfig(workspaceRoot)`, `DEFAULT_CONFIG`, `getPhpUnitHtmlDir`, `getLcovPath`, shared artifact watch-path helpers. Reads `.eyecov.json` or `eyecov.json`.
 - **`src/coverage-formats/phpunit-html/`** — Parser, adapter (`PhpUnitHtmlAdapter`), types; path/read/parse live here. Default dir `coverage-html/`.
+- **`src/coverage-formats/cobertura/`** — Parser and adapter (`CoberturaAdapter`) for a single Cobertura XML artifact. Default path `coverage/cobertura-coverage.xml`.
+- **`src/coverage-formats/clover/`** — Parser and adapter (`CloverAdapter`) for a single Clover XML artifact. Default path `coverage/clover.xml`.
 - **`src/coverage-formats/lcov/`** — Parser, adapter (`LcovAdapter`); default path `coverage/lcov.info`.
+- **`src/coverage-formats/xml/`** — Shared helpers for machine-readable single-artifact coverage XML formats (path resolution, normalization, capability helpers).
 - **`src/coverage-aggregate.ts`** — On-demand path/project aggregation: `listCoveredPaths`, `listCoveredPathsFromFirstFormat`, `aggregateCoverage`, `getPathAggregateResponse`, `getProjectAggregateResponse`. Supports `worstFilesLimit`, `zeroCoverageFilesLimit`, `coveredLinesCutoff`; results include `worstFiles` and optional `zeroCoverageFiles`. Cache-based helpers: `projectAggregateFromCache`, `pathAggregateFromCache` (used by MCP when a valid cache exists).
 - **`src/coverage-cache.ts`** — Coverage cache for path/project tools: `writeCoverageCache`, `readCoverageCache`, `deleteCoverageCache`, `buildCoverageCachePayload`. Cache file: `{workspaceRoot}/.eyecov/coverage-cache.json` (per-file entries + pre-aggregated project totals).
 - **`src/coverage-prewarm.ts`** — Background prewarm: `prewarmCoverageForRoot(workspaceRoot, options)` runs `listPaths` + `getCoverage` in batches (with `setImmediate` between batches), then writes the cache. Used by the extension when `eyecov.prewarmCoverageCache` is true (fire-and-forget after a short delay).
@@ -124,9 +127,21 @@ Rules: keep `findCoverageForFile` cheap; do heavy parsing in `read` after freshn
 
 **Location:** `src/coverage-formats/phpunit-html/`. Default path `coverage-html/`; overridden by config (`type: "phpunit-html"`, `path`). Optional `sourceSegment` in config (`app` | `src` | `lib` | `auto`); when `auto`, tries those segments per workspace root. File discovery excludes `index.html` and `dashboard.html`. Resolves source file to HTML report path; reads and parses; returns `CoverageRecord` with optional `lineStatuses` (S/M/L, uncovered, warning, uncoverable). Popover content above a size limit is skipped to avoid unbounded parsing. One HTML file per source file. Treated as version-specific for PHPUnit HTML output.
 
+### `CoberturaAdapter` (implemented)
+
+**Location:** `src/coverage-formats/cobertura/`. Default path `coverage/cobertura-coverage.xml`; overridden by config (`type: "cobertura"`, `path`). Reads one Cobertura XML artifact per workspace root; extracts per-file line coverage and returns `CoverageRecord`. No covering-test data.
+
+### `CloverAdapter` (implemented)
+
+**Location:** `src/coverage-formats/clover/`. Default path `coverage/clover.xml`; overridden by config (`type: "clover"`, `path`). Reads one Clover XML artifact per workspace root; extracts per-file line coverage and returns `CoverageRecord`. No covering-test data.
+
 ### `LcovAdapter` (implemented)
 
 **Location:** `src/coverage-formats/lcov/`. Default path `coverage/lcov.info`; overridden by config (`type: "lcov"`, `path`). Reads single lcov.info per workspace root; finds matching `SF:` record for the source path; returns `CoverageRecord`. Used for Vitest and other LCOV producers.
+
+### Machine-readable coverage XML family
+
+Cobertura and Clover are handled as a shared capability family: one XML artifact per workspace root, line-coverage only, no covering-test data. The shared helpers under `src/coverage-formats/xml/` should stay narrow and utility-based so future formats such as PHPUnit coverage XML can reuse them without introducing a broad adapter framework.
 
 ### Fixture / test-suite-native format (not implemented)
 

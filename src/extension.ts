@@ -13,7 +13,7 @@ import {
   loadCoverageConfig,
   getPhpUnitHtmlDir,
   getPhpUnitHtmlSourceSegment,
-  getLcovPathsToWatch,
+  getCoverageArtifactPathsToWatch,
 } from "./coverage-config";
 import { listCoveredPathsFromFirstFormat } from "./coverage-aggregate";
 import { deleteCoverageCache } from "./coverage-cache";
@@ -264,7 +264,7 @@ class CoverageExtension {
       () => {
         if (!this.hasCoverageSource()) {
           vscode.window.showWarningMessage(
-            "EyeCov: No coverage source (no PHPUnit HTML or LCOV coverage found in workspace)",
+            "EyeCov: No coverage source (no supported coverage artifacts found in workspace)",
           );
           return;
         }
@@ -801,7 +801,7 @@ class CoverageExtension {
   }
 
   /**
-   * Watch coverage artifacts for changes (PHPUnit HTML folder and LCOV file(s)).
+   * Watch coverage artifacts for changes (PHPUnit HTML folder and shared-file format artifacts).
    * When any watched file changes, reload coverage and update editors.
    */
   private watchCoverage(): void {
@@ -826,13 +826,17 @@ class CoverageExtension {
       this.disposables.push(htmlWatcher);
     }
 
-    // Watch LCOV file path(s) per workspace root
-    const lcovPaths = getLcovPathsToWatch(config, workspaceFolders);
-    for (const lcovPath of lcovPaths) {
-      const lcovWatcher = vscode.workspace.createFileSystemWatcher(lcovPath);
-      lcovWatcher.onDidChange(onChanged);
-      lcovWatcher.onDidCreate(onChanged);
-      this.disposables.push(lcovWatcher);
+    // Watch shared-file coverage artifact path(s) per workspace root
+    const artifactPaths = getCoverageArtifactPathsToWatch(
+      config,
+      workspaceFolders,
+    );
+    for (const artifactPath of artifactPaths) {
+      const artifactWatcher =
+        vscode.workspace.createFileSystemWatcher(artifactPath);
+      artifactWatcher.onDidChange(onChanged);
+      artifactWatcher.onDidCreate(onChanged);
+      this.disposables.push(artifactWatcher);
     }
   }
 

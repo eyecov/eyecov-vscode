@@ -17,7 +17,7 @@ Resolves coverage for one file by path or basename.
 
 **Input:** `query` — file path or basename (e.g. `GetEmployeeAction.php` or `app/Domain/Workspace/Actions/GetEmployeeAction.php`).
 
-**Behavior:** Resolves like the extension: PHPUnit HTML (coverage-html) first, then LCOV. Same resolver and adapters as the editor. `coverageHtmlPath` is omitted when the source is LCOV.
+**Behavior:** Resolves like the extension using configured format order. Default order is PHPUnit HTML (`coverage-html`), Cobertura (`coverage/cobertura-coverage.xml`), Clover (`coverage/clover.xml`), then LCOV (`coverage/lcov.info`). Same resolver and adapters as the editor. `coverageHtmlPath` is omitted for non-HTML sources.
 
 **Response:**
 
@@ -44,7 +44,7 @@ Resolves coverage for one file by path or basename.
 ```
 
 - `lineCoveragePercent` may be `null` when not available.
-- `coverageHtmlPath` is omitted when the source is LCOV (no HTML path).
+- `coverageHtmlPath` is omitted when the source is not PHPUnit HTML.
 - `uncoverableLines` is included only when the source provides it (e.g. some adapters); omitted otherwise.
 
 ---
@@ -61,7 +61,7 @@ Aggregates coverage for one or more path/folder prefixes.
 - **zeroCoverageFilesLimit** — When set with **coveredLinesCutoff**, include up to this many files with covered lines ≤ cutoff in **zeroCoverageFiles**.
 - **coveredLinesCutoff** — Used with zeroCoverageFilesLimit: files with covered lines ≤ this go into zeroCoverageFiles (default 0 = only truly zero-coverage).
 
-**Behavior:** When a valid prewarm cache exists, filters the cache by path prefix(es) and returns aggregate stats and worst files (zeroCoverageFiles not from cache). Otherwise discovers all covered files under the given prefix(es) via configured formats (PHPUnit HTML, LCOV), resolves coverage for each, and returns aggregate stats, worst files, and (when options are set) zeroCoverageFiles.
+**Behavior:** When a valid prewarm cache exists, filters the cache by path prefix(es) and returns aggregate stats and worst files (zeroCoverageFiles not from cache). Otherwise discovers all covered files under the given prefix(es) via configured formats (PHPUnit HTML, Cobertura, Clover, LCOV), resolves coverage for each, and returns aggregate stats, worst files, and (when options are set) zeroCoverageFiles.
 
 **Response:**
 
@@ -182,7 +182,7 @@ Returns covering tests for a file and line(s).
 
 **Input:** `query` or `file_path` (required), and either `line` or `line_start` + `line_end` (range exclusive of end).
 
-**Behavior:** Same resolution as `coverage_file`. PHPUnit HTML supplies per-line test data; LCOV does not (match includes `lineTestsNotSupported` and empty `tests`).
+**Behavior:** Same resolution as `coverage_file`. PHPUnit HTML supplies per-line test data; Cobertura, Clover, and LCOV do not (match includes `lineTestsNotSupported` and empty `tests`).
 
 **Response:**
 
@@ -215,8 +215,8 @@ Returns covering tests for a file and line(s).
 
 - **Line range:** When a range is requested, `line` is omitted; `line_start`, `line_end`, and `lines` are present.
 - **lineState:** `"covered"` | `"uncovered"` | `"not-executable"`.
-- **Unsupported format:** When the format does not provide per-line test data (e.g. LCOV), each match includes `lineTestsNotSupported` (e.g. `"Covering tests not supported for the LCOV coverage format."`) and `tests` is `[]`.
-- **coverageHtmlPath:** Omitted when the source is LCOV.
+- **Unsupported format:** When the format does not provide per-line test data (e.g. Cobertura, Clover, or LCOV), each match includes `lineTestsNotSupported` (for example, `"Covering tests not supported for the cobertura coverage format."`) and `tests` is `[]`.
+- **coverageHtmlPath:** Omitted when the source is not PHPUnit HTML.
 
 ## Verification
 

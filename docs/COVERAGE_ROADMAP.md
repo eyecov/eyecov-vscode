@@ -22,11 +22,16 @@ Forward-looking roadmap: done, in progress, planned, and maybe. For the canonica
 ## Planned
 
 - additional adapters
+- Cobertura XML adapter
+- Clover XML adapter
+- PHPUnit coverage XML support on top of the shared machine-readable XML foundation
+- PHPUnit PHP coverage report support via optional thin PHP converter — deferred; plausible because projects using it already have `php`, but lower priority and riskier than XML formats because the PHP report appears intended for PHP-side processing rather than as a stable external interchange format
 - coverage diff
 - test recommendation improvements
 - gutter redesign: plain colored vertical lines (green/red) instead of circle icons — see `media/gutter-design.png`
 
 ## Maybe
 
+- Crap4J support
 - semantic coverage analysis
 - stale coverage detection (`staleCoverageFiles` field exists in MCP responses and cache schema but is always `0`; implement or remove as a breaking API change)

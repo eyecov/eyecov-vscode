@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { parseTestName } from "../coverage-formats/phpunit-html";
+import { lineTestsNotSupportedMessage } from "../coverage-formats/xml/shared";
 import {
   getPathAggregateResponse,
   getProjectAggregateResponse,
@@ -257,16 +258,18 @@ async function main(): Promise<void> {
         if (result.record) records.push(result.record);
       }
       const sourceLabel =
-        records.length > 0 && records.some((r) => r.coverageHtmlPath)
-          ? "coverage-html"
-          : "LCOV";
+        records.length > 0
+          ? records[0].sourceFormat === "phpunit-html"
+            ? "coverage-html"
+            : (records[0].sourceFormat ?? "coverage")
+          : "coverage";
       const response = {
         query,
         resolved: records.length > 0,
         workspaceRoots,
         message:
           records.length === 0
-            ? "No matching files were found in workspace coverage (coverage-html or LCOV)."
+            ? "No matching files were found in workspace coverage."
             : records.length === 1
               ? `Resolved one file match from ${sourceLabel}.`
               : `Resolved multiple file matches from ${sourceLabel}.`,
@@ -369,7 +372,7 @@ async function main(): Promise<void> {
         workspaceRoots,
         message:
           records.length === 0
-            ? "No matching files were found in workspace coverage (coverage-html or LCOV)."
+            ? "No matching files were found in workspace coverage."
             : records.length === 1
               ? lines.length === 1
                 ? "Resolved one file match for the requested line."
@@ -418,7 +421,7 @@ async function main(): Promise<void> {
             };
           });
           const lineTestsNotSupported = !record.coverageHtmlPath
-            ? "Covering tests not supported for the LCOV coverage format."
+            ? lineTestsNotSupportedMessage(record.sourceFormat ?? "non-HTML")
             : undefined;
           return {
             filePath: record.sourcePath,

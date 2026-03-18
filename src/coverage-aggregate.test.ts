@@ -7,6 +7,7 @@ import {
   getPathAggregateResponse,
   getProjectAggregateResponse,
   listCoveredPaths,
+  listCoveredPathsFromFirstFormat,
   projectAggregateFromCache,
   pathAggregateFromCache,
 } from "./coverage-aggregate";
@@ -393,6 +394,57 @@ describe("coverage-aggregate", () => {
       expect(response.totalFiles).toBe(1);
       expect(response.coveredFiles).toBe(1);
       expect(response.detectedFormat).toBe("lcov");
+    });
+
+    it("listCoveredPathsFromFirstFormat respects configured XML-before-LCOV order", () => {
+      const xmlRoot = path.join(tmpDir, "xml-priority");
+      fs.mkdirSync(path.join(xmlRoot, "src"), { recursive: true });
+      fs.mkdirSync(path.join(xmlRoot, "coverage"), { recursive: true });
+      fs.writeFileSync(path.join(xmlRoot, "src", "priority.ts"), "x\n");
+      fs.writeFileSync(
+        path.join(xmlRoot, "coverage", "cobertura-coverage.xml"),
+        `<?xml version="1.0"?>
+<coverage>
+  <sources>
+    <source>${xmlRoot}</source>
+  </sources>
+  <packages>
+    <package>
+      <classes>
+        <class name="Priority" filename="src/priority.ts">
+          <lines>
+            <line number="1" hits="1"/>
+          </lines>
+        </class>
+      </classes>
+    </package>
+  </packages>
+</coverage>`,
+      );
+      fs.writeFileSync(
+        path.join(xmlRoot, "coverage", "lcov.info"),
+        [
+          "TN:",
+          "SF:src/priority.ts",
+          "DA:1,1",
+          "LF:1",
+          "LH:1",
+          "end_of_record",
+        ].join("\n"),
+      );
+
+      const result = listCoveredPathsFromFirstFormat([xmlRoot], {
+        formats: [
+          { type: "cobertura", path: "coverage/cobertura-coverage.xml" },
+          { type: "clover", path: "coverage/clover.xml" },
+          { type: "lcov", path: "coverage/lcov.info" },
+        ],
+      });
+
+      expect(result.formatType).toBe("cobertura");
+      expect(result.paths).toEqual([
+        path.resolve(xmlRoot, "src", "priority.ts"),
+      ]);
     });
 
     it("integrates with CoverageResolver: listCoveredPaths then aggregateCoverage", async () => {

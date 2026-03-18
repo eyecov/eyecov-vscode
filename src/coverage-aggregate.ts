@@ -8,6 +8,8 @@ import path from "node:path";
 import type { CoverageConfig } from "./coverage-config";
 import type { CoverageCacheWritten } from "./coverage-cache";
 import type { CoverageRecord } from "./coverage-resolver";
+import { listCoberturaSourcePaths } from "./coverage-formats/cobertura";
+import { listCloverSourcePaths } from "./coverage-formats/clover";
 import { listCoverageHtmlSourcePaths } from "./coverage-formats/phpunit-html";
 import { listLcovSourcePaths } from "./coverage-formats/lcov";
 
@@ -128,7 +130,7 @@ export interface ListCoveredPathsOptions {
 
 /**
  * Discover all source file paths that have coverage data from configured formats.
- * Merges PHPUnit HTML and LCOV lists, dedupes, and optionally filters by pathPrefix.
+ * Merges configured coverage lists, dedupes, and optionally filters by pathPrefix.
  */
 function underPrefix(
   filePath: string,
@@ -158,9 +160,13 @@ export function listCoveredPaths(options: ListCoveredPathsOptions): string[] {
             coverageHtmlDir: entry.path,
             sourceSegment: entry.sourceSegment ?? "auto",
           })
-        : entry.type === "lcov"
-          ? listLcovSourcePaths(workspaceRoots, { path: entry.path })
-          : [];
+        : entry.type === "cobertura"
+          ? listCoberturaSourcePaths(workspaceRoots, { path: entry.path })
+          : entry.type === "clover"
+            ? listCloverSourcePaths(workspaceRoots, { path: entry.path })
+            : entry.type === "lcov"
+              ? listLcovSourcePaths(workspaceRoots, { path: entry.path })
+              : [];
     for (const p of paths) {
       const resolved = path.resolve(p);
       seen.add(resolved);
@@ -198,9 +204,13 @@ export function listCoveredPathsFromFirstFormat(
             coverageHtmlDir: entry.path,
             sourceSegment: entry.sourceSegment ?? "auto",
           })
-        : entry.type === "lcov"
-          ? listLcovSourcePaths(workspaceRoots, { path: entry.path })
-          : [];
+        : entry.type === "cobertura"
+          ? listCoberturaSourcePaths(workspaceRoots, { path: entry.path })
+          : entry.type === "clover"
+            ? listCloverSourcePaths(workspaceRoots, { path: entry.path })
+            : entry.type === "lcov"
+              ? listLcovSourcePaths(workspaceRoots, { path: entry.path })
+              : [];
     if (paths.length > 0) {
       return { paths: [...paths].sort(), formatType: entry.type };
     }

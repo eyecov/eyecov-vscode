@@ -28,6 +28,10 @@ const entryPoints = [
     entryPoints: [path.join(rootDir, "src", "mcp", "server.ts")],
     outfile: path.join(outDir, "mcp", "server.js"),
   },
+  {
+    entryPoints: [path.join(rootDir, "scripts", "report.ts")],
+    outfile: path.join(outDir, "report.js"),
+  },
 ];
 
 async function build() {

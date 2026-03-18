@@ -7,7 +7,12 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export const SUPPORTED_FORMAT_TYPES = ["phpunit-html", "lcov"] as const;
+export const SUPPORTED_FORMAT_TYPES = [
+  "phpunit-html",
+  "cobertura",
+  "clover",
+  "lcov",
+] as const;
 export type CoverageFormatType = (typeof SUPPORTED_FORMAT_TYPES)[number];
 
 export const PHPUNIT_HTML_SOURCE_SEGMENTS = [
@@ -35,6 +40,8 @@ const CONFIG_FILENAMES = [".eyecov.json", "eyecov.json"];
 export const DEFAULT_CONFIG: CoverageConfig = {
   formats: [
     { type: "phpunit-html", path: "coverage-html" },
+    { type: "cobertura", path: "coverage/cobertura-coverage.xml" },
+    { type: "clover", path: "coverage/clover.xml" },
     { type: "lcov", path: "coverage/lcov.info" },
   ],
 };
@@ -56,7 +63,7 @@ function isPhpUnitHtmlSourceSegment(
  * Load coverage config from the workspace root. Tries .eyecov.json then eyecov.json.
  * Returns DEFAULT_CONFIG if no file is found or parsing fails.
  * Unknown or unsupported format types in the file are ignored; only
- * phpunit-html and lcov are used.
+ * supported coverage formats are used.
  */
 export function loadCoverageConfig(workspaceRoot: string): CoverageConfig {
   if (!workspaceRoot || !fs.existsSync(workspaceRoot)) {
@@ -137,19 +144,23 @@ export function getPhpUnitHtmlSourceSegment(
  */
 export function getLcovPath(config: CoverageConfig): string {
   const entry = config.formats.find((f) => f.type === "lcov");
-  return entry?.path ?? DEFAULT_CONFIG.formats[1]!.path;
+  return entry?.path ?? DEFAULT_CONFIG.formats[3]!.path;
 }
 
 /**
- * Return absolute file paths to watch for LCOV coverage changes, one per workspace root.
- * Used so the extension can watch lcov.info (or configured path) and reload coverage on change.
- * Returns empty array if config has no lcov format.
+ * Return absolute file paths to watch for shared-file coverage artifacts, one per
+ * configured format per workspace root. Used so the extension can reload coverage
+ * when LCOV, Cobertura, or Clover artifacts change.
  */
-export function getLcovPathsToWatch(
+export function getCoverageArtifactPathsToWatch(
   config: CoverageConfig,
   workspaceRoots: string[],
 ): string[] {
-  const lcovRelative = config.formats.find((f) => f.type === "lcov")?.path;
-  if (!lcovRelative) return [];
-  return workspaceRoots.map((root) => path.resolve(root, lcovRelative));
+  const relativePaths = config.formats
+    .filter((f) => f.type !== "phpunit-html")
+    .map((f) => f.path);
+  if (relativePaths.length === 0) return [];
+  return workspaceRoots.flatMap((root) =>
+    relativePaths.map((relativePath) => path.resolve(root, relativePath)),
+  );
 }

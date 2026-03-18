@@ -2,7 +2,7 @@
 
 ## Vitest (unit tests)
 
-- **Scope:** Pure Node code that does not import `vscode`: coverage-formats, coverage-runtime, coverage-resolver, coverage-aggregate, coverage-cache, coverage-prewarm, coverage-staleness, coverage-config, mcp/settings.
+- **Scope:** Pure Node code that does not import `vscode`: coverage-formats, coverage-runtime, coverage-resolver, coverage-aggregate, coverage-cache, coverage-prewarm, coverage-staleness, coverage-config, mcp/settings, and the report CLI modules.
 - **Run:** `npm test` (or `npx vitest run --coverage`). Coverage is always generated (V8 provider; report in terminal and `coverage/index.html`). For a quick run without coverage: `npm run test:no-coverage`.
 - **What’s tested:**
   - **coverage-formats/phpunit-html** — Parser (`parseCoverageHtml`, minimal HTML fixture), `parseTestName` (Pest/PHPUnit-style strings); adapter path resolution and `getCoverage`.
@@ -16,6 +16,7 @@
   - **coverage-staleness** — `isCoverageStale(sourcePath, artifactPath)`.
   - **coverage-config** — `loadCoverageConfig`, defaults, format paths.
   - **mcp/settings** — `isMcpServerEnabled`, `isPrewarmCoverageCacheEnabled`.
+  - **report CLI** — format detection, artifact loading, aggregation, verification, root-summary parsing, renderer output, and the CLI entrypoint.
 
 **Why some code isn’t unit-tested here:**
 
@@ -43,6 +44,23 @@ To verify the extension UI (gutter icons, line highlighting, status bar) without
 5. Use **EyeCov: Toggle Line Coverage** and the status bar to confirm line highlighting and file coverage.
 
 See `test-workspace/README.md` for more detail.
+
+## Manual CLI smoke tests
+
+Run after `npm run compile`:
+
+```bash
+node out/report.js --path test-workspace/coverage/lcov.info --workspace-root test-workspace
+node out/report.js --path test-workspace/coverage/lcov.info --workspace-root test-workspace --json
+```
+
+See [docs/COVERAGE_REPORT_CLI.md](COVERAGE_REPORT_CLI.md) for the full CLI
+usage and verification rules.
+
+For local real-report validation, also run the CLI against one Cobertura XML,
+one Clover XML, one PHPUnit HTML directory with a root `index.html`, and one
+small LCOV artifact. Use `--verify-report-totals` to confirm report-vs-EyeCov
+comparisons, and `--no-color` to smoke-test plain output.
 
 ## CI
 

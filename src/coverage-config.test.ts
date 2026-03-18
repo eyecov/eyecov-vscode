@@ -8,7 +8,7 @@ import {
   getPhpUnitHtmlDir,
   getPhpUnitHtmlSourceSegment,
   getLcovPath,
-  getLcovPathsToWatch,
+  getCoverageArtifactPathsToWatch,
   type CoverageConfig,
 } from "./coverage-config";
 
@@ -27,13 +27,21 @@ describe("coverage-config", () => {
   });
 
   describe("DEFAULT_CONFIG", () => {
-    it("has phpunit-html then lcov with default paths", () => {
-      expect(DEFAULT_CONFIG.formats).toHaveLength(2);
+    it("has phpunit-html, cobertura, clover, then lcov with default paths", () => {
+      expect(DEFAULT_CONFIG.formats).toHaveLength(4);
       expect(DEFAULT_CONFIG.formats[0]).toEqual({
         type: "phpunit-html",
         path: "coverage-html",
       });
       expect(DEFAULT_CONFIG.formats[1]).toEqual({
+        type: "cobertura",
+        path: "coverage/cobertura-coverage.xml",
+      });
+      expect(DEFAULT_CONFIG.formats[2]).toEqual({
+        type: "clover",
+        path: "coverage/clover.xml",
+      });
+      expect(DEFAULT_CONFIG.formats[3]).toEqual({
         type: "lcov",
         path: "coverage/lcov.info",
       });
@@ -59,17 +67,27 @@ describe("coverage-config", () => {
         JSON.stringify({
           formats: [
             { type: "phpunit-html", path: "build/coverage-html" },
+            { type: "cobertura", path: "build/cobertura.xml" },
+            { type: "clover", path: "build/clover.xml" },
             { type: "lcov", path: "out/lcov.info" },
           ],
         }),
       );
       const config = loadCoverageConfig(workspaceRoot);
-      expect(config.formats).toHaveLength(2);
+      expect(config.formats).toHaveLength(4);
       expect(config.formats[0]).toEqual({
         type: "phpunit-html",
         path: "build/coverage-html",
       });
       expect(config.formats[1]).toEqual({
+        type: "cobertura",
+        path: "build/cobertura.xml",
+      });
+      expect(config.formats[2]).toEqual({
+        type: "clover",
+        path: "build/clover.xml",
+      });
+      expect(config.formats[3]).toEqual({
         type: "lcov",
         path: "out/lcov.info",
       });
@@ -85,6 +103,7 @@ describe("coverage-config", () => {
               path: "coverage-html",
               sourceSegment: "src",
             },
+            { type: "cobertura", path: "coverage/cobertura-coverage.xml" },
             { type: "lcov", path: "coverage/lcov.info" },
           ],
         }),
@@ -133,14 +152,16 @@ describe("coverage-config", () => {
           formats: [
             { type: "phpunit-html", path: "coverage-html" },
             { type: "unknown-format", path: "x" },
+            { type: "clover", path: "coverage/clover.xml" },
             { type: "lcov", path: "coverage/lcov.info" },
           ],
         }),
       );
       const config = loadCoverageConfig(workspaceRoot);
-      expect(config.formats).toHaveLength(2);
+      expect(config.formats).toHaveLength(3);
       expect(config.formats.map((f) => f.type)).toEqual([
         "phpunit-html",
+        "clover",
         "lcov",
       ]);
     });
@@ -152,13 +173,15 @@ describe("coverage-config", () => {
           formats: [
             { type: "phpunit-html", path: "" },
             { type: "", path: "coverage-html" },
+            { type: "cobertura", path: "coverage/cobertura-coverage.xml" },
             { type: "lcov", path: "coverage/lcov.info" },
           ],
         }),
       );
       const config = loadCoverageConfig(workspaceRoot);
-      expect(config.formats).toHaveLength(1);
-      expect(config.formats[0].type).toBe("lcov");
+      expect(config.formats).toHaveLength(2);
+      expect(config.formats[0].type).toBe("cobertura");
+      expect(config.formats[1].type).toBe("lcov");
     });
 
     it("returns DEFAULT_CONFIG when JSON is invalid", () => {
@@ -236,40 +259,61 @@ describe("coverage-config", () => {
     });
   });
 
-  describe("getLcovPathsToWatch", () => {
-    it("returns one absolute path per workspace root using default lcov path", () => {
+  describe("getCoverageArtifactPathsToWatch", () => {
+    it("returns one absolute path per shared-file format per workspace root using default paths", () => {
       const config: CoverageConfig = DEFAULT_CONFIG;
       const roots = [workspaceRoot];
-      const paths = getLcovPathsToWatch(config, roots);
-      expect(paths).toHaveLength(1);
-      expect(paths[0]).toBe(path.join(workspaceRoot, "coverage", "lcov.info"));
+      const paths = getCoverageArtifactPathsToWatch(config, roots);
+      expect(paths).toHaveLength(3);
+      expect(paths).toEqual([
+        path.join(workspaceRoot, "coverage", "cobertura-coverage.xml"),
+        path.join(workspaceRoot, "coverage", "clover.xml"),
+        path.join(workspaceRoot, "coverage", "lcov.info"),
+      ]);
     });
 
-    it("returns custom lcov path when configured", () => {
+    it("returns custom shared-file paths when configured", () => {
       const config: CoverageConfig = {
-        formats: [{ type: "lcov", path: "build/coverage.info" }],
+        formats: [
+          { type: "cobertura", path: "build/cobertura.xml" },
+          { type: "clover", path: "reports/clover.xml" },
+          { type: "lcov", path: "build/coverage.info" },
+        ],
       };
       const roots = [workspaceRoot];
-      const paths = getLcovPathsToWatch(config, roots);
-      expect(paths).toHaveLength(1);
-      expect(paths[0]).toBe(path.join(workspaceRoot, "build", "coverage.info"));
+      const paths = getCoverageArtifactPathsToWatch(config, roots);
+      expect(paths).toHaveLength(3);
+      expect(paths).toEqual([
+        path.join(workspaceRoot, "build", "cobertura.xml"),
+        path.join(workspaceRoot, "reports", "clover.xml"),
+        path.join(workspaceRoot, "build", "coverage.info"),
+      ]);
     });
 
-    it("returns one path per workspace root for multi-root", () => {
+    it("returns one path per format per workspace root for multi-root", () => {
       const root2 = path.join(tmpDir, "workspace2");
       fs.mkdirSync(root2, { recursive: true });
       const config: CoverageConfig = DEFAULT_CONFIG;
-      const paths = getLcovPathsToWatch(config, [workspaceRoot, root2]);
-      expect(paths).toHaveLength(2);
-      expect(paths[0]).toBe(path.join(workspaceRoot, "coverage", "lcov.info"));
-      expect(paths[1]).toBe(path.join(root2, "coverage", "lcov.info"));
+      const paths = getCoverageArtifactPathsToWatch(config, [
+        workspaceRoot,
+        root2,
+      ]);
+      expect(paths).toHaveLength(6);
+      expect(paths).toEqual([
+        path.join(workspaceRoot, "coverage", "cobertura-coverage.xml"),
+        path.join(workspaceRoot, "coverage", "clover.xml"),
+        path.join(workspaceRoot, "coverage", "lcov.info"),
+        path.join(root2, "coverage", "cobertura-coverage.xml"),
+        path.join(root2, "coverage", "clover.xml"),
+        path.join(root2, "coverage", "lcov.info"),
+      ]);
     });
 
-    it("returns empty array when config has no lcov format", () => {
+    it("returns empty array when config has no shared-file formats", () => {
       const config: CoverageConfig = {
         formats: [{ type: "phpunit-html", path: "coverage-html" }],
       };
-      const paths = getLcovPathsToWatch(config, [workspaceRoot]);
+      const paths = getCoverageArtifactPathsToWatch(config, [workspaceRoot]);
       expect(paths).toHaveLength(0);
     });
   });

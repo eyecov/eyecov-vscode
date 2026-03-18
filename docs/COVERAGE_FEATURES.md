@@ -12,13 +12,15 @@ This document describes what the EyeCov coverage system does from a feature and 
 ## Supported formats
 
 - **PHPUnit HTML** — Per-file HTML reports (e.g. under `coverage-html/`). Used for PHP projects that run PHPUnit with HTML coverage. Can provide uncoverable lines and, when available, which tests cover each line.
+- **Cobertura XML** — A single Cobertura XML report (e.g. `coverage/cobertura-coverage.xml`) per workspace. Used for machine-readable line coverage. Does not provide covering-test data.
+- **Clover XML** — A single Clover XML report (e.g. `coverage/clover.xml`) per workspace. Used for machine-readable line coverage. Does not provide covering-test data.
 - **LCOV** — A single `lcov.info` (or equivalent) per workspace. Used by Vitest and other tools. See [COVERAGE_FORMAT_RECOMMENDATION.md](COVERAGE_FORMAT_RECOMMENDATION.md) for Vitest setup.
 
 Formats are **auto-discovered**: the resolver tries each configured format in order and uses the first that has coverage for the open file. There is no separate “primary” or “secondary” source.
 
 ## Configuration
 
-Coverage sources and order are configured via a JSON file in the workspace root: `.eyecov.json` or `eyecov.json`. You specify which formats to use, in which order, and the path to each format’s artifact (folder for PHPUnit HTML, file for LCOV). If no config file is present, defaults are used (e.g. PHPUnit HTML at `coverage-html/`, LCOV at `coverage/lcov.info`). See [COVERAGE_ARCHITECTURE.md](COVERAGE_ARCHITECTURE.md) (Current implementation) for config; implementation lives in `src/coverage-config.ts`.
+Coverage sources and order are configured via a JSON file in the workspace root: `.eyecov.json` or `eyecov.json`. You specify which formats to use, in which order, and the path to each format’s artifact (folder for PHPUnit HTML, file for Cobertura, Clover, and LCOV). If no config file is present, defaults are used (PHPUnit HTML at `coverage-html/`, Cobertura at `coverage/cobertura-coverage.xml`, Clover at `coverage/clover.xml`, LCOV at `coverage/lcov.info`). See [COVERAGE_ARCHITECTURE.md](COVERAGE_ARCHITECTURE.md) (Current implementation) for config; implementation lives in `src/coverage-config.ts`.
 
 ## MCP tools
 

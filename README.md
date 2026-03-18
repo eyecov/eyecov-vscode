@@ -8,7 +8,7 @@ EyeCov is built around a shared runtime coverage model. External coverage
 artifacts are parsed into normalized per-file records that power both the
 editor and MCP tools.
 
-EyeCov reads coverage artifacts (PHPUnit HTML, LCOV, etc.) and turns them into a runtime coverage model used by:
+EyeCov reads coverage artifacts (PHPUnit HTML, Cobertura, Clover, LCOV, etc.) and turns them into a runtime coverage model used by:
 
 - the editor
 - developer tooling
@@ -16,11 +16,25 @@ EyeCov reads coverage artifacts (PHPUnit HTML, LCOV, etc.) and turns them into a
 
 Works in **VS Code**, [**Cursor**](https://cursor.com), and [**Antigravity**](https://antigravity.google/).
 
+## Coverage report CLI
+
+For parser smoke tests and report verification during development:
+
+```bash
+npm run compile
+npm run report -- --path coverage/lcov.info
+```
+
+This CLI is dev-only in v1 and reuses the same parser stack as the extension.
+See [docs/COVERAGE_REPORT_CLI.md](docs/COVERAGE_REPORT_CLI.md) for usage,
+flags, exit codes, and verification behavior.
+
 ## Documentation map
 
 - [Coverage Model](docs/COVERAGE_MODEL.md) — the canonical data flow and shared runtime model
 - [Coverage Architecture](docs/COVERAGE_ARCHITECTURE.md) — resolver, adapters, runtime, cache, freshness
 - [Coverage Features](docs/COVERAGE_FEATURES.md) — user-visible behavior and supported features
+- [Coverage Report CLI](docs/COVERAGE_REPORT_CLI.md) — how to run and verify coverage artifacts
 - [MCP Server](docs/MCP_SERVER.md) — tool behavior and response shapes
 - [Coverage Roadmap](docs/COVERAGE_ROADMAP.md) — done, planned, and possible future work
 - [Testing](docs/TESTING.md) — unit tests, extension-host tests, and CI
@@ -82,12 +96,22 @@ _(Add a screenshot at `images/coverage-statusbar.png` to show the status bar.)_
 Currently supported (resolved in order):
 
 - **PHPUnit HTML** — default path `coverage-html/`
+- **Cobertura XML** — default path `coverage/cobertura-coverage.xml`
+- **Clover XML** — default path `coverage/clover.xml`
 - **LCOV** — default path `coverage/lcov.info`
 
 Example generators:
 
 ```bash
 phpunit --coverage-html coverage-html
+```
+
+```bash
+phpunit --coverage-cobertura coverage/cobertura-coverage.xml
+```
+
+```bash
+phpunit --coverage-clover coverage/clover.xml
 ```
 
 ```bash
@@ -143,6 +167,8 @@ Put `.eyecov.json` or `eyecov.json` in your workspace root:
 {
   "formats": [
     { "type": "phpunit-html", "path": "coverage-html" },
+    { "type": "cobertura", "path": "coverage/cobertura-coverage.xml" },
+    { "type": "clover", "path": "coverage/clover.xml" },
     { "type": "lcov", "path": "coverage/lcov.info" }
   ]
 }
@@ -178,7 +204,7 @@ Formats are tried in order; the first with coverage for the file is used. Paths 
 ## Requirements
 
 - **VS Code 1.105.0+** or a compatible editor (Cursor, Antigravity)
-- Coverage from at least one supported format in the workspace (PHPUnit HTML folder or LCOV file)
+- Coverage from at least one supported format in the workspace (PHPUnit HTML folder, Cobertura XML, Clover XML, or LCOV file)
 - **Node.js 22+** for building and development (see [.nvmrc](.nvmrc))
 
 ---

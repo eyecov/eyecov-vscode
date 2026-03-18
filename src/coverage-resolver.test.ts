@@ -5,6 +5,8 @@ import os from "node:os";
 import {
   CoverageResolver,
   CoverageAdapter,
+  CoberturaAdapter,
+  CloverAdapter,
   PhpUnitHtmlAdapter,
   LcovAdapter,
   FixtureAdapter,
@@ -174,9 +176,11 @@ describe("CoverageResolver", () => {
 
   it("createAdaptersFromConfig returns adapters in config order", () => {
     const adapters = createAdaptersFromConfig(DEFAULT_CONFIG);
-    expect(adapters).toHaveLength(2);
+    expect(adapters).toHaveLength(4);
     expect(adapters[0]).toBeInstanceOf(PhpUnitHtmlAdapter);
-    expect(adapters[1]).toBeInstanceOf(LcovAdapter);
+    expect(adapters[1]).toBeInstanceOf(CoberturaAdapter);
+    expect(adapters[2]).toBeInstanceOf(CloverAdapter);
+    expect(adapters[3]).toBeInstanceOf(LcovAdapter);
   });
 
   it("createAdaptersFromConfig with only lcov returns single adapter", () => {

@@ -73,7 +73,7 @@ export function getStatusBarContent(
       return {
         text: "$(test-view-icon) Coverage: no source",
         tooltip:
-          "EyeCov: No coverage config (PHPUnit HTML or LCOV). Add .eyecov.json or coverage artifacts.",
+          "EyeCov: No coverage config or supported coverage artifacts found. Add .eyecov.json or coverage artifacts.",
         show: true,
       };
     }

@@ -6,6 +6,8 @@
 
 import path from "node:path";
 import type { CoverageConfig, CoverageFormatType } from "./coverage-config";
+import { CoberturaAdapter } from "./coverage-formats/cobertura";
+import { CloverAdapter } from "./coverage-formats/clover";
 import { PhpUnitHtmlAdapter } from "./coverage-formats/phpunit-html";
 import { LcovAdapter } from "./coverage-formats/lcov";
 
@@ -21,11 +23,11 @@ export interface CoverageRecord {
   lineCoveragePercent: number | null;
   /** Source format that produced this record (e.g. 'phpunit-html', 'lcov'). */
   sourceFormat?: CoverageFormatType;
-  /** Set by PHPUnit HTML adapter; omitted for LCOV. */
+  /** Set by PHPUnit HTML adapter; omitted for shared-file formats. */
   coverageHtmlPath?: string;
-  /** Set by PHPUnit HTML adapter for per-line test data; omitted for LCOV. */
+  /** Set by PHPUnit HTML adapter for per-line test data; omitted for shared-file formats. */
   testsByLine?: Map<number, string[]>;
-  /** Per-line status codes (LINE_STATUS.*); set by PHPUnit HTML adapter, omitted for LCOV. */
+  /** Per-line status codes (LINE_STATUS.*); set by PHPUnit HTML adapter, omitted for shared-file formats. */
   lineStatuses?: Map<number, number>;
 }
 
@@ -110,6 +112,10 @@ export function createAdaptersFromConfig(
           sourceSegment: entry.sourceSegment ?? "auto",
         }),
       );
+    } else if (entry.type === "cobertura") {
+      adapters.push(new CoberturaAdapter({ path: entry.path }));
+    } else if (entry.type === "clover") {
+      adapters.push(new CloverAdapter({ path: entry.path }));
     } else if (entry.type === "lcov") {
       adapters.push(new LcovAdapter({ path: entry.path }));
     }
@@ -117,6 +123,8 @@ export function createAdaptersFromConfig(
   return adapters;
 }
 
+export { CoberturaAdapter } from "./coverage-formats/cobertura";
+export { CloverAdapter } from "./coverage-formats/clover";
 export { PhpUnitHtmlAdapter } from "./coverage-formats/phpunit-html";
 export { LcovAdapter } from "./coverage-formats/lcov";
 export { FixtureAdapter } from "./coverage-formats/fixture";
