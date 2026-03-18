@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CoverageSession>
+  <Summary numSequencePoints="6" visitedSequencePoints="4" />
+  <Modules>
+    <Module hash="sample">
+      <FullName>sample.dll</FullName>
+      <Files>
+        <File uid="1" fullPath="src/Program.cs" />
+        <File uid="2" fullPath="src/Worker.cs" />
+      </Files>
+      <Classes>
+        <Class>
+          <FullName>Sample.Program</FullName>
+          <Methods>
+            <Method visited="true">
+              <FileRef uid="1" />
+              <SequencePoints>
+                <SequencePoint vc="1" sl="1" fileid="1" />
+                <SequencePoint vc="0" sl="2" fileid="1" />
+                <SequencePoint vc="1" sl="4" fileid="1" />
+              </SequencePoints>
+            </Method>
+          </Methods>
+        </Class>
+        <Class>
+          <FullName>Sample.Worker</FullName>
+          <Methods>
+            <Method visited="true">
+              <FileRef uid="2" />
+              <SequencePoints>
+                <SequencePoint vc="1" sl="1" fileid="2" />
+                <SequencePoint vc="0" sl="3" fileid="2" />
+                <SequencePoint vc="1" sl="5" fileid="2" />
+              </SequencePoints>
+            </Method>
+          </Methods>
+        </Class>
+      </Classes>
+    </Module>
+  </Modules>
+</CoverageSession>

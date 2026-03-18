@@ -1,0 +1,34 @@
+{
+  "meta": {
+    "format": 2,
+    "version": "7.11.0",
+    "timestamp": "2026-03-18T00:00:00Z",
+    "branch_coverage": false,
+    "show_contexts": false
+  },
+  "files": {
+    "src/service.py": {
+      "executed_lines": [1, 2, 4],
+      "missing_lines": [5],
+      "summary": {
+        "covered_lines": 3,
+        "num_statements": 4,
+        "percent_covered": 75
+      }
+    },
+    "src/helpers.py": {
+      "executed_lines": [1, 3],
+      "missing_lines": [2],
+      "summary": {
+        "covered_lines": 2,
+        "num_statements": 3,
+        "percent_covered": 66.67
+      }
+    }
+  },
+  "totals": {
+    "covered_lines": 5,
+    "num_statements": 7,
+    "percent_covered": 71.43
+  }
+}
