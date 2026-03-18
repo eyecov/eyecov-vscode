@@ -6,8 +6,13 @@
 
 import path from "node:path";
 import type { CoverageConfig, CoverageFormatType } from "./coverage-config";
+import { CoveragePyJsonAdapter } from "./coverage-formats/coveragepy-json";
 import { CoberturaAdapter } from "./coverage-formats/cobertura";
 import { CloverAdapter } from "./coverage-formats/clover";
+import { GoCoverprofileAdapter } from "./coverage-formats/go-coverprofile";
+import { IstanbulJsonAdapter } from "./coverage-formats/istanbul-json";
+import { JacocoAdapter } from "./coverage-formats/jacoco";
+import { OpenCoverAdapter } from "./coverage-formats/opencover";
 import { PhpUnitHtmlAdapter } from "./coverage-formats/phpunit-html";
 import { LcovAdapter } from "./coverage-formats/lcov";
 
@@ -118,6 +123,16 @@ export function createAdaptersFromConfig(
       adapters.push(new CloverAdapter({ path: entry.path }));
     } else if (entry.type === "lcov") {
       adapters.push(new LcovAdapter({ path: entry.path }));
+    } else if (entry.type === "istanbul-json") {
+      adapters.push(new IstanbulJsonAdapter({ path: entry.path }));
+    } else if (entry.type === "go-coverprofile") {
+      adapters.push(new GoCoverprofileAdapter({ path: entry.path }));
+    } else if (entry.type === "coveragepy-json") {
+      adapters.push(new CoveragePyJsonAdapter({ path: entry.path }));
+    } else if (entry.type === "jacoco") {
+      adapters.push(new JacocoAdapter({ path: entry.path }));
+    } else if (entry.type === "opencover") {
+      adapters.push(new OpenCoverAdapter({ path: entry.path }));
     }
   }
   return adapters;
@@ -125,6 +140,11 @@ export function createAdaptersFromConfig(
 
 export { CoberturaAdapter } from "./coverage-formats/cobertura";
 export { CloverAdapter } from "./coverage-formats/clover";
+export { CoveragePyJsonAdapter } from "./coverage-formats/coveragepy-json";
 export { PhpUnitHtmlAdapter } from "./coverage-formats/phpunit-html";
+export { GoCoverprofileAdapter } from "./coverage-formats/go-coverprofile";
+export { IstanbulJsonAdapter } from "./coverage-formats/istanbul-json";
+export { JacocoAdapter } from "./coverage-formats/jacoco";
 export { LcovAdapter } from "./coverage-formats/lcov";
+export { OpenCoverAdapter } from "./coverage-formats/opencover";
 export { FixtureAdapter } from "./coverage-formats/fixture";

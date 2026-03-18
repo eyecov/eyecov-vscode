@@ -1,7 +1,10 @@
 import type { ReportTheme } from "./theme";
 import type { ReportCliOutput } from "./types";
 
-function formatVerification(output: ReportCliOutput, theme: ReportTheme): string[] {
+function formatVerification(
+  output: ReportCliOutput,
+  theme: ReportTheme,
+): string[] {
   if (!output.verification.supported) {
     return [
       theme.heading("Verification"),

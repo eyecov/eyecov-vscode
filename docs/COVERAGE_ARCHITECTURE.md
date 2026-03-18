@@ -49,6 +49,11 @@ This flow should be asynchronous but avoid unnecessary work on repeated opens of
 - **`src/coverage-formats/cobertura/`** — Parser and adapter (`CoberturaAdapter`) for a single Cobertura XML artifact. Default path `coverage/cobertura-coverage.xml`.
 - **`src/coverage-formats/clover/`** — Parser and adapter (`CloverAdapter`) for a single Clover XML artifact. Default path `coverage/clover.xml`.
 - **`src/coverage-formats/lcov/`** — Parser, adapter (`LcovAdapter`); default path `coverage/lcov.info`.
+- **`src/coverage-formats/istanbul-json/`** — Parser and adapter (`IstanbulJsonAdapter`) for a single Istanbul/NYC JSON artifact. Default path `coverage/coverage-final.json`.
+- **`src/coverage-formats/jacoco/`** — Parser and adapter (`JacocoAdapter`) for a single JaCoCo XML artifact. Default paths `target/site/jacoco/jacoco.xml` and `build/reports/jacoco/test/jacocoTestReport.xml`.
+- **`src/coverage-formats/go-coverprofile/`** — Parser and adapter (`GoCoverprofileAdapter`) for a single Go coverprofile artifact. Default path `coverage.out`.
+- **`src/coverage-formats/coveragepy-json/`** — Parser and adapter (`CoveragePyJsonAdapter`) for a single coverage.py JSON artifact. Default path `coverage.json`.
+- **`src/coverage-formats/opencover/`** — Parser and adapter (`OpenCoverAdapter`) for a single OpenCover XML artifact. Config-only in v1.
 - **`src/coverage-formats/xml/`** — Shared helpers for machine-readable single-artifact coverage XML formats (path resolution, normalization, capability helpers).
 - **`src/coverage-aggregate.ts`** — On-demand path/project aggregation: `listCoveredPaths`, `listCoveredPathsFromFirstFormat`, `aggregateCoverage`, `getPathAggregateResponse`, `getProjectAggregateResponse`. Supports `worstFilesLimit`, `zeroCoverageFilesLimit`, `coveredLinesCutoff`; results include `worstFiles` and optional `zeroCoverageFiles`. Cache-based helpers: `projectAggregateFromCache`, `pathAggregateFromCache` (used by MCP when a valid cache exists).
 - **`src/coverage-cache.ts`** — Coverage cache for path/project tools: `writeCoverageCache`, `readCoverageCache`, `deleteCoverageCache`, `buildCoverageCachePayload`. Cache file: `{workspaceRoot}/.eyecov/coverage-cache.json` (per-file entries + pre-aggregated project totals).
@@ -96,7 +101,7 @@ Coordinates lookup for one source file. **Current:** Takes `workspaceRoots` and 
 
 ### `CoverageAdapter`
 
-Represents one coverage source format. **Current:** Single method `getCoverage(filePath, workspaceRoots)` returning `CoverageRecord | null`. Each adapter is format-specific (PHPUnit HTML, LCOV); paths come from config or defaults.
+Represents one coverage source format. **Current:** Single method `getCoverage(filePath, workspaceRoots)` returning `CoverageRecord | null`. Each adapter is format-specific; paths come from config or defaults.
 
 **Suggested future shape** (if adding freshness and two-phase lookup):
 
@@ -138,6 +143,26 @@ Rules: keep `findCoverageForFile` cheap; do heavy parsing in `read` after freshn
 ### `LcovAdapter` (implemented)
 
 **Location:** `src/coverage-formats/lcov/`. Default path `coverage/lcov.info`; overridden by config (`type: "lcov"`, `path`). Reads single lcov.info per workspace root; finds matching `SF:` record for the source path; returns `CoverageRecord`. Used for Vitest and other LCOV producers.
+
+### `IstanbulJsonAdapter` (implemented)
+
+**Location:** `src/coverage-formats/istanbul-json/`. Default path `coverage/coverage-final.json`; overridden by config (`type: "istanbul-json"`, `path`). Reads one Istanbul/NYC JSON artifact per workspace root; maps statement coverage to per-line covered/uncovered state; returns `CoverageRecord`. No covering-test data.
+
+### `JacocoAdapter` (implemented)
+
+**Location:** `src/coverage-formats/jacoco/`. Default paths `target/site/jacoco/jacoco.xml` and `build/reports/jacoco/test/jacocoTestReport.xml`; overridden by config (`type: "jacoco"`, `path`). Reads one JaCoCo XML artifact per workspace root; resolves `package/sourcefile` paths under the workspace root; returns `CoverageRecord`. No covering-test data.
+
+### `GoCoverprofileAdapter` (implemented)
+
+**Location:** `src/coverage-formats/go-coverprofile/`. Default path `coverage.out`; overridden by config (`type: "go-coverprofile"`, `path`). Reads one Go coverprofile per workspace root; expands line ranges to per-line covered/uncovered state; returns `CoverageRecord`. No covering-test data.
+
+### `CoveragePyJsonAdapter` (implemented)
+
+**Location:** `src/coverage-formats/coveragepy-json/`. Default path `coverage.json`; overridden by config (`type: "coveragepy-json"`, `path`). Reads one coverage.py JSON artifact per workspace root; uses `executed_lines` and `missing_lines` for per-line state; returns `CoverageRecord`. No covering-test data.
+
+### `OpenCoverAdapter` (implemented)
+
+**Location:** `src/coverage-formats/opencover/`. Configured via `type: "opencover"`, `path`. Reads one OpenCover XML artifact per workspace root; resolves files from the report file table and sequence points; returns `CoverageRecord`. No covering-test data.
 
 ### Machine-readable coverage XML family
 

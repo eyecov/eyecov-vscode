@@ -93,8 +93,16 @@ describe("verifyLoadedArtifact", () => {
 
     // With drift: reportTotals says 4 executable, EyeCov sees 2 → warn
     const withDrift = createLoadedArtifact("cobertura", {
-      reportTotals: { coveredLines: 1, executableLines: 4, aggregateCoveragePercent: 25 },
-      derivedTotals: { coveredLines: 1, executableLines: 2, aggregateCoveragePercent: 50 },
+      reportTotals: {
+        coveredLines: 1,
+        executableLines: 4,
+        aggregateCoveragePercent: 25,
+      },
+      derivedTotals: {
+        coveredLines: 1,
+        executableLines: 2,
+        aggregateCoveragePercent: 50,
+      },
     });
     const withDriftAgg = aggregateReportRecords(withDrift.records, 10);
     expect(verifyLoadedArtifact(withDrift, withDriftAgg).warning).toMatch(
@@ -104,8 +112,16 @@ describe("verifyLoadedArtifact", () => {
 
   it("does not suppress real Cobertura mismatches when aggregate totals drift from parser-derived totals", () => {
     const loaded = createLoadedArtifact("cobertura", {
-      reportTotals: { coveredLines: 1, executableLines: 4, aggregateCoveragePercent: 25 },
-      derivedTotals: { coveredLines: 1, executableLines: 4, aggregateCoveragePercent: 25 },
+      reportTotals: {
+        coveredLines: 1,
+        executableLines: 4,
+        aggregateCoveragePercent: 25,
+      },
+      derivedTotals: {
+        coveredLines: 1,
+        executableLines: 4,
+        aggregateCoveragePercent: 25,
+      },
     });
     const aggregated = aggregateReportRecords(loaded.records, 10);
 

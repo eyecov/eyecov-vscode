@@ -129,7 +129,6 @@ export async function runReportCli(
       );
       return 3;
     }
-
   } catch (error) {
     stderr.write(
       `${error instanceof Error ? error.message : "Invalid CLI arguments"}\n`,
@@ -162,9 +161,7 @@ export async function runReportCli(
       typeof parsed.values["workspace-root"] === "string"
         ? parsed.values["workspace-root"]
         : process.cwd();
-    const workspaceRoot = path.resolve(
-      workspaceRootValue,
-    );
+    const workspaceRoot = path.resolve(workspaceRootValue);
     const formatValue =
       typeof parsed.values.format === "string" ? parsed.values.format : "";
     const detectedFormat =

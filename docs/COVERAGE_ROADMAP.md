@@ -38,7 +38,6 @@ Rough priority order, highest first:
 
 ## Maybe
 
-- Crap4J support
 - Python coverage.py XML as an explicit adapter: lower priority because coverage.py XML may already be usable through the Cobertura XML adapter. Users can try `coverage xml -o coverage/cobertura-coverage.xml` and configure `{ "type": "cobertura", "path": "coverage/cobertura-coverage.xml" }`.
 - semantic coverage analysis
 - stale coverage detection (`staleCoverageFiles` field exists in MCP responses and cache schema but is always `0`; implement or remove as a breaking API change)

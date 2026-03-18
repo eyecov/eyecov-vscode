@@ -3,12 +3,17 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import {
+  CoveragePyJsonAdapter,
   CoverageResolver,
   CoverageAdapter,
   CoberturaAdapter,
   CloverAdapter,
   PhpUnitHtmlAdapter,
+  GoCoverprofileAdapter,
+  IstanbulJsonAdapter,
+  JacocoAdapter,
   LcovAdapter,
+  OpenCoverAdapter,
   FixtureAdapter,
   createAdaptersFromConfig,
 } from "./coverage-resolver";
@@ -176,11 +181,16 @@ describe("CoverageResolver", () => {
 
   it("createAdaptersFromConfig returns adapters in config order", () => {
     const adapters = createAdaptersFromConfig(DEFAULT_CONFIG);
-    expect(adapters).toHaveLength(4);
+    expect(adapters).toHaveLength(9);
     expect(adapters[0]).toBeInstanceOf(PhpUnitHtmlAdapter);
     expect(adapters[1]).toBeInstanceOf(CoberturaAdapter);
     expect(adapters[2]).toBeInstanceOf(CloverAdapter);
     expect(adapters[3]).toBeInstanceOf(LcovAdapter);
+    expect(adapters[4]).toBeInstanceOf(IstanbulJsonAdapter);
+    expect(adapters[5]).toBeInstanceOf(JacocoAdapter);
+    expect(adapters[6]).toBeInstanceOf(JacocoAdapter);
+    expect(adapters[7]).toBeInstanceOf(GoCoverprofileAdapter);
+    expect(adapters[8]).toBeInstanceOf(CoveragePyJsonAdapter);
   });
 
   it("createAdaptersFromConfig with only lcov returns single adapter", () => {
@@ -189,6 +199,15 @@ describe("CoverageResolver", () => {
     });
     expect(adapters).toHaveLength(1);
     expect(adapters[0]).toBeInstanceOf(LcovAdapter);
+  });
+
+  it("createAdaptersFromConfig supports explicit opencover entries", () => {
+    const adapters = createAdaptersFromConfig({
+      formats: [{ type: "opencover", path: "TestResults/coverage.xml" }],
+    });
+
+    expect(adapters).toHaveLength(1);
+    expect(adapters[0]).toBeInstanceOf(OpenCoverAdapter);
   });
 
   it("createAdaptersFromConfig passes sourceSegment so resolver finds files under src/", async () => {

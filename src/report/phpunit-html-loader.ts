@@ -20,9 +20,13 @@ export async function loadPhpUnitHtmlArtifact(
   });
 
   for (const sourcePath of sourcePaths) {
-    const coverageHtmlPath = resolveCoverageHtmlPath(sourcePath, [workspaceRoot], {
-      coverageHtmlDir,
-    });
+    const coverageHtmlPath = resolveCoverageHtmlPath(
+      sourcePath,
+      [workspaceRoot],
+      {
+        coverageHtmlDir,
+      },
+    );
     if (!coverageHtmlPath) {
       warnings.push(
         `Skipped unresolved PHPUnit HTML source path: ${sourcePath}`,

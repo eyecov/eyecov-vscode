@@ -137,7 +137,9 @@ describe("loadCoverageArtifact", () => {
 
   it("loads PHPUnit HTML records from a coverage directory", async () => {
     const workspaceRoot = createWorkspace();
-    fs.mkdirSync(path.join(workspaceRoot, "app", "Domain"), { recursive: true });
+    fs.mkdirSync(path.join(workspaceRoot, "app", "Domain"), {
+      recursive: true,
+    });
     fs.mkdirSync(path.join(workspaceRoot, "coverage-html", "Domain"), {
       recursive: true,
     });
@@ -161,6 +163,167 @@ describe("loadCoverageArtifact", () => {
     expect(result.reportTotals).toBeNull();
     expect(result.derivedTotals).toBeNull();
     expect(result.hasUnresolvedEntries).toBe(false);
+  });
+
+  it("loads go coverprofile records and uses parsed totals", async () => {
+    const workspaceRoot = createWorkspace();
+    fs.mkdirSync(path.join(workspaceRoot, "src"), { recursive: true });
+    fs.writeFileSync(
+      path.join(workspaceRoot, "src", "foo.go"),
+      "package foo\n",
+    );
+    fs.writeFileSync(
+      path.join(workspaceRoot, "coverage.out"),
+      ["mode: set", "src/foo.go:1.1,1.2 1 1", "src/foo.go:2.1,2.2 1 0"].join(
+        "\n",
+      ),
+    );
+
+    const result = await loadCoverageArtifact({
+      artifactPath: path.join(workspaceRoot, "coverage.out"),
+      format: "go-coverprofile",
+      workspaceRoot,
+    });
+
+    expect(result.records).toHaveLength(1);
+    expect(result.reportTotals).toEqual({
+      coveredLines: 1,
+      executableLines: 2,
+      aggregateCoveragePercent: 50,
+    });
+  });
+
+  it("loads coverage.py JSON records and exposes top-level totals", async () => {
+    const workspaceRoot = createWorkspace();
+    fs.mkdirSync(path.join(workspaceRoot, "src"), { recursive: true });
+    fs.writeFileSync(path.join(workspaceRoot, "src", "foo.py"), "pass\n");
+    fs.writeFileSync(
+      path.join(workspaceRoot, "coverage.json"),
+      JSON.stringify({
+        meta: { version: "7.0" },
+        files: {
+          "src/foo.py": {
+            executed_lines: [1],
+            missing_lines: [2],
+          },
+        },
+        totals: {
+          covered_lines: 1,
+          num_statements: 2,
+          percent_covered: 50,
+        },
+      }),
+    );
+
+    const result = await loadCoverageArtifact({
+      artifactPath: path.join(workspaceRoot, "coverage.json"),
+      format: "coveragepy-json",
+      workspaceRoot,
+    });
+
+    expect(result.records).toHaveLength(1);
+    expect(result.reportTotals).toEqual({
+      coveredLines: 1,
+      executableLines: 2,
+      aggregateCoveragePercent: 50,
+    });
+  });
+
+  it("loads Istanbul JSON records and leaves report totals unsupported", async () => {
+    const workspaceRoot = createWorkspace();
+    fs.mkdirSync(path.join(workspaceRoot, "src"), { recursive: true });
+    fs.writeFileSync(path.join(workspaceRoot, "src", "foo.ts"), "export {};\n");
+    fs.writeFileSync(
+      path.join(workspaceRoot, "coverage-final.json"),
+      JSON.stringify({
+        "src/foo.ts": {
+          path: "src/foo.ts",
+          statementMap: {
+            "0": { start: { line: 1 } },
+            "1": { start: { line: 2 } },
+          },
+          s: { "0": 1, "1": 0 },
+        },
+      }),
+    );
+
+    const result = await loadCoverageArtifact({
+      artifactPath: path.join(workspaceRoot, "coverage-final.json"),
+      format: "istanbul-json",
+      workspaceRoot,
+    });
+
+    expect(result.records).toHaveLength(1);
+    expect(result.reportTotals).toBeNull();
+    expect(result.derivedTotals).toEqual({
+      coveredLines: 1,
+      executableLines: 2,
+      aggregateCoveragePercent: 50,
+    });
+  });
+
+  it("loads JaCoCo and OpenCover records", async () => {
+    const workspaceRoot = createWorkspace();
+    fs.mkdirSync(path.join(workspaceRoot, "src"), { recursive: true });
+    fs.writeFileSync(
+      path.join(workspaceRoot, "src", "Foo.java"),
+      "class Foo {}\n",
+    );
+    fs.writeFileSync(
+      path.join(workspaceRoot, "src", "Foo.cs"),
+      "class Foo {}\n",
+    );
+    fs.writeFileSync(
+      path.join(workspaceRoot, "jacoco.xml"),
+      [
+        '<report name="test">',
+        '<package name="src">',
+        '<sourcefile name="Foo.java">',
+        '<line nr="1" mi="0" ci="1"/>',
+        '<line nr="2" mi="1" ci="0"/>',
+        "</sourcefile>",
+        "</package>",
+        '<counter type="LINE" missed="1" covered="1"/>',
+        "</report>",
+      ].join(""),
+    );
+    fs.writeFileSync(
+      path.join(workspaceRoot, "opencover.xml"),
+      [
+        "<CoverageSession>",
+        '<Modules><Module><Files><File uid="1" fullPath="src/Foo.cs"/></Files>',
+        "<Classes><Class><Methods><Method><SequencePoints>",
+        '<SequencePoint vc="1" sl="1" fileid="1"/>',
+        '<SequencePoint vc="0" sl="2" fileid="1"/>',
+        "</SequencePoints></Method></Methods></Class></Classes>",
+        '<Summary visitedSequencePoints="1" numSequencePoints="2"/>',
+        "</Module></Modules>",
+        '<Summary visitedSequencePoints="1" numSequencePoints="2"/>',
+        "</CoverageSession>",
+      ].join(""),
+    );
+    const jacoco = await loadCoverageArtifact({
+      artifactPath: path.join(workspaceRoot, "jacoco.xml"),
+      format: "jacoco",
+      workspaceRoot,
+    });
+    const opencover = await loadCoverageArtifact({
+      artifactPath: path.join(workspaceRoot, "opencover.xml"),
+      format: "opencover",
+      workspaceRoot,
+    });
+    expect(jacoco.records).toHaveLength(1);
+    expect(jacoco.reportTotals).toEqual({
+      coveredLines: 1,
+      executableLines: 2,
+      aggregateCoveragePercent: 50,
+    });
+    expect(opencover.records).toHaveLength(1);
+    expect(opencover.reportTotals).toEqual({
+      coveredLines: 1,
+      executableLines: 2,
+      aggregateCoveragePercent: 50,
+    });
   });
 
   it("emits warnings for stale and unresolved files without dropping stale records", async () => {

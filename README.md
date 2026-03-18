@@ -99,6 +99,11 @@ Currently supported (resolved in order):
 - **Cobertura XML** — default path `coverage/cobertura-coverage.xml`
 - **Clover XML** — default path `coverage/clover.xml`
 - **LCOV** — default path `coverage/lcov.info`
+- **Istanbul/NYC JSON** — default path `coverage/coverage-final.json`
+- **JaCoCo XML** — default paths `target/site/jacoco/jacoco.xml`, `build/reports/jacoco/test/jacocoTestReport.xml`
+- **Go coverprofile** — default path `coverage.out`
+- **coverage.py JSON** — default path `coverage.json`
+- **OpenCover XML** — supported via config
 
 Example generators:
 
@@ -116,6 +121,18 @@ phpunit --coverage-clover coverage/clover.xml
 
 ```bash
 vitest run --coverage
+```
+
+```bash
+nyc --reporter=json npm test
+```
+
+```bash
+go test -coverprofile=coverage.out ./...
+```
+
+```bash
+coverage json
 ```
 
 Use an optional [config file](#configuration-file-optional) to set formats and paths.
@@ -169,7 +186,16 @@ Put `.eyecov.json` or `eyecov.json` in your workspace root:
     { "type": "phpunit-html", "path": "coverage-html" },
     { "type": "cobertura", "path": "coverage/cobertura-coverage.xml" },
     { "type": "clover", "path": "coverage/clover.xml" },
-    { "type": "lcov", "path": "coverage/lcov.info" }
+    { "type": "lcov", "path": "coverage/lcov.info" },
+    { "type": "istanbul-json", "path": "coverage/coverage-final.json" },
+    { "type": "jacoco", "path": "target/site/jacoco/jacoco.xml" },
+    {
+      "type": "jacoco",
+      "path": "build/reports/jacoco/test/jacocoTestReport.xml"
+    },
+    { "type": "go-coverprofile", "path": "coverage.out" },
+    { "type": "coveragepy-json", "path": "coverage.json" },
+    { "type": "opencover", "path": "TestResults/coverage.xml" }
   ]
 }
 ```
@@ -204,7 +230,7 @@ Formats are tried in order; the first with coverage for the file is used. Paths 
 ## Requirements
 
 - **VS Code 1.105.0+** or a compatible editor (Cursor, Antigravity)
-- Coverage from at least one supported format in the workspace (PHPUnit HTML folder, Cobertura XML, Clover XML, or LCOV file)
+- Coverage from at least one supported format in the workspace
 - **Node.js 22+** for building and development (see [.nvmrc](.nvmrc))
 
 ---

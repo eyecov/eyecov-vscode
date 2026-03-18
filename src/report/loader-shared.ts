@@ -3,12 +3,20 @@ import path from "node:path";
 import type { CoverageFormatType } from "../coverage-config";
 import { isCoverageStale } from "../coverage-staleness";
 import type { CoverageRecord } from "../coverage-resolver";
+import { parseCoveragePyJson } from "../coverage-formats/coveragepy-json";
 import {
   parseCoberturaXml,
   type CoberturaParseResult,
 } from "../coverage-formats/cobertura";
 import { parseCloverCoverage } from "../coverage-formats/clover";
+import { parseGoCoverprofile } from "../coverage-formats/go-coverprofile";
+import {
+  istanbulJsonTotals,
+  parseIstanbulJson,
+} from "../coverage-formats/istanbul-json";
+import { parseJaCoCoXml } from "../coverage-formats/jacoco";
 import { parseLcov } from "../coverage-formats/lcov";
+import { parseOpenCoverXml } from "../coverage-formats/opencover";
 import {
   lineCoveragePercent,
   resolveCoverageSourcePath,
@@ -115,7 +123,9 @@ export async function loadSharedArtifact(
     for (const entry of parsed) {
       const resolved = resolveSharedSourcePath(workspaceRoot, entry.sourceFile);
       if (!resolved) {
-        warnings.push(`Skipped unresolved LCOV source path: ${entry.sourceFile}`);
+        warnings.push(
+          `Skipped unresolved LCOV source path: ${entry.sourceFile}`,
+        );
         hasUnresolvedEntries = true;
         continue;
       }
@@ -140,6 +150,206 @@ export async function loadSharedArtifact(
       warnings,
       reportTotals: buildTotalsFromRecords(parsed),
       derivedTotals: buildTotalsFromRecords(parsed),
+      hasUnresolvedEntries,
+    };
+  }
+
+  if (format === "go-coverprofile") {
+    const warnings: string[] = [];
+    const records: CoverageRecord[] = [];
+    const parsed = parseGoCoverprofile(fs.readFileSync(artifactPath, "utf8"));
+    let hasUnresolvedEntries = false;
+
+    for (const entry of parsed.files) {
+      const resolved = resolveSharedSourcePath(workspaceRoot, entry.sourcePath);
+      if (!resolved) {
+        warnings.push(
+          `Skipped unresolved go-coverprofile source path: ${entry.sourcePath}`,
+        );
+        hasUnresolvedEntries = true;
+        continue;
+      }
+      if (isCoverageStale(resolved, artifactPath)) {
+        warnings.push(`Included stale go-coverprofile record for ${resolved}`);
+      }
+      records.push(
+        createCoverageRecord(
+          resolved,
+          entry.coveredLines,
+          entry.uncoveredLines,
+          "go-coverprofile",
+        ),
+      );
+    }
+
+    return {
+      format,
+      artifactPath,
+      workspaceRoot,
+      records,
+      warnings,
+      reportTotals: parsed.totals,
+      derivedTotals: parsed.totals,
+      hasUnresolvedEntries,
+    };
+  }
+
+  if (format === "coveragepy-json") {
+    const warnings: string[] = [];
+    const records: CoverageRecord[] = [];
+    const parsed = parseCoveragePyJson(fs.readFileSync(artifactPath, "utf8"));
+    let hasUnresolvedEntries = false;
+
+    for (const entry of parsed.files) {
+      const resolved = resolveSharedSourcePath(workspaceRoot, entry.sourcePath);
+      if (!resolved) {
+        warnings.push(
+          `Skipped unresolved coverage.py JSON source path: ${entry.sourcePath}`,
+        );
+        hasUnresolvedEntries = true;
+        continue;
+      }
+      if (isCoverageStale(resolved, artifactPath)) {
+        warnings.push(`Included stale coverage.py JSON record for ${resolved}`);
+      }
+      records.push(
+        createCoverageRecord(
+          resolved,
+          entry.coveredLines,
+          entry.uncoveredLines,
+          "coveragepy-json",
+        ),
+      );
+    }
+
+    return {
+      format,
+      artifactPath,
+      workspaceRoot,
+      records,
+      warnings,
+      reportTotals: toMetadataOrNull(parsed.totals),
+      derivedTotals: buildTotalsFromRecords(parsed.files),
+      hasUnresolvedEntries,
+    };
+  }
+
+  if (format === "istanbul-json") {
+    const warnings: string[] = [];
+    const records: CoverageRecord[] = [];
+    const parsed = parseIstanbulJson(fs.readFileSync(artifactPath, "utf8"));
+    let hasUnresolvedEntries = false;
+
+    for (const entry of parsed.files) {
+      const resolved = resolveSharedSourcePath(workspaceRoot, entry.sourcePath);
+      if (!resolved) {
+        warnings.push(
+          `Skipped unresolved Istanbul JSON source path: ${entry.sourcePath}`,
+        );
+        hasUnresolvedEntries = true;
+        continue;
+      }
+      if (isCoverageStale(resolved, artifactPath)) {
+        warnings.push(`Included stale Istanbul JSON record for ${resolved}`);
+      }
+      records.push(
+        createCoverageRecord(
+          resolved,
+          entry.coveredLines,
+          entry.uncoveredLines,
+          "istanbul-json",
+        ),
+      );
+    }
+
+    return {
+      format,
+      artifactPath,
+      workspaceRoot,
+      records,
+      warnings,
+      reportTotals: null,
+      derivedTotals: istanbulJsonTotals(parsed),
+      hasUnresolvedEntries,
+    };
+  }
+
+  if (format === "jacoco") {
+    const warnings: string[] = [];
+    const records: CoverageRecord[] = [];
+    const parsed = parseJaCoCoXml(fs.readFileSync(artifactPath, "utf8"));
+    let hasUnresolvedEntries = false;
+
+    for (const entry of parsed.files) {
+      const resolved = resolveSharedSourcePath(workspaceRoot, entry.sourcePath);
+      if (!resolved) {
+        warnings.push(
+          `Skipped unresolved JaCoCo source path: ${entry.sourcePath}`,
+        );
+        hasUnresolvedEntries = true;
+        continue;
+      }
+      if (isCoverageStale(resolved, artifactPath)) {
+        warnings.push(`Included stale JaCoCo record for ${resolved}`);
+      }
+      records.push(
+        createCoverageRecord(
+          resolved,
+          entry.coveredLines,
+          entry.uncoveredLines,
+          "jacoco",
+        ),
+      );
+    }
+
+    return {
+      format,
+      artifactPath,
+      workspaceRoot,
+      records,
+      warnings,
+      reportTotals: toMetadataOrNull(parsed.totals),
+      derivedTotals: buildTotalsFromRecords(parsed.files),
+      hasUnresolvedEntries,
+    };
+  }
+
+  if (format === "opencover") {
+    const warnings: string[] = [];
+    const records: CoverageRecord[] = [];
+    const parsed = parseOpenCoverXml(fs.readFileSync(artifactPath, "utf8"));
+    let hasUnresolvedEntries = false;
+
+    for (const entry of parsed.files) {
+      const resolved = resolveSharedSourcePath(workspaceRoot, entry.sourcePath);
+      if (!resolved) {
+        warnings.push(
+          `Skipped unresolved OpenCover source path: ${entry.sourcePath}`,
+        );
+        hasUnresolvedEntries = true;
+        continue;
+      }
+      if (isCoverageStale(resolved, artifactPath)) {
+        warnings.push(`Included stale OpenCover record for ${resolved}`);
+      }
+      records.push(
+        createCoverageRecord(
+          resolved,
+          entry.coveredLines,
+          entry.uncoveredLines,
+          "opencover",
+        ),
+      );
+    }
+
+    return {
+      format,
+      artifactPath,
+      workspaceRoot,
+      records,
+      warnings,
+      reportTotals: toMetadataOrNull(parsed.totals),
+      derivedTotals: buildTotalsFromRecords(parsed.files),
       hasUnresolvedEntries,
     };
   }
@@ -198,7 +408,9 @@ export async function loadSharedArtifact(
   for (const entry of parsed.files) {
     const resolved = resolveSharedSourcePath(workspaceRoot, entry.sourcePath);
     if (!resolved) {
-      warnings.push(`Skipped unresolved Clover source path: ${entry.sourcePath}`);
+      warnings.push(
+        `Skipped unresolved Clover source path: ${entry.sourcePath}`,
+      );
       hasUnresolvedEntries = true;
       continue;
     }

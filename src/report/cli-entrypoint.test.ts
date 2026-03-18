@@ -12,9 +12,10 @@ function createTempDir(): string {
   return dir;
 }
 
-function createWriter(
-  isTTY = false,
-): { stream: { isTTY: boolean; write: (chunk: string) => boolean }; read(): string } {
+function createWriter(isTTY = false): {
+  stream: { isTTY: boolean; write: (chunk: string) => boolean };
+  read(): string;
+} {
   let output = "";
   return {
     stream: {
@@ -50,6 +51,27 @@ describe("runReportCli", () => {
 
     expect(exitCode).toBe(3);
     expect(stderr.read()).toContain("Missing required --path");
+  });
+
+  it("accepts the newly supported --format values", async () => {
+    const tempDir = createTempDir();
+    const artifactPath = path.join(tempDir, "coverage.json");
+    fs.writeFileSync(artifactPath, "{}");
+    const stdout = createWriter();
+    const stderr = createWriter();
+
+    const exitCode = await runReportCli({
+      args: ["--path", artifactPath, "--format", "istanbul-json"],
+      stdout: stdout.stream,
+      stderr: stderr.stream,
+      loadCoverageArtifactImpl: async () => {
+        throw new Error("not found");
+      },
+      detectCoverageFormatImpl: () => "istanbul-json",
+    });
+
+    expect(exitCode).toBe(1);
+    expect(stderr.read()).not.toContain("Invalid --format");
   });
 
   it("loads an artifact and prints JSON output", async () => {

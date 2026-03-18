@@ -28,7 +28,7 @@ describe("readPhpUnitHtmlSummary", () => {
       path.join(coverageDir, "index.html"),
       [
         "<table>",
-        "<tr><td>Total</td><td>8 / 10</td><td><div aria-valuenow=\"80\"></div></td></tr>",
+        '<tr><td>Total</td><td>8 / 10</td><td><div aria-valuenow="80"></div></td></tr>',
         "</table>",
       ].join(""),
     );
@@ -99,6 +99,8 @@ describe("readPhpUnitHtmlSummary", () => {
     fs.writeFileSync(path.join(coverageDir, "index.html"), "<html></html>");
 
     expect(readPhpUnitHtmlSummary(coverageDir)).toBeNull();
-    expect(readPhpUnitHtmlSummary(path.join(coverageDir, "missing"))).toBeNull();
+    expect(
+      readPhpUnitHtmlSummary(path.join(coverageDir, "missing")),
+    ).toBeNull();
   });
 });

@@ -31,6 +31,8 @@ node out/report.js --path coverage/lcov.info
 node out/report.js --path coverage/cobertura-coverage.xml --verify-report-totals
 node out/report.js --path coverage/clover.xml --json
 node out/report.js --path coverage-html --verify-report-totals
+node out/report.js --path coverage/coverage-final.json --format istanbul-json
+node out/report.js --path target/site/jacoco/jacoco.xml --verify-report-totals
 ```
 
 You can also use the package scripts:
@@ -46,7 +48,7 @@ npm run report:verify -- --path coverage/lcov.info
 - `--path <artifact>`
   - Required.
   - Path to one coverage artifact file or one PHPUnit HTML directory.
-- `--format <auto|phpunit-html|cobertura|clover|lcov>`
+- `--format <auto|phpunit-html|cobertura|clover|lcov|istanbul-json|jacoco|go-coverprofile|coveragepy-json|opencover>`
   - Optional.
   - Default: `auto`.
   - `auto` detects the format from the path and file contents.
@@ -73,6 +75,11 @@ npm run report:verify -- --path coverage/lcov.info
 - `cobertura`
 - `clover`
 - `lcov`
+- `istanbul-json`
+- `jacoco`
+- `go-coverprofile`
+- `coveragepy-json`
+- `opencover`
 
 ## Verification Behavior
 
@@ -109,6 +116,27 @@ unsupported instead of failing.
 ### `lcov`
 
 - Verification uses totals derived from parsed `DA:` records.
+
+### `istanbul-json`
+
+- Loads `coverage-final.json` style artifacts into normalized per-file line coverage.
+- Verification is currently unsupported because the JSON artifact does not expose stable aggregate report totals in the same way as the summary-oriented formats.
+
+### `jacoco`
+
+- Verification uses the report-level `LINE` counter (`missed`, `covered`).
+
+### `go-coverprofile`
+
+- Verification uses totals derived from parsed coverprofile line ranges.
+
+### `coveragepy-json`
+
+- Verification uses top-level JSON totals when present.
+
+### `opencover`
+
+- Verification uses report summary sequence-point totals when present.
 
 ### Unresolved Paths
 

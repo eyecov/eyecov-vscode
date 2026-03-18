@@ -8,8 +8,13 @@ import path from "node:path";
 import type { CoverageConfig } from "./coverage-config";
 import type { CoverageCacheWritten } from "./coverage-cache";
 import type { CoverageRecord } from "./coverage-resolver";
+import { listCoveragePyJsonSourcePaths } from "./coverage-formats/coveragepy-json";
 import { listCoberturaSourcePaths } from "./coverage-formats/cobertura";
 import { listCloverSourcePaths } from "./coverage-formats/clover";
+import { listGoCoverprofileSourcePaths } from "./coverage-formats/go-coverprofile";
+import { listIstanbulJsonSourcePaths } from "./coverage-formats/istanbul-json";
+import { listJacocoSourcePaths } from "./coverage-formats/jacoco";
+import { listOpenCoverSourcePaths } from "./coverage-formats/opencover";
 import { listCoverageHtmlSourcePaths } from "./coverage-formats/phpunit-html";
 import { listLcovSourcePaths } from "./coverage-formats/lcov";
 
@@ -166,7 +171,27 @@ export function listCoveredPaths(options: ListCoveredPathsOptions): string[] {
             ? listCloverSourcePaths(workspaceRoots, { path: entry.path })
             : entry.type === "lcov"
               ? listLcovSourcePaths(workspaceRoots, { path: entry.path })
-              : [];
+              : entry.type === "istanbul-json"
+                ? listIstanbulJsonSourcePaths(workspaceRoots, {
+                    path: entry.path,
+                  })
+                : entry.type === "go-coverprofile"
+                  ? listGoCoverprofileSourcePaths(workspaceRoots, {
+                      path: entry.path,
+                    })
+                  : entry.type === "coveragepy-json"
+                    ? listCoveragePyJsonSourcePaths(workspaceRoots, {
+                        path: entry.path,
+                      })
+                    : entry.type === "jacoco"
+                      ? listJacocoSourcePaths(workspaceRoots, {
+                          path: entry.path,
+                        })
+                      : entry.type === "opencover"
+                        ? listOpenCoverSourcePaths(workspaceRoots, {
+                            path: entry.path,
+                          })
+                        : [];
     for (const p of paths) {
       const resolved = path.resolve(p);
       seen.add(resolved);
@@ -210,7 +235,27 @@ export function listCoveredPathsFromFirstFormat(
             ? listCloverSourcePaths(workspaceRoots, { path: entry.path })
             : entry.type === "lcov"
               ? listLcovSourcePaths(workspaceRoots, { path: entry.path })
-              : [];
+              : entry.type === "istanbul-json"
+                ? listIstanbulJsonSourcePaths(workspaceRoots, {
+                    path: entry.path,
+                  })
+                : entry.type === "go-coverprofile"
+                  ? listGoCoverprofileSourcePaths(workspaceRoots, {
+                      path: entry.path,
+                    })
+                  : entry.type === "coveragepy-json"
+                    ? listCoveragePyJsonSourcePaths(workspaceRoots, {
+                        path: entry.path,
+                      })
+                    : entry.type === "jacoco"
+                      ? listJacocoSourcePaths(workspaceRoots, {
+                          path: entry.path,
+                        })
+                      : entry.type === "opencover"
+                        ? listOpenCoverSourcePaths(workspaceRoots, {
+                            path: entry.path,
+                          })
+                        : [];
     if (paths.length > 0) {
       return { paths: [...paths].sort(), formatType: entry.type };
     }

@@ -12,6 +12,11 @@ export const SUPPORTED_FORMAT_TYPES = [
   "cobertura",
   "clover",
   "lcov",
+  "istanbul-json",
+  "jacoco",
+  "go-coverprofile",
+  "coveragepy-json",
+  "opencover",
 ] as const;
 export type CoverageFormatType = (typeof SUPPORTED_FORMAT_TYPES)[number];
 
@@ -43,6 +48,11 @@ export const DEFAULT_CONFIG: CoverageConfig = {
     { type: "cobertura", path: "coverage/cobertura-coverage.xml" },
     { type: "clover", path: "coverage/clover.xml" },
     { type: "lcov", path: "coverage/lcov.info" },
+    { type: "istanbul-json", path: "coverage/coverage-final.json" },
+    { type: "jacoco", path: "target/site/jacoco/jacoco.xml" },
+    { type: "jacoco", path: "build/reports/jacoco/test/jacocoTestReport.xml" },
+    { type: "go-coverprofile", path: "coverage.out" },
+    { type: "coveragepy-json", path: "coverage.json" },
   ],
 };
 

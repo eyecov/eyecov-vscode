@@ -27,8 +27,8 @@ describe("coverage-config", () => {
   });
 
   describe("DEFAULT_CONFIG", () => {
-    it("has phpunit-html, cobertura, clover, then lcov with default paths", () => {
-      expect(DEFAULT_CONFIG.formats).toHaveLength(4);
+    it("has existing defaults first, then prioritized new default paths", () => {
+      expect(DEFAULT_CONFIG.formats).toHaveLength(9);
       expect(DEFAULT_CONFIG.formats[0]).toEqual({
         type: "phpunit-html",
         path: "coverage-html",
@@ -44,6 +44,26 @@ describe("coverage-config", () => {
       expect(DEFAULT_CONFIG.formats[3]).toEqual({
         type: "lcov",
         path: "coverage/lcov.info",
+      });
+      expect(DEFAULT_CONFIG.formats[4]).toEqual({
+        type: "istanbul-json",
+        path: "coverage/coverage-final.json",
+      });
+      expect(DEFAULT_CONFIG.formats[5]).toEqual({
+        type: "jacoco",
+        path: "target/site/jacoco/jacoco.xml",
+      });
+      expect(DEFAULT_CONFIG.formats[6]).toEqual({
+        type: "jacoco",
+        path: "build/reports/jacoco/test/jacocoTestReport.xml",
+      });
+      expect(DEFAULT_CONFIG.formats[7]).toEqual({
+        type: "go-coverprofile",
+        path: "coverage.out",
+      });
+      expect(DEFAULT_CONFIG.formats[8]).toEqual({
+        type: "coveragepy-json",
+        path: "coverage.json",
       });
     });
   });
@@ -198,6 +218,31 @@ describe("coverage-config", () => {
       const config = loadCoverageConfig(workspaceRoot);
       expect(config.formats).toEqual(DEFAULT_CONFIG.formats);
     });
+
+    it("loads the new supported format types from config", () => {
+      fs.writeFileSync(
+        path.join(workspaceRoot, ".eyecov.json"),
+        JSON.stringify({
+          formats: [
+            { type: "istanbul-json", path: "coverage/coverage-final.json" },
+            { type: "jacoco", path: "target/site/jacoco/jacoco.xml" },
+            { type: "go-coverprofile", path: "coverage.out" },
+            { type: "coveragepy-json", path: "coverage.json" },
+            { type: "opencover", path: "TestResults/coverage.xml" },
+          ],
+        }),
+      );
+
+      const config = loadCoverageConfig(workspaceRoot);
+
+      expect(config.formats.map((entry) => entry.type)).toEqual([
+        "istanbul-json",
+        "jacoco",
+        "go-coverprofile",
+        "coveragepy-json",
+        "opencover",
+      ]);
+    });
   });
 
   describe("getPhpUnitHtmlDir", () => {
@@ -264,11 +309,23 @@ describe("coverage-config", () => {
       const config: CoverageConfig = DEFAULT_CONFIG;
       const roots = [workspaceRoot];
       const paths = getCoverageArtifactPathsToWatch(config, roots);
-      expect(paths).toHaveLength(3);
+      expect(paths).toHaveLength(8);
       expect(paths).toEqual([
         path.join(workspaceRoot, "coverage", "cobertura-coverage.xml"),
         path.join(workspaceRoot, "coverage", "clover.xml"),
         path.join(workspaceRoot, "coverage", "lcov.info"),
+        path.join(workspaceRoot, "coverage", "coverage-final.json"),
+        path.join(workspaceRoot, "target", "site", "jacoco", "jacoco.xml"),
+        path.join(
+          workspaceRoot,
+          "build",
+          "reports",
+          "jacoco",
+          "test",
+          "jacocoTestReport.xml",
+        ),
+        path.join(workspaceRoot, "coverage.out"),
+        path.join(workspaceRoot, "coverage.json"),
       ]);
     });
 
@@ -298,14 +355,38 @@ describe("coverage-config", () => {
         workspaceRoot,
         root2,
       ]);
-      expect(paths).toHaveLength(6);
+      expect(paths).toHaveLength(16);
       expect(paths).toEqual([
         path.join(workspaceRoot, "coverage", "cobertura-coverage.xml"),
         path.join(workspaceRoot, "coverage", "clover.xml"),
         path.join(workspaceRoot, "coverage", "lcov.info"),
+        path.join(workspaceRoot, "coverage", "coverage-final.json"),
+        path.join(workspaceRoot, "target", "site", "jacoco", "jacoco.xml"),
+        path.join(
+          workspaceRoot,
+          "build",
+          "reports",
+          "jacoco",
+          "test",
+          "jacocoTestReport.xml",
+        ),
+        path.join(workspaceRoot, "coverage.out"),
+        path.join(workspaceRoot, "coverage.json"),
         path.join(root2, "coverage", "cobertura-coverage.xml"),
         path.join(root2, "coverage", "clover.xml"),
         path.join(root2, "coverage", "lcov.info"),
+        path.join(root2, "coverage", "coverage-final.json"),
+        path.join(root2, "target", "site", "jacoco", "jacoco.xml"),
+        path.join(
+          root2,
+          "build",
+          "reports",
+          "jacoco",
+          "test",
+          "jacocoTestReport.xml",
+        ),
+        path.join(root2, "coverage.out"),
+        path.join(root2, "coverage.json"),
       ]);
     });
 

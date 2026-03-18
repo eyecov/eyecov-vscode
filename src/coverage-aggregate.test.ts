@@ -233,6 +233,91 @@ describe("coverage-aggregate", () => {
       ).toBe(true);
     });
 
+    it("discovers files from the newly supported configured formats", () => {
+      fs.mkdirSync(path.join(workspaceRoot, "src"), { recursive: true });
+      fs.writeFileSync(
+        path.join(workspaceRoot, "src", "foo.ts"),
+        "export {};\n",
+      );
+      fs.writeFileSync(
+        path.join(workspaceRoot, "src", "foo.go"),
+        "package foo\n",
+      );
+      fs.writeFileSync(path.join(workspaceRoot, "src", "foo.py"), "pass\n");
+      fs.writeFileSync(
+        path.join(workspaceRoot, "src", "Foo.java"),
+        "class Foo {}\n",
+      );
+      fs.writeFileSync(
+        path.join(workspaceRoot, "src", "Foo.cs"),
+        "class Foo {}\n",
+      );
+      fs.mkdirSync(path.join(workspaceRoot, "coverage"), { recursive: true });
+      fs.mkdirSync(path.join(workspaceRoot, "target", "site", "jacoco"), {
+        recursive: true,
+      });
+      fs.mkdirSync(path.join(workspaceRoot, "TestResults"), {
+        recursive: true,
+      });
+      fs.writeFileSync(
+        path.join(workspaceRoot, "coverage", "coverage-final.json"),
+        JSON.stringify({
+          "src/foo.ts": {
+            path: "src/foo.ts",
+            statementMap: { "0": { start: { line: 1 } } },
+            s: { "0": 1 },
+          },
+        }),
+      );
+      fs.writeFileSync(
+        path.join(workspaceRoot, "coverage.out"),
+        "mode: set\nsrc/foo.go:1.1,1.2 1 1\n",
+      );
+      fs.writeFileSync(
+        path.join(workspaceRoot, "coverage.json"),
+        JSON.stringify({
+          meta: { version: "7.0" },
+          files: { "src/foo.py": { executed_lines: [1], missing_lines: [] } },
+        }),
+      );
+      fs.writeFileSync(
+        path.join(workspaceRoot, "target", "site", "jacoco", "jacoco.xml"),
+        '<report><package name="src"><sourcefile name="Foo.java"><line nr="1" mi="0" ci="1"/></sourcefile></package></report>',
+      );
+      fs.writeFileSync(
+        path.join(workspaceRoot, "TestResults", "coverage.xml"),
+        [
+          "<CoverageSession>",
+          '<Modules><Module><Files><File uid="1" fullPath="src/Foo.cs"/></Files>',
+          "<Classes><Class><Methods><Method><SequencePoints>",
+          '<SequencePoint vc="1" sl="1" fileid="1"/>',
+          "</SequencePoints></Method></Methods></Class></Classes>",
+          "</Module></Modules>",
+          "</CoverageSession>",
+        ].join(""),
+      );
+      const paths = listCoveredPaths({
+        workspaceRoots: [workspaceRoot],
+        config: {
+          formats: [
+            { type: "istanbul-json", path: "coverage/coverage-final.json" },
+            { type: "go-coverprofile", path: "coverage.out" },
+            { type: "coveragepy-json", path: "coverage.json" },
+            { type: "jacoco", path: "target/site/jacoco/jacoco.xml" },
+            { type: "opencover", path: "TestResults/coverage.xml" },
+          ],
+        },
+      });
+
+      expect(paths).toEqual([
+        path.resolve(workspaceRoot, "src", "Foo.cs"),
+        path.resolve(workspaceRoot, "src", "Foo.java"),
+        path.resolve(workspaceRoot, "src", "foo.go"),
+        path.resolve(workspaceRoot, "src", "foo.py"),
+        path.resolve(workspaceRoot, "src", "foo.ts"),
+      ]);
+    });
+
     it("getPathAggregateResponse returns path-aggregate shape for single path prefix", async () => {
       const { CoverageResolver, createAdaptersFromConfig } =
         await import("./coverage-resolver");

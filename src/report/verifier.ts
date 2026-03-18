@@ -82,7 +82,8 @@ export function verifyLoadedArtifact(
       reportTotals.executableLines !== aggregated.totals.executableLines;
     const derivedTotalsMatchAggregate =
       loaded.derivedTotals?.coveredLines === aggregated.totals.coveredLines &&
-      loaded.derivedTotals?.executableLines === aggregated.totals.executableLines &&
+      loaded.derivedTotals?.executableLines ===
+        aggregated.totals.executableLines &&
       loaded.derivedTotals?.aggregateCoveragePercent ===
         aggregated.totals.aggregateCoveragePercent;
     const derivedTotalsDriftFromReport =
@@ -114,10 +115,9 @@ export function verifyLoadedArtifact(
       supported: true,
       matches: metrics.every((metric) => metric.match),
       metrics,
-      warning:
-        toleratedArtifactDrift
-          ? "Cobertura report totals may include executable lines that do not appear in normalized per-line entries; executable-line drift is reported as an artifact inconsistency."
-          : undefined,
+      warning: toleratedArtifactDrift
+        ? "Cobertura report totals may include executable lines that do not appear in normalized per-line entries; executable-line drift is reported as an artifact inconsistency."
+        : undefined,
     };
   }
 

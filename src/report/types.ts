@@ -1,5 +1,9 @@
 import type { CoverageFormatType } from "../coverage-config";
-import type { AggregatedReport, ReportSampleFile, ReportTotals } from "./aggregator";
+import type {
+  AggregatedReport,
+  ReportSampleFile,
+  ReportTotals,
+} from "./aggregator";
 
 export interface VerificationMetric {
   name: "coveredLines" | "executableLines" | "aggregateCoveragePercent";

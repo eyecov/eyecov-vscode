@@ -15,12 +15,17 @@ This document describes what the EyeCov coverage system does from a feature and 
 - **Cobertura XML** — A single Cobertura XML report (e.g. `coverage/cobertura-coverage.xml`) per workspace. Used for machine-readable line coverage. Does not provide covering-test data.
 - **Clover XML** — A single Clover XML report (e.g. `coverage/clover.xml`) per workspace. Used for machine-readable line coverage. Does not provide covering-test data.
 - **LCOV** — A single `lcov.info` (or equivalent) per workspace. Used by Vitest and other tools. See [COVERAGE_FORMAT_RECOMMENDATION.md](COVERAGE_FORMAT_RECOMMENDATION.md) for Vitest setup.
+- **Istanbul/NYC JSON** — A single Istanbul coverage JSON file (for example `coverage/coverage-final.json`). Used for JS/TS projects that keep JSON coverage artifacts instead of or in addition to LCOV. Does not provide covering-test data.
+- **JaCoCo XML** — A single JaCoCo XML report (for example `target/site/jacoco/jacoco.xml` or `build/reports/jacoco/test/jacocoTestReport.xml`). Used for JVM projects. Does not provide covering-test data.
+- **Go coverprofile** — A single `coverage.out` (or equivalent) per workspace. Used for Go projects. Does not provide covering-test data.
+- **coverage.py JSON** — A single `coverage.json` (or equivalent) per workspace. Used for Python projects. Does not provide covering-test data.
+- **OpenCover XML** — A single OpenCover XML report configured in `.eyecov.json`. Used for .NET projects. Does not provide covering-test data.
 
 Formats are **auto-discovered**: the resolver tries each configured format in order and uses the first that has coverage for the open file. There is no separate “primary” or “secondary” source.
 
 ## Configuration
 
-Coverage sources and order are configured via a JSON file in the workspace root: `.eyecov.json` or `eyecov.json`. You specify which formats to use, in which order, and the path to each format’s artifact (folder for PHPUnit HTML, file for Cobertura, Clover, and LCOV). If no config file is present, defaults are used (PHPUnit HTML at `coverage-html/`, Cobertura at `coverage/cobertura-coverage.xml`, Clover at `coverage/clover.xml`, LCOV at `coverage/lcov.info`). See [COVERAGE_ARCHITECTURE.md](COVERAGE_ARCHITECTURE.md) (Current implementation) for config; implementation lives in `src/coverage-config.ts`.
+Coverage sources and order are configured via a JSON file in the workspace root: `.eyecov.json` or `eyecov.json`. You specify which formats to use, in which order, and the path to each format’s artifact (folder for PHPUnit HTML, file for the machine-readable formats). If no config file is present, defaults are used for PHPUnit HTML, Cobertura, Clover, LCOV, Istanbul JSON, JaCoCo, Go coverprofile, and coverage.py JSON. OpenCover is supported but requires explicit config. See [COVERAGE_ARCHITECTURE.md](COVERAGE_ARCHITECTURE.md) (Current implementation) for config; implementation lives in `src/coverage-config.ts`.
 
 ## MCP tools
 

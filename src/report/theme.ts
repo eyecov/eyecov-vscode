@@ -33,5 +33,7 @@ export function shouldUseColor(options: {
   noColor?: boolean;
   noColorEnv?: string | undefined;
 }): boolean {
-  return Boolean(options.stdoutIsTTY && !options.noColor && !options.noColorEnv);
+  return Boolean(
+    options.stdoutIsTTY && !options.noColor && !options.noColorEnv,
+  );
 }

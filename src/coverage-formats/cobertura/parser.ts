@@ -166,9 +166,15 @@ export function parseCoberturaXml(xml: string): CoberturaParseResult {
     }))
     .sort((a, b) => a.sourcePath.localeCompare(b.sourcePath));
 
-  const coveredLines = parseInteger(getAttribute(coverageNode, "lines-covered"));
-  const executableLines = parseInteger(getAttribute(coverageNode, "lines-valid"));
-  const lineRate = Number.parseFloat(getAttribute(coverageNode, "line-rate") ?? "");
+  const coveredLines = parseInteger(
+    getAttribute(coverageNode, "lines-covered"),
+  );
+  const executableLines = parseInteger(
+    getAttribute(coverageNode, "lines-valid"),
+  );
+  const lineRate = Number.parseFloat(
+    getAttribute(coverageNode, "line-rate") ?? "",
+  );
 
   return {
     sourceRoots,
@@ -176,8 +182,9 @@ export function parseCoberturaXml(xml: string): CoberturaParseResult {
     totals: {
       coveredLines,
       executableLines,
-      aggregateCoveragePercent:
-        Number.isFinite(lineRate) ? Number((lineRate * 100).toFixed(2)) : null,
+      aggregateCoveragePercent: Number.isFinite(lineRate)
+        ? Number((lineRate * 100).toFixed(2))
+        : null,
     },
   };
 }
