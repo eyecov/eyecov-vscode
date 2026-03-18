@@ -1,6 +1,6 @@
 # Coverage Features
 
-This document describes what the Eyecov coverage system does from a feature and user perspective. For the canonical coverage data flow, see [COVERAGE_MODEL.md](COVERAGE_MODEL.md). For technical structure (resolver, adapters, flow), see [COVERAGE_ARCHITECTURE.md](COVERAGE_ARCHITECTURE.md). For roadmap and future work, see [COVERAGE_ROADMAP.md](COVERAGE_ROADMAP.md).
+This document describes what the EyeCov coverage system does from a feature and user perspective. For the canonical coverage data flow, see [COVERAGE_MODEL.md](COVERAGE_MODEL.md). For technical structure (resolver, adapters, flow), see [COVERAGE_ARCHITECTURE.md](COVERAGE_ARCHITECTURE.md). For roadmap and future work, see [COVERAGE_ROADMAP.md](COVERAGE_ROADMAP.md).
 
 ## Editor coverage
 
@@ -42,7 +42,7 @@ When a prewarm cache is valid, `coverage_path` and `coverage_project` (and relat
 When **`eyecov.trackCoverageThroughEdits`** is **`true`** (default), the extension keeps coverage line numbers in sync with simple edits: insert/delete lines shift the mapping in memory so highlighting stays aligned. When you edit a covered line directly (overlap) or make very large or numerous edits, tracked state is invalidated and decorations are cleared until coverage is reloaded. Reload happens automatically when coverage artifacts change or when you turn the feature off.
 
 - **Setting** — `eyecov.trackCoverageThroughEdits` (default: `true`). When `false`, coverage is not tracked through edits; after you change the file, highlighting stays on the original line numbers until you refresh coverage or reopen the file.
-- **Toggle** — Command **“Eyecov: Toggle Track Coverage Through Edits”** (Command Palette) flips the setting and refreshes editors.
+- **Toggle** — Command **“EyeCov: Toggle Track Coverage Through Edits”** (Command Palette) flips the setting and refreshes editors.
 - **Non-goals:** perfect semantic remapping, surviving arbitrary refactors, or complex diff algorithms. Implementation details: [COVERAGE_ARCHITECTURE.md](COVERAGE_ARCHITECTURE.md#edit-tracking).
 
 ## Planned and optional

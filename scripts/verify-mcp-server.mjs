@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Verify the Eyecov MCP server runs and responds to initialize + tools/call.
+ * Verify the EyeCov MCP server runs and responds to initialize + tools/call.
  * Spawns out/mcp/server.js, drives it via stdio (newline-delimited JSON-RPC),
  * and exits 0 only if coverage_file returns a valid response.
  */

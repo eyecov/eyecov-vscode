@@ -50,7 +50,7 @@ Node.js 22+ required (see `.nvmrc`; use `nvm use`).
 
 ## Architecture
 
-Eyecov is a VS Code extension that reads coverage artifacts, normalizes them into a shared runtime model, and exposes that model to both the editor and AI tools via MCP.
+EyeCov is a VS Code extension that reads coverage artifacts, normalizes them into a shared runtime model, and exposes that model to both the editor and AI tools via MCP.
 
 ### Coverage pipeline
 

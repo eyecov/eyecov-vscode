@@ -30,7 +30,7 @@
 - **Config:** `.vscode-test.mjs` (files glob, Mocha options). Test files live in `src/test/suite/*.test.ts` and are compiled to `out/test/suite/*.test.js` via `npm run compile:tests` (tsconfig.test.json).
 - **Debug:** Use the **Extension Tests** launch config in VS Code (uses `testConfiguration` pointing at `.vscode-test.mjs`).
 
-Current suite: `src/test/suite/extension.test.ts` — asserts the Eyecov extension is loaded and `eyecov.showCoverage` is registered. Add more tests there or new `*.test.ts` files under `src/test/suite/`.
+Current suite: `src/test/suite/extension.test.ts` — asserts the EyeCov extension is loaded and `eyecov.showCoverage` is registered. Add more tests there or new `*.test.ts` files under `src/test/suite/`.
 
 ## Manual testing (gutter icons and UI)
 
@@ -39,8 +39,8 @@ To verify the extension UI (gutter icons, line highlighting, status bar) without
 1. **Run Extension** (F5 or **Run > Start Debugging**; use the **Run Extension** launch config).
 2. In the Extension Development Host window: **File > Open Folder…** and open the **`test-workspace`** folder (in this repo).
 3. Open `src/demo.ts`. Coverage is loaded from `test-workspace/coverage/lcov.info`.
-4. **Gutter icons:** If needed, **Cmd+Shift+P** → **Eyecov: Toggle Gutter Coverage**. You should see green dots on covered lines (1, 3, 5) and red on uncovered (2, 4).
-5. Use **Eyecov: Toggle Line Coverage** and the status bar to confirm line highlighting and file coverage.
+4. **Gutter icons:** If needed, **Cmd+Shift+P** → **EyeCov: Toggle Gutter Coverage**. You should see green dots on covered lines (1, 3, 5) and red on uncovered (2, 4).
+5. Use **EyeCov: Toggle Line Coverage** and the status bar to confirm line highlighting and file coverage.
 
 See `test-workspace/README.md` for more detail.
 

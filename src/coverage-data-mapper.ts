@@ -63,7 +63,7 @@ export function getStatusBarContent(
   if (!coverageEnabled) {
     return {
       text: "$(test-view-icon) Coverage (off)",
-      tooltip: "Eyecov: Click to toggle coverage display",
+      tooltip: "EyeCov: Click to toggle coverage display",
       show: true,
     };
   }
@@ -73,7 +73,7 @@ export function getStatusBarContent(
       return {
         text: "$(test-view-icon) Coverage: no source",
         tooltip:
-          "Eyecov: No coverage config (PHPUnit HTML or LCOV). Add .eyecov.json or coverage artifacts.",
+          "EyeCov: No coverage config (PHPUnit HTML or LCOV). Add .eyecov.json or coverage artifacts.",
         show: true,
       };
     }
@@ -82,7 +82,7 @@ export function getStatusBarContent(
       return {
         text: "$(test-view-icon) Coverage: invalidated",
         tooltip:
-          "Eyecov: Coverage report is older than the source file. Re-run tests to refresh.",
+          "EyeCov: Coverage report is older than the source file. Re-run tests to refresh.",
         backgroundColor: "statusBarItem.errorBackground",
         show: true,
       };
@@ -93,7 +93,7 @@ export function getStatusBarContent(
     );
     return {
       text: "$(test-view-icon) No coverage",
-      tooltip: `Eyecov: No coverage data for this file${relPath ? ` (${noCoverageContext?.activeFilePath})` : ""}. Click to toggle coverage display.`,
+      tooltip: `EyeCov: No coverage data for this file${relPath ? ` (${noCoverageContext?.activeFilePath})` : ""}. Click to toggle coverage display.`,
       show: true,
     };
   }

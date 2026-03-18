@@ -204,7 +204,7 @@ class CoverageExtension {
       this.isDarkTheme(),
       context.asAbsolutePath("media"),
     );
-    this.outputChannel = vscode.window.createOutputChannel("Eyecov");
+    this.outputChannel = vscode.window.createOutputChannel("EyeCov");
 
     // Create status bar items
     this.statusBarCoverage = vscode.window.createStatusBarItem(
@@ -212,7 +212,7 @@ class CoverageExtension {
       100,
     );
     this.statusBarCoverage.command = "eyecov.toggleCoverage";
-    this.statusBarCoverage.tooltip = "Eyecov: Click to toggle coverage display";
+    this.statusBarCoverage.tooltip = "EyeCov: Click to toggle coverage display";
   }
 
   /**
@@ -220,7 +220,7 @@ class CoverageExtension {
    */
   async activate(context: vscode.ExtensionContext): Promise<void> {
     this.log(
-      "Eyecov activated. Open a file to see coverage; output will appear here.",
+      "EyeCov activated. Open a file to see coverage; output will appear here.",
     );
     this.registerMcpServer(context);
     await this.initializeCoverage();
@@ -264,14 +264,14 @@ class CoverageExtension {
       () => {
         if (!this.hasCoverageSource()) {
           vscode.window.showWarningMessage(
-            "Eyecov: No coverage source (no PHPUnit HTML or LCOV coverage found in workspace)",
+            "EyeCov: No coverage source (no PHPUnit HTML or LCOV coverage found in workspace)",
           );
           return;
         }
 
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
-          vscode.window.showInformationMessage("Eyecov: No active editor");
+          vscode.window.showInformationMessage("EyeCov: No active editor");
           return;
         }
 
@@ -280,7 +280,7 @@ class CoverageExtension {
           .then((result) => {
             if ("noCoverage" in result) {
               vscode.window.showInformationMessage(
-                `Eyecov: No coverage data for ${path.basename(filePath)} (${result.reason})`,
+                `EyeCov: No coverage data for ${path.basename(filePath)} (${result.reason})`,
               );
               return;
             }
@@ -304,7 +304,7 @@ class CoverageExtension {
             const message =
               error instanceof Error ? error.message : String(error);
             vscode.window.showErrorMessage(
-              `Eyecov: Error getting coverage info: ${message}`,
+              `EyeCov: Error getting coverage info: ${message}`,
             );
           });
       },
@@ -314,7 +314,7 @@ class CoverageExtension {
       "eyecov.rereadCoverage",
       async () => {
         await this.rereadCoverage();
-        vscode.window.showInformationMessage("Eyecov: Coverage re-read");
+        vscode.window.showInformationMessage("EyeCov: Coverage re-read");
       },
     );
 
@@ -327,7 +327,7 @@ class CoverageExtension {
           const message =
             error instanceof Error ? error.message : String(error);
           vscode.window.showErrorMessage(
-            `Eyecov: Could not show debug output: ${message}`,
+            `EyeCov: Could not show debug output: ${message}`,
           );
         }
       },
@@ -345,7 +345,7 @@ class CoverageExtension {
         );
         if (this.coverageEnabled) this.updateAllEditors();
         vscode.window.showInformationMessage(
-          `Eyecov: Gutter coverage ${!current ? "on" : "off"}`,
+          `EyeCov: Gutter coverage ${!current ? "on" : "off"}`,
         );
       },
     );
@@ -362,7 +362,7 @@ class CoverageExtension {
         );
         if (this.coverageEnabled) this.updateAllEditors();
         vscode.window.showInformationMessage(
-          `Eyecov: Line highlight ${!current ? "on" : "off"}`,
+          `EyeCov: Line highlight ${!current ? "on" : "off"}`,
         );
       },
     );
@@ -386,7 +386,7 @@ class CoverageExtension {
           }
           if (this.coverageEnabled) this.updateAllEditors();
           vscode.window.showInformationMessage(
-            `Eyecov: Track coverage through edits ${!current ? "on" : "off"}`,
+            `EyeCov: Track coverage through edits ${!current ? "on" : "off"}`,
           );
         },
       );
@@ -705,7 +705,7 @@ class CoverageExtension {
     const provider = registerProvider(MCP_SERVER_DEFINITION_PROVIDER_ID, {
       provideMcpServerDefinitions: () => {
         const serverDefinition = new vscode.McpStdioServerDefinition(
-          "Eyecov",
+          "EyeCov",
           process.execPath,
           [serverScriptPath],
           {
@@ -862,7 +862,7 @@ class CoverageExtension {
         }).catch((err: unknown) => {
           // Cache will be built on-demand if prewarm fails.
           console.error(
-            `[Eyecov] prewarm error: ${err instanceof Error ? err.message : String(err)}`,
+            `[EyeCov] prewarm error: ${err instanceof Error ? err.message : String(err)}`,
           );
         });
       }
@@ -1011,10 +1011,10 @@ class CoverageExtension {
       this.updateCoverageStatus(null);
       const message = error instanceof Error ? error.message : String(error);
       console.error(
-        `[Eyecov] error updating coverage for ${filePath}: ${message}`,
+        `[EyeCov] error updating coverage for ${filePath}: ${message}`,
       );
       vscode.window.showErrorMessage(
-        `Eyecov: Error loading coverage - ${message}`,
+        `EyeCov: Error loading coverage - ${message}`,
       );
     }
   }

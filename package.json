@@ -1,6 +1,6 @@
 {
   "name": "eyecov-vscode",
-  "displayName": "Eyecov",
+  "displayName": "EyeCov",
   "description": "Display code coverage in VS Code editor",
   "version": "0.2.29",
   "publisher": "eyecov",
@@ -32,7 +32,7 @@
     "mcpServerDefinitionProviders": [
       {
         "id": "eyecov.builtin",
-        "label": "Eyecov Built-in MCP Server"
+        "label": "EyeCov Built-in MCP Server"
       }
     ],
     "commands": [
@@ -74,12 +74,12 @@
       }
     ],
     "configuration": {
-      "title": "Eyecov",
+      "title": "EyeCov",
       "properties": {
         "eyecov.debug": {
           "type": "boolean",
           "default": false,
-          "description": "When true, write debug logs to the Eyecov output channel (View → Output → Eyecov)."
+          "description": "When true, write debug logs to the EyeCov output channel (View → Output → EyeCov)."
         },
         "eyecov.showCoverageOnOpen": {
           "type": "boolean",

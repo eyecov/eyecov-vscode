@@ -58,13 +58,13 @@ async function resetDemoEditorState(editor: vscode.TextEditor) {
   await new Promise((r) => setTimeout(r, 500));
 }
 
-suite("Eyecov Extension Test Suite", () => {
+suite("EyeCov Extension Test Suite", () => {
   test("Extension should be present", () => {
     const ext = vscode.extensions.getExtension("eyecov.eyecov-vscode");
-    assert.ok(ext, "Eyecov extension should be loaded");
+    assert.ok(ext, "EyeCov extension should be loaded");
   });
 
-  test("Eyecov commands should be registered", async () => {
+  test("EyeCov commands should be registered", async () => {
     const commands = await vscode.commands.getCommands();
     const showCoverage = commands.includes("eyecov.showCoverage");
     const rereadCoverage = commands.includes("eyecov.rereadCoverage");

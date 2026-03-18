@@ -2,7 +2,7 @@
 
 For the canonical shared model behind these tools, see [COVERAGE_MODEL.md](COVERAGE_MODEL.md).
 
-The Eyecov extension runs an MCP server in supported VS Code/Cursor versions. The server uses the same coverage runtime model and adapters as the editor; there is no separate coverage pipeline. When `eyecov.prewarmCoverageCache` is true, the extension builds a coverage cache in the background (`.eyecov/coverage-cache.json` per workspace root); the MCP server uses that cache for `coverage_path`, `coverage_project`, and `coverage_test_priority` when valid, avoiding re-aggregation.
+The EyeCov extension runs an MCP server in supported VS Code/Cursor versions. The server uses the same coverage runtime model and adapters as the editor; there is no separate coverage pipeline. When `eyecov.prewarmCoverageCache` is true, the extension builds a coverage cache in the background (`.eyecov/coverage-cache.json` per workspace root); the MCP server uses that cache for `coverage_path`, `coverage_project`, and `coverage_test_priority` when valid, avoiding re-aggregation.
 
 ## Workspace roots
 
@@ -228,14 +228,14 @@ Returns covering tests for a file and line(s).
 ## AI Workflow: Generate tests for uncovered code
 
 When working in the editor, developers may notice uncovered lines highlighted
-by Eyecov. AI assistants can use this information to generate tests that
+by EyeCov. AI assistants can use this information to generate tests that
 target those gaps.
 
 Typical workflow:
 
 1. The developer sees uncovered (red) lines in the editor.
 2. The developer asks the AI assistant to generate tests covering those lines.
-3. The AI queries Eyecov for coverage information for the file.
+3. The AI queries EyeCov for coverage information for the file.
 4. The AI inspects the surrounding code and identifies the uncovered branches.
 5. The AI generates targeted tests designed to execute those branches.
 6. The developer runs the tests and coverage is updated.

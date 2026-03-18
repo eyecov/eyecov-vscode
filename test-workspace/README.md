@@ -1,6 +1,6 @@
 # Test workspace for manual extension testing
 
-Minimal workspace with pre-generated coverage so you can try the Eyecov extension (gutter icons, line highlighting, status bar) without running PHPUnit or another coverage tool.
+Minimal workspace with pre-generated coverage so you can try the EyeCov extension (gutter icons, line highlighting, status bar) without running PHPUnit or another coverage tool.
 
 - **`src/demo.ts`** + **`coverage/lcov.info`** — Tiny LCOV example kept for simple fallback testing.
 - **`src/checkout-summary.ts`** + **`coverage-html/checkout-summary.ts.html`** — 39-line realistic checkout helper with mixed covered/uncovered lines and one yellow warning line.
@@ -18,7 +18,7 @@ Minimal workspace with pre-generated coverage so you can try the Eyecov extensio
    Open `src/checkout-summary.ts` for a mixed green/red/yellow example, or `src/sync-health.ts` for a mostly-covered file. `src/demo.ts` remains as the minimal LCOV sample.
 
 4. **Enable gutter icons**  
-   If you don’t see colored markers in the gutter: **Cmd+Shift+P** (Mac) or **Ctrl+Shift+P** (Windows/Linux) → run **Eyecov: Toggle Gutter Coverage**.
+   If you don’t see colored markers in the gutter: **Cmd+Shift+P** (Mac) or **Ctrl+Shift+P** (Windows/Linux) → run **EyeCov: Toggle Gutter Coverage**.
 
 5. **Optional**  
-   Toggle line highlighting with **Eyecov: Toggle Line Coverage**. Check the status bar for file coverage. `checkout-summary.ts` should land around `73.68% (14/19)` and `sync-health.ts` around `83.33% (15/18)`.
+   Toggle line highlighting with **EyeCov: Toggle Line Coverage**. Check the status bar for file coverage. `checkout-summary.ts` should land around `73.68% (14/19)` and `sync-health.ts` around `83.33% (15/18)`.

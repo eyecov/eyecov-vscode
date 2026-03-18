@@ -20,6 +20,22 @@ Press **F5** in VS Code to launch the Extension Development Host.
 
 ## Code style and checks
 
+## Naming
+
+Use `eyecov` for technical surfaces:
+
+- commands and config keys like `eyecov.showCoverage` and `eyecov.debug`
+- code, config, file names, paths, domains, package IDs, and other identifiers
+- logo text, including the ANSI/terminal logo
+
+Use `EyeCov` for product writing and user-visible labels:
+
+- README/docs prose
+- VS Code UI labels, output channel names, and notifications
+- contributor-facing and customer-facing copy
+
+When in doubt: if it must be typed or referenced as an identifier, use `eyecov`; if it is being read as product copy, use `EyeCov`.
+
 Before committing, run:
 
 - `npm run lint` — ESLint (TypeScript + recommended rules)
