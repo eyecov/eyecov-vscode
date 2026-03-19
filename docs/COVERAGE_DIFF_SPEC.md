@@ -117,6 +117,8 @@ For files with resolved coverage, changed lines should be grouped into:
 
 `nonExecutableChangedLines` is for changed lines that do not appear in covered, uncovered, or uncoverable sets. In v1 this is informational only and should not count against the file.
 
+This classification is intentionally coverage-model-based, not semantic analysis. If a changed line is absent from all executable line sets in the resolved coverage record, v1 treats it as non-executable.
+
 ### Summary fields
 
 The top-level response should include:
@@ -127,6 +129,7 @@ The top-level response should include:
   - `merge-base` or `direct`
 - `filesChanged`
 - `filesResolved`
+  - Count of changed files with a resolved coverage record and supported diff shape. This includes `covered` and `uncovered` items, but not `missing`, `stale`, or `unsupported`.
 - `filesUncovered`
 - `filesMissingCoverage`
 - `filesStale`
@@ -134,6 +137,8 @@ The top-level response should include:
 - `changedCoveredLines`
 - `changedUncoveredLines`
 - `changedUncoverableLines`
+
+Summary counts should be computed across the full evaluated diff before any response truncation is applied.
 
 ## MCP tool design
 
@@ -168,7 +173,8 @@ The top-level response should include:
 - `contextLines`
   - Optional. Number of surrounding lines to include around uncovered changed ranges for AI/review consumers.
 - `limit`
-  - Optional. Max changed files returned after classification.
+  - Optional. Max changed files returned in `items` after classification and sorting.
+  - Summary counts still reflect the full evaluated diff, not the truncated `items` array.
 
 ### Response
 
@@ -227,6 +233,7 @@ The top-level response should include:
   - `stale`
   - `unsupported`
   - `covered`
+- Within the same status, sort by repository-relative path for stable output.
 - `uncoveredRegions` should collapse adjacent uncovered changed lines into ranges.
 - `lineCoveragePercent` is file-level coverage, included as useful context, not the main point.
 
@@ -321,6 +328,16 @@ Diff results should use repository-relative paths where possible.
 
 That keeps MCP responses, CLI output, and future review tooling readable and stable across machines.
 
+### Multi-root behavior
+
+V1 should evaluate diffs per workspace root / git repository, not pretend a multi-root workspace is one giant repo with commitment issues.
+
+Practical rule:
+
+- determine which workspace root owns each changed file
+- resolve coverage for that file against that workspace root only
+- if a changed file cannot be mapped to exactly one supported workspace root, mark it `unsupported`
+
 ## Coverage evaluation rules
 
 ### Covered vs uncovered
@@ -350,9 +367,7 @@ This includes:
 
 V1 implementation note:
 
-The current resolver mostly returns `null` for stale coverage. To report `stale` distinctly in `coverage diff`, the resolver path will likely need a richer result than plain record-or-null.
-
-That is worth doing. Silent nulls are fine for decorations; they are not good enough for diagnostics.
+The current resolver already distinguishes stale rejection from missing artifacts via `rejectReason` (`stale` vs `no-artifact`). `coverage diff` should preserve that distinction in its own result model instead of flattening both cases into generic missing coverage.
 
 ## Architecture notes
 
