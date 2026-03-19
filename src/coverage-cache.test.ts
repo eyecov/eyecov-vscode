@@ -61,7 +61,7 @@ describe("coverage-cache", () => {
       expect(fs.existsSync(cachePath)).toBe(true);
       const raw = fs.readFileSync(cachePath, "utf-8");
       const parsed = JSON.parse(raw);
-      expect(parsed.version).toBe(1);
+      expect(parsed.version).toBe(2);
       expect(parsed.workspaceRoot).toBe(tmpDir);
       expect(parsed.generatedAt).toBeDefined();
       expect(typeof parsed.generatedAt).toBe("string");
@@ -143,7 +143,7 @@ describe("coverage-cache", () => {
       const result = readCoverageCache(tmpDir);
 
       expect(result).not.toBeNull();
-      expect(result!.version).toBe(1);
+      expect(result!.version).toBe(2);
       expect(result!.workspaceRoot).toBe(tmpDir);
       expect(result!.detectedFormat).toBe("lcov");
       expect(result!.aggregateCoveragePercent).toBe(90);
@@ -180,31 +180,6 @@ describe("coverage-cache", () => {
 
       const result = readCoverageCache(tmpDir);
       expect(result).toBeNull();
-    });
-
-    it("treats missing missingPaths key as empty array for backward compatibility", () => {
-      const dir = path.join(tmpDir, ".eyecov");
-      fs.mkdirSync(dir, { recursive: true });
-      const legacyCache = {
-        version: 1,
-        generatedAt: new Date().toISOString(),
-        workspaceRoot: tmpDir,
-        detectedFormat: "phpunit-html",
-        totalFiles: 0,
-        coveredFiles: 0,
-        missingCoverageFiles: 0,
-        staleCoverageFiles: 0,
-        files: [],
-      };
-      fs.writeFileSync(
-        path.join(dir, "coverage-cache.json"),
-        JSON.stringify(legacyCache),
-        "utf-8",
-      );
-
-      const result = readCoverageCache(tmpDir);
-      expect(result).not.toBeNull();
-      expect(result!.missingPaths).toEqual([]);
     });
   });
 

@@ -177,7 +177,8 @@ export function getCoverageArtifactPathsToWatch(
 
 /**
  * Return absolute file paths for all coverage artifacts (one per format per root).
- * For phpunit-html, includes the dashboard.html and index.html as proxies for the report.
+ * For phpunit-html, includes the directory itself, dashboard.html, and index.html
+ * as high-signal proxies for the report state.
  */
 export function getCoverageArtifactPaths(
   config: CoverageConfig,
@@ -187,8 +188,10 @@ export function getCoverageArtifactPaths(
   const paths: string[] = [];
   for (const f of config.formats) {
     if (f.type === "phpunit-html") {
-      paths.push(path.join(root, f.path, "index.html"));
-      paths.push(path.join(root, f.path, "dashboard.html"));
+      const htmlDir = path.join(root, f.path);
+      paths.push(htmlDir); // Directory mtime captures file additions/removals
+      paths.push(path.join(htmlDir, "index.html"));
+      paths.push(path.join(htmlDir, "dashboard.html"));
     } else {
       paths.push(path.resolve(root, f.path));
     }

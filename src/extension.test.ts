@@ -211,6 +211,7 @@ vi.mock("./coverage-config", () => ({
   getPhpUnitHtmlDir: vi.fn(() => "coverage-html"),
   getPhpUnitHtmlSourceSegment: vi.fn(() => "auto"),
   getCoverageArtifactPathsToWatch: vi.fn(() => []),
+  getCoverageArtifactPaths: vi.fn(() => []),
 }));
 
 vi.mock("./coverage-aggregate", () => ({
