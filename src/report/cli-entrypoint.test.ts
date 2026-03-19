@@ -144,6 +144,42 @@ describe("runReportCli", () => {
     expect(stdout.read()).toContain("missing coverage");
   });
 
+  it("passes --limit through to coverage diff mode", async () => {
+    const calls: Array<Record<string, unknown>> = [];
+
+    const exitCode = await runReportCli({
+      args: ["--diff", "main", "--limit", "7", "--json"],
+      stdout: createWriter().stream,
+      stderr: createWriter().stream,
+      getCoverageDiffImpl: async (options) => {
+        calls.push(options as unknown as Record<string, unknown>);
+        return {
+          baseRef: "main",
+          headRef: "HEAD",
+          comparisonMode: "merge-base",
+          filesChanged: 0,
+          filesResolved: 0,
+          filesUncovered: 0,
+          filesMissingCoverage: 0,
+          filesStale: 0,
+          changedExecutableLines: 0,
+          changedCoveredLines: 0,
+          changedUncoveredLines: 0,
+          changedUncoverableLines: 0,
+          items: [],
+        };
+      },
+    });
+
+    expect(exitCode).toBe(0);
+    expect(calls).toEqual([
+      expect.objectContaining({
+        base: "main",
+        limit: 7,
+      }),
+    ]);
+  });
+
   it("returns 3 when --path is missing", async () => {
     const stderr = createWriter();
 

@@ -100,6 +100,10 @@ export async function runReportCli(
           type: "string",
           default: "2",
         },
+        limit: {
+          type: "string",
+          default: "200",
+        },
         format: {
           type: "string",
           default: "auto",
@@ -186,6 +190,14 @@ export async function runReportCli(
       );
       return 3;
     }
+
+    const limitValue =
+      typeof parsed.values.limit === "string" ? parsed.values.limit : "";
+    const limit = Number(limitValue);
+    if (!Number.isInteger(limit) || limit <= 0) {
+      stderr.write("Invalid --limit value; expected a positive integer.\n");
+      return 3;
+    }
   } catch (error) {
     stderr.write(
       `${error instanceof Error ? error.message : "Invalid CLI arguments"}\n`,
@@ -209,6 +221,9 @@ export async function runReportCli(
         ? parsed.values["context-lines"]
         : "";
     const contextLines = Number(contextLinesValue);
+    const limitValue =
+      typeof parsed.values.limit === "string" ? parsed.values.limit : "";
+    const limit = Number(limitValue);
     const sampleFilesValue =
       typeof parsed.values["sample-files"] === "string"
         ? parsed.values["sample-files"]
@@ -238,6 +253,7 @@ export async function runReportCli(
         comparison,
         includeCoveredFiles,
         contextLines,
+        limit,
       } satisfies CoverageDiffOptions);
 
       if (jsonOutput) {

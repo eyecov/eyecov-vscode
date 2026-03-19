@@ -136,4 +136,52 @@ describe("getGitDiffForRoot", () => {
       },
     ]);
   });
+
+  it("uses merge-base comparison when requested", async () => {
+    const repoRoot = createRepo();
+    fs.mkdirSync(path.join(repoRoot, "src"), { recursive: true });
+    fs.writeFileSync(
+      path.join(repoRoot, "src", "shared.ts"),
+      ["base", "line"].join("\n") + "\n",
+    );
+    git(repoRoot, "add", ".");
+    git(repoRoot, "commit", "-m", "initial");
+
+    git(repoRoot, "checkout", "-b", "other");
+    fs.writeFileSync(
+      path.join(repoRoot, "src", "shared.ts"),
+      ["base changed elsewhere", "line"].join("\n") + "\n",
+    );
+    git(repoRoot, "add", ".");
+    git(repoRoot, "commit", "-m", "other change");
+
+    git(repoRoot, "checkout", "main");
+    git(repoRoot, "checkout", "-b", "feature/diff");
+    fs.writeFileSync(
+      path.join(repoRoot, "src", "feature.ts"),
+      ["feature", "branch"].join("\n") + "\n",
+    );
+    git(repoRoot, "add", ".");
+    git(repoRoot, "commit", "-m", "feature change");
+
+    const result = await getGitDiffForRoot(repoRoot, {
+      workspaceRoots: [repoRoot],
+      base: "other",
+      comparison: "merge-base",
+      head: "HEAD",
+    });
+
+    expect(result).toMatchObject({
+      baseRef: "other",
+      headRef: "HEAD",
+      comparisonMode: "merge-base",
+      files: [
+        {
+          repoRelativePath: "src/feature.ts",
+          diffStatus: "added",
+          changedLineRanges: [[1, 3]],
+        },
+      ],
+    });
+  });
 });
