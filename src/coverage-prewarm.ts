@@ -35,6 +35,37 @@ function yieldToEventLoop(): Promise<void> {
   return new Promise((resolve) => setImmediate(resolve));
 }
 
+async function processPathsInBatches(
+  paths: string[],
+  getCoverage: (path: string) => Promise<CoverageRecord | null>,
+  records: CoverageRecord[],
+  batchSize: number,
+  signal: AbortSignal | undefined,
+  onProgress: ((current: number, total: number) => void) | undefined,
+  progressStart: number,
+  progressTotal: number,
+): Promise<number> {
+  let processed = progressStart;
+
+  for (let i = 0; i < paths.length; i += batchSize) {
+    if (signal?.aborted) {
+      return processed;
+    }
+    const batch = paths.slice(i, i + batchSize);
+    for (const p of batch) {
+      const record = await getCoverage(p);
+      if (record) {
+        records.push(record);
+      }
+    }
+    processed += batch.length;
+    onProgress?.(processed, progressTotal);
+    await yieldToEventLoop();
+  }
+
+  return processed;
+}
+
 function getGlobalFingerprint(
   artifactPaths: string[],
 ): Record<string, ArtifactFingerprint> {
@@ -113,35 +144,65 @@ export async function prewarmCoverageForRoot(
   const { paths: allPaths, formatType } = listPaths();
 
   // Phase 2: Path Prioritization
+  const allPathsByResolved = new Map(
+    allPaths.map((p) => [path.resolve(p), p] as const),
+  );
   const prioritySet = new Set(priorityPaths.map((p) => path.resolve(p)));
   const prioritized: string[] = [];
   for (const p of priorityPaths) {
-    const resolved = path.resolve(p);
-    if (allPaths.some((ap) => path.resolve(ap) === resolved)) {
-      prioritized.push(p);
+    const matched = allPathsByResolved.get(path.resolve(p));
+    if (matched && !prioritized.includes(matched)) {
+      prioritized.push(matched);
     }
   }
   const remaining = allPaths.filter((p) => !prioritySet.has(path.resolve(p)));
-  const sortedPaths = [...prioritized, ...remaining];
 
   const records: CoverageRecord[] = [];
-  const total = sortedPaths.length;
+  const total = allPaths.length;
   onProgress?.(0, total);
 
-  for (let i = 0; i < sortedPaths.length; i += batchSize) {
-    if (signal?.aborted) {
-      return;
-    }
-    const batch = sortedPaths.slice(i, i + batchSize);
-    for (const p of batch) {
-      const record = await getCoverage(p);
-      if (record) {
-        records.push(record);
-      }
-    }
-    onProgress?.(Math.min(i + batchSize, total), total);
-    await yieldToEventLoop();
+  let processed = 0;
+  processed = await processPathsInBatches(
+    prioritized,
+    getCoverage,
+    records,
+    batchSize,
+    signal,
+    onProgress,
+    processed,
+    total,
+  );
+
+  if (signal?.aborted) {
+    return;
   }
+
+  if (prioritized.length > 0 && remaining.length > 0) {
+    const partialPayload = buildCoverageCachePayload({
+      workspaceRoot,
+      detectedFormat: formatType,
+      records,
+      totalPathCount: prioritized.length,
+      paths: prioritized,
+      globalFingerprint: currentFingerprint,
+      cacheState: "partial",
+    });
+    writeCoverageCache(workspaceRoot, partialPayload);
+    log?.(
+      `[prewarm] wrote partial cache for ${workspaceRoot} (${prioritized.length}/${total} path(s))`,
+    );
+  }
+
+  await processPathsInBatches(
+    remaining,
+    getCoverage,
+    records,
+    batchSize,
+    signal,
+    onProgress,
+    processed,
+    total,
+  );
 
   if (signal?.aborted) {
     return;

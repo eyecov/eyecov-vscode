@@ -715,7 +715,7 @@ async function main(): Promise<void> {
       inputSchema: COVERAGE_TEST_PRIORITY_INPUT_SCHEMA,
       outputSchema: z.object({
         scope: z.literal("project"),
-        cacheState: z.enum(["on-demand", "full"]),
+        cacheState: z.enum(["on-demand", "partial", "full"]),
         items: z.array(
           z.object({
             filePath: z.string(),
@@ -750,7 +750,7 @@ async function main(): Promise<void> {
         });
         const response = {
           scope: "project" as const,
-          cacheState: "full" as const,
+          cacheState: (cache.cacheState ?? "full") as "partial" | "full",
           items,
         };
         return {

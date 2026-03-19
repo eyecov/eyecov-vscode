@@ -408,7 +408,7 @@ export function projectAggregateFromCache(
     missingCoverageFiles: cache.missingCoverageFiles,
     staleCoverageFiles: cache.staleCoverageFiles,
     detectedFormat: cache.detectedFormat,
-    cacheState: "full",
+    cacheState: cache.cacheState ?? "full",
   };
 }
 
@@ -425,6 +425,9 @@ export function pathAggregateFromCache(
   const prefixNorm = pathPrefixes.map((p) => p.replace(/\/+$/, ""));
   const filtered = cache.files.filter((f) =>
     prefixNorm.some((p) => underPrefix(f.filePath, [workspaceRoot], p)),
+  );
+  const filteredMissing = (cache.missingPaths ?? []).filter((filePath) =>
+    prefixNorm.some((p) => underPrefix(filePath, [workspaceRoot], p)),
   );
   let totalCovered = 0;
   let totalUncovered = 0;
@@ -449,11 +452,11 @@ export function pathAggregateFromCache(
   return {
     paths: pathPrefixes,
     aggregateCoveragePercent,
-    totalFiles: filtered.length,
+    totalFiles: filtered.length + filteredMissing.length,
     coveredFiles: filtered.length,
-    missingCoverageFiles: 0,
+    missingCoverageFiles: filteredMissing.length,
     staleCoverageFiles: 0,
     worstFiles,
-    cacheState: "full",
+    cacheState: cache.cacheState ?? "full",
   };
 }
