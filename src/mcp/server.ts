@@ -2,6 +2,11 @@ import path from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import {
+  COVERAGE_DIFF_INPUT_SCHEMA,
+  COVERAGE_DIFF_OUTPUT_SCHEMA,
+  createCoverageDiffToolHandler,
+} from "./coverage-diff-tool";
 import { parseTestName } from "../coverage-formats/phpunit-html";
 import { lineTestsNotSupportedMessage } from "../coverage-formats/xml/shared";
 import {
@@ -206,6 +211,28 @@ async function main(): Promise<void> {
     name: "eyecov",
     version: process.env.EYECOV_EXTENSION_VERSION ?? "0.0.0",
   });
+
+  server.registerTool(
+    "coverage_diff",
+    {
+      title: "Coverage Diff",
+      description:
+        "Show coverage only for code touched by a git diff. Returns uncovered, missing, stale, unsupported, and optionally covered changed files.",
+      inputSchema: COVERAGE_DIFF_INPUT_SCHEMA,
+      outputSchema: COVERAGE_DIFF_OUTPUT_SCHEMA,
+      annotations: {
+        readOnlyHint: true,
+      },
+    },
+    createCoverageDiffToolHandler({
+      getWorkspaceRoots: async () => {
+        const rootsResponse = await server.server
+          .listRoots()
+          .catch(() => ({ roots: [] }));
+        return resolveWorkspaceRoots(rootsResponse.roots);
+      },
+    }),
+  );
 
   server.registerTool(
     "coverage_file",
