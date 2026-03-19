@@ -19,12 +19,16 @@ export interface PrewarmCoverageForRootOptions {
   getCoverage: (path: string) => Promise<CoverageRecord | null>;
   /** Artifact paths to stat for fingerprinting. */
   artifactPaths?: string[];
+  /** Paths to prioritize (move to the front of the queue). */
+  priorityPaths?: string[];
   /** Batch size for getCoverage calls before yielding (default 20). */
   batchSize?: number;
   /** When aborted, prewarm stops and does not write cache. */
   signal?: AbortSignal;
   /** Callback to log messages (optional). */
   log?: (message: string) => void;
+  /** Callback for progress updates (current, total). */
+  onProgress?: (current: number, total: number) => void;
 }
 
 function yieldToEventLoop(): Promise<void> {
@@ -61,7 +65,11 @@ function fingerprintsMatch(
     return false;
   }
   for (const key of keysA) {
-    if (!b[key] || a[key].mtime !== b[key].mtime || a[key].size !== b[key].size) {
+    if (
+      !b[key] ||
+      a[key].mtime !== b[key].mtime ||
+      a[key].size !== b[key].size
+    ) {
       return false;
     }
   }
@@ -83,7 +91,9 @@ export async function prewarmCoverageForRoot(
     signal,
     batchSize = 20,
     artifactPaths = [],
+    priorityPaths = [],
     log,
+    onProgress,
   } = options;
 
   // Phase 1: Global Fingerprinting + Skip
@@ -94,24 +104,42 @@ export async function prewarmCoverageForRoot(
     existingCache.globalFingerprint &&
     fingerprintsMatch(currentFingerprint, existingCache.globalFingerprint)
   ) {
-    log?.(`[prewarm] skip: fingerprints match existing cache for ${workspaceRoot}`);
+    log?.(
+      `[prewarm] skip: fingerprints match existing cache for ${workspaceRoot}`,
+    );
     return;
   }
 
-  const { paths, formatType } = listPaths();
-  const records: CoverageRecord[] = [];
+  const { paths: allPaths, formatType } = listPaths();
 
-  for (let i = 0; i < paths.length; i += batchSize) {
+  // Phase 2: Path Prioritization
+  const prioritySet = new Set(priorityPaths.map((p) => path.resolve(p)));
+  const prioritized: string[] = [];
+  for (const p of priorityPaths) {
+    const resolved = path.resolve(p);
+    if (allPaths.some((ap) => path.resolve(ap) === resolved)) {
+      prioritized.push(p);
+    }
+  }
+  const remaining = allPaths.filter((p) => !prioritySet.has(path.resolve(p)));
+  const sortedPaths = [...prioritized, ...remaining];
+
+  const records: CoverageRecord[] = [];
+  const total = sortedPaths.length;
+  onProgress?.(0, total);
+
+  for (let i = 0; i < sortedPaths.length; i += batchSize) {
     if (signal?.aborted) {
       return;
     }
-    const batch = paths.slice(i, i + batchSize);
+    const batch = sortedPaths.slice(i, i + batchSize);
     for (const p of batch) {
       const record = await getCoverage(p);
       if (record) {
         records.push(record);
       }
     }
+    onProgress?.(Math.min(i + batchSize, total), total);
     await yieldToEventLoop();
   }
 
@@ -123,8 +151,8 @@ export async function prewarmCoverageForRoot(
     workspaceRoot,
     detectedFormat: formatType,
     records,
-    totalPathCount: paths.length,
-    paths,
+    totalPathCount: allPaths.length,
+    paths: allPaths,
     globalFingerprint: currentFingerprint,
     cacheState: "full",
   });

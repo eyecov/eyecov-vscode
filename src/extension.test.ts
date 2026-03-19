@@ -13,7 +13,7 @@ let mockConfig: {
 };
 
 let statusBarAssignments: Record<string, number>;
-let statusBarItem: {
+let statusBarItems: Array<{
   command?: string;
   text: string;
   tooltip?: string;
@@ -21,7 +21,7 @@ let statusBarItem: {
   show: ReturnType<typeof vi.fn>;
   hide: ReturnType<typeof vi.fn>;
   dispose: ReturnType<typeof vi.fn>;
-};
+}>;
 let outputChannel: {
   appendLine: ReturnType<typeof vi.fn>;
   show: ReturnType<typeof vi.fn>;
@@ -66,33 +66,34 @@ function createStatusBarItem() {
   let tooltip = "";
   let backgroundColor: unknown;
 
-  statusBarAssignments = {
-    text: 0,
-    tooltip: 0,
-    backgroundColor: 0,
-  };
-
-  statusBarItem = {
+  const itemIndex = statusBarItems.length;
+  const item = {
     command: undefined,
     get text() {
       return text;
     },
     set text(value: string) {
-      statusBarAssignments.text++;
+      if (itemIndex === 0) {
+        statusBarAssignments.text++;
+      }
       text = value;
     },
     get tooltip() {
       return tooltip;
     },
     set tooltip(value: string | undefined) {
-      statusBarAssignments.tooltip++;
+      if (itemIndex === 0) {
+        statusBarAssignments.tooltip++;
+      }
       tooltip = value ?? "";
     },
     get backgroundColor() {
       return backgroundColor;
     },
     set backgroundColor(value: unknown) {
-      statusBarAssignments.backgroundColor++;
+      if (itemIndex === 0) {
+        statusBarAssignments.backgroundColor++;
+      }
       backgroundColor = value;
     },
     show: vi.fn(),
@@ -100,7 +101,8 @@ function createStatusBarItem() {
     dispose: vi.fn(),
   };
 
-  return statusBarItem;
+  statusBarItems.push(item);
+  return item;
 }
 
 vi.mock("vscode", () => {
@@ -225,7 +227,9 @@ vi.mock("./coverage-cache", () => ({
   deleteCoverageCache: vi.fn(),
 }));
 
-const prewarmCoverageForRoot = vi.fn(() => Promise.resolve());
+const prewarmCoverageForRoot = vi.fn<
+  (...args: unknown[]) => Promise<void>
+>(() => Promise.resolve());
 vi.mock("./coverage-prewarm", () => ({
   prewarmCoverageForRoot,
 }));
@@ -275,7 +279,12 @@ describe("CoverageExtension", () => {
       prewarmCoverageCache: false,
       showCoverageOnOpen: false,
     };
-    createStatusBarItem();
+    statusBarItems = [];
+    statusBarAssignments = {
+      text: 0,
+      tooltip: 0,
+      backgroundColor: 0,
+    };
     outputChannel = {
       appendLine: vi.fn(),
       show: vi.fn(),
@@ -323,12 +332,13 @@ describe("CoverageExtension", () => {
     } as unknown as vscode.ExtensionContext;
     const extension = new CoverageExtension(context);
     const internals = extension as unknown as CoverageExtensionInternals;
+    const coverageStatusBarItem = statusBarItems[0]!;
 
     statusBarAssignments.text = 0;
     statusBarAssignments.tooltip = 0;
     statusBarAssignments.backgroundColor = 0;
-    statusBarItem.show.mockClear();
-    statusBarItem.hide.mockClear();
+    coverageStatusBarItem.show.mockClear();
+    coverageStatusBarItem.hide.mockClear();
 
     internals.updateCoverageStatus(null, {
       hasSource: false,
@@ -344,8 +354,8 @@ describe("CoverageExtension", () => {
     expect(statusBarAssignments.text).toBe(1);
     expect(statusBarAssignments.tooltip).toBe(1);
     expect(statusBarAssignments.backgroundColor).toBe(1);
-    expect(statusBarItem.show).toHaveBeenCalledTimes(1);
-    expect(statusBarItem.hide).not.toHaveBeenCalled();
+    expect(coverageStatusBarItem.show).toHaveBeenCalledTimes(1);
+    expect(coverageStatusBarItem.hide).not.toHaveBeenCalled();
   });
 
   it("disposes owned resources through the extension lifecycle", async () => {
@@ -358,6 +368,8 @@ describe("CoverageExtension", () => {
     } as unknown as vscode.ExtensionContext;
     const extension = new CoverageExtension(context);
     const internals = extension as unknown as CoverageExtensionInternals;
+    const coverageStatusBarItem = statusBarItems[0]!;
+    const prewarmStatusBarItem = statusBarItems[1]!;
     internals.registerMcpServer = vi.fn();
     internals.initializeCoverage = vi.fn(async () => {});
     internals.watchCoverage = vi.fn();
@@ -367,7 +379,8 @@ describe("CoverageExtension", () => {
     const decorationsDispose = vi.spyOn(internals.decorations, "dispose");
     extension.dispose();
 
-    expect(statusBarItem.dispose).toHaveBeenCalledTimes(1);
+    expect(coverageStatusBarItem.dispose).toHaveBeenCalledTimes(1);
+    expect(prewarmStatusBarItem.dispose).toHaveBeenCalledTimes(1);
     expect(outputChannel.dispose).toHaveBeenCalledTimes(1);
     expect(decorationsDispose).toHaveBeenCalledTimes(1);
     expect(
@@ -407,6 +420,56 @@ describe("CoverageExtension", () => {
     expect(outputChannel.appendLine).toHaveBeenCalledWith(
       expect.stringContaining("[prewarm] completed for /workspace"),
     );
+
+    vi.useRealTimers();
+  });
+
+  it("shows prewarm progress and passes visible editors as priority paths", async () => {
+    vi.useFakeTimers();
+    mockConfig.prewarmCoverageCache = true;
+
+    const vscode = await import("vscode");
+    vscode.window.visibleTextEditors = [
+      { document: { uri: { fsPath: "/workspace/src/visible.ts" } } },
+    ] as unknown as typeof vscode.window.visibleTextEditors;
+
+    prewarmCoverageForRoot.mockImplementationOnce(
+      async (...args: unknown[]) => {
+        const options = args[1] as {
+          onProgress?: (current: number, total: number) => void;
+        };
+        options.onProgress?.(1, 3);
+        options.onProgress?.(3, 3);
+      },
+    );
+
+    const { CoverageExtension } = await import("./extension");
+    const context = {
+      subscriptions: [],
+      asAbsolutePath: (value: string) => `/ext/${value}`,
+    } as unknown as vscode.ExtensionContext;
+    const extension = new CoverageExtension(context);
+    const internals = extension as unknown as CoverageExtensionInternals;
+    const prewarmStatusBarItem = statusBarItems[1]!;
+    internals.resolver = {
+      getCoverage: vi.fn(async () => ({
+        record: null,
+        rejectReason: "no-artifact" as const,
+      })),
+    };
+
+    internals.startPrewarmIfEnabled();
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect(prewarmCoverageForRoot).toHaveBeenCalledWith(
+      "/workspace",
+      expect.objectContaining({
+        priorityPaths: ["/workspace/src/visible.ts"],
+      }),
+    );
+    expect(prewarmStatusBarItem.text).toBe("$(sync~spin) EyeCov: Indexing (1/3)...");
+    expect(prewarmStatusBarItem.show).toHaveBeenCalledTimes(1);
+    expect(prewarmStatusBarItem.hide).toHaveBeenCalled();
 
     vi.useRealTimers();
   });
