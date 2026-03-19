@@ -1,4 +1,6 @@
-# Spec: Prewarm V1 — Lean Incremental Indexing (Final - Phased)
+# Spec: Prewarm V1 — Lean Incremental Indexing
+
+Status: implemented
 
 ## 1. Goal
 Stop doing redundant work. Optimize the prewarm process to handle large repos by **fingerprinting artifacts** and **prioritizing the active workspace**, while providing enough visibility that the process doesn't feel "haunted."
@@ -24,11 +26,11 @@ Ensure the files the user is actually touching are indexed first and the process
 *   **Tier 2 (Background):** All other files.
 *   **Status Bar:** Add a spinner `[$(sync~spin)] EyeCov: Indexing (452/1200)...` and an idle state `[$(check)] EyeCov`.
 
-### Phase 3: Partial Cache/Reporting (Speculative/Optional)
-**Risk Note:** Only implement if Phase 1 & 2 are insufficient. Partial aggregates can be misleading or "unbalanced" based on what the user has open.
+### Phase 3: Partial Cache/Reporting
+Partial aggregates are intentionally surfaced as partial instead of pretending the cache is complete.
 *   **Safety Flag:** Add `cacheState: "partial" | "full"` to the payload.
 *   **Early Commit:** Write the cache with `cacheState: "partial"` after Tier 1.
-*   **Partial Truth:** `projectAggregateFromCache` returns partial totals + the `partial` flag.
+*   **Partial Truth:** Cache-backed aggregate tools preserve `cacheState` and return partial totals when the cache is still warming.
 
 ---
 
@@ -52,7 +54,8 @@ interface CoverageCachePayload {
 1.  **Discovery:** Get artifact paths from config.
 2.  **Fingerprint:** Stat artifacts and compare with `globalFingerprint` in cache.
 3.  **Skip/Crawl:** If match, exit. Else, start sequential crawl.
-4.  **Finalize:** Write full cache with new fingerprints.
+4.  **Tier 1 commit:** If priority paths were indexed first and background work remains, write a `partial` cache.
+5.  **Finalize:** Write full cache with new fingerprints.
 
 ---
 
@@ -66,4 +69,4 @@ interface CoverageCachePayload {
 ## 6. Success Metrics
 *   **Instant Skip:** < 100ms startup cost when artifacts are unchanged.
 *   **Zero Haunted Work:** Status bar clearly indicates when indexing is active.
-*   **Safe Aggregates:** Project totals remain trustworthy by defaulting to "full" commits only.
+*   **Honest Aggregates:** Cache-backed project/path responses surface `cacheState: "partial"` while the cache is still warming.

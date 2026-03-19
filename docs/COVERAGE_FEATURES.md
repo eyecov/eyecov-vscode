@@ -37,11 +37,11 @@ The extension runs an MCP server that exposes coverage to other tools (e.g. Curs
 - **`coverage_project`** — Project-wide aggregate; optional same limits and cutoff; can return `zeroCoverageFiles` when requested.
 - **`coverage_test_priority`** — Prioritize tests by impact on coverage.
 
-When a prewarm cache is valid, `coverage_path` and `coverage_project` (and related aggregates) use it for faster responses. Full tool behavior, inputs, and response shapes are in [MCP_SERVER.md](MCP_SERVER.md).
+When a prewarm cache is valid, `coverage_path`, `coverage_project`, and `coverage_test_priority` use it for faster responses. Cache-backed aggregate tools now surface `cacheState: "partial"` while the background prewarm is still warming instead of pretending the cache is complete. Full tool behavior, inputs, and response shapes are in [MCP_SERVER.md](MCP_SERVER.md).
 
 ## Cache and prewarm
 
-- **Optional prewarm** — If `eyecov.prewarmCoverageCache` is enabled, the extension builds a coverage cache in the background (`.eyecov/coverage-cache.json` per workspace root). That cache is used by MCP for path/project aggregates when valid, so those tools avoid re-scanning and re-parsing on every call.
+- **Optional prewarm** — If `eyecov.prewarmCoverageCache` is enabled, the extension builds a coverage cache in the background (`.eyecov/coverage-cache.json` per workspace root). It fingerprints artifacts, prioritizes visible editor files first, writes a temporary `partial` cache after that priority pass, and then overwrites it with `full` once the background crawl finishes. MCP aggregate tools use that cache when valid, so they avoid re-scanning and re-parsing on every call.
 - **Invalidation** — The cache is dropped when coverage artifacts or the config change, so results stay consistent with the current workspace state.
 
 ## Edit-tolerant tracking

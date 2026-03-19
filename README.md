@@ -87,6 +87,8 @@ When you insert or delete lines, coverage highlighting stays aligned. Turn off w
 
 The current file coverage is shown in the editor status bar (e.g. `49.0% (25/51)`). Click to toggle coverage display.
 
+When background prewarm is enabled, EyeCov also shows a temporary indexing spinner such as `$(sync~spin) EyeCov: Indexing (12/240)...` while it builds or refreshes the on-disk cache.
+
 _(Add a screenshot at `images/coverage-statusbar.png` to show the status bar.)_
 
 ---
@@ -148,6 +150,8 @@ EyeCov exposes coverage through a built-in **MCP server**. Available tools:
 - **coverage_path** — aggregate coverage for a path (optional worstFilesLimit, zeroCoverageFilesLimit, coveredLinesCutoff; can return zeroCoverageFiles)
 - **coverage_project** — project-level coverage (optional same limits; can return zeroCoverageFiles)
 - **coverage_test_priority** — where to add tests first
+
+When the background cache is mid-warm, cache-backed aggregate tools can return `cacheState: "partial"` instead of pretending the cache is complete.
 
 This lets AI tools answer: _Which files need tests most? Which tests cover this line? What has the lowest coverage?_
 
@@ -212,6 +216,8 @@ Formats are tried in order; the first with coverage for the file is used. Paths 
 - `eyecov.showCovered` — Highlight covered lines. Default: `true`
 - `eyecov.showLineCoverage` — Background color on lines. Default: `true`
 - `eyecov.showGutterCoverage` — Gutter icons. Default: `true`
+- `eyecov.prewarmCoverageCache` — Build and reuse `.eyecov/coverage-cache.json` in the background for faster aggregate MCP queries. Default: `true`
+- `eyecov.trackCoverageThroughEdits` — Keep coverage aligned through simple line insertions/deletions. Default: `true`
 
 ---
 

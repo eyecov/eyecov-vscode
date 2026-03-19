@@ -2,7 +2,7 @@
 
 For the canonical shared model behind these tools, see [COVERAGE_MODEL.md](COVERAGE_MODEL.md).
 
-The EyeCov extension runs an MCP server in supported VS Code/Cursor versions. The server uses the same coverage runtime model and adapters as the editor; there is no separate coverage pipeline. When `eyecov.prewarmCoverageCache` is true, the extension builds a coverage cache in the background (`.eyecov/coverage-cache.json` per workspace root); the MCP server uses that cache for `coverage_path`, `coverage_project`, and `coverage_test_priority` when valid, avoiding re-aggregation.
+The EyeCov extension runs an MCP server in supported VS Code/Cursor versions. The server uses the same coverage runtime model and adapters as the editor; there is no separate coverage pipeline. When `eyecov.prewarmCoverageCache` is true, the extension builds a coverage cache in the background (`.eyecov/coverage-cache.json` per workspace root); the MCP server uses that cache for `coverage_path`, `coverage_project`, and `coverage_test_priority` when valid, avoiding re-aggregation. During prewarm, the cache may temporarily be `partial` while priority files are indexed first and the background crawl finishes.
 
 ## Workspace roots
 
@@ -61,7 +61,7 @@ Aggregates coverage for one or more path/folder prefixes.
 - **zeroCoverageFilesLimit** — When set with **coveredLinesCutoff**, include up to this many files with covered lines ≤ cutoff in **zeroCoverageFiles**.
 - **coveredLinesCutoff** — Used with zeroCoverageFilesLimit: files with covered lines ≤ this go into zeroCoverageFiles (default 0 = only truly zero-coverage).
 
-**Behavior:** When a valid prewarm cache exists, filters the cache by path prefix(es) and returns aggregate stats and worst files (zeroCoverageFiles not from cache). Otherwise discovers all covered files under the given prefix(es) via configured formats (PHPUnit HTML, Cobertura, Clover, LCOV), resolves coverage for each, and returns aggregate stats, worst files, and (when options are set) zeroCoverageFiles.
+**Behavior:** When a valid prewarm cache exists, filters the cache by path prefix(es) and returns aggregate stats and worst files from cache state. That cache may be `full` or `partial`; when partial, totals reflect only the indexed subset plus any cached missing paths under the requested prefix(es). `zeroCoverageFiles` is still on-demand only. Otherwise discovers all covered files under the given prefix(es) via configured formats (PHPUnit HTML, Cobertura, Clover, LCOV), resolves coverage for each, and returns aggregate stats, worst files, and (when options are set) zeroCoverageFiles.
 
 **Response:**
 
@@ -79,7 +79,7 @@ Aggregates coverage for one or more path/folder prefixes.
       "lineCoveragePercent": 33.3
     }
   ],
-  "cacheState": "full",
+  "cacheState": "partial",
   "zeroCoverageFiles": [
     {
       "filePath": "/workspace/app/Domain/New/Bar.php",
@@ -93,7 +93,7 @@ Aggregates coverage for one or more path/folder prefixes.
 - **paths** — The prefix(es) requested (single path is returned as a one-element array).
 - **worstFiles** — Files with coverage above the cutoff, lowest line coverage first (up to worstFilesLimit).
 - **zeroCoverageFiles** — Present when zeroCoverageFilesLimit (and optionally coveredLinesCutoff) were passed; files with covered lines ≤ cutoff, up to the limit.
-- **cacheState** — `"full"` when the response was served from the prewarm cache; `"on-demand"` when aggregated on demand (no cache or cache invalid).
+- **cacheState** — `"full"` when the response was served from a complete prewarm cache, `"partial"` when served from an in-progress prewarm cache, and `"on-demand"` when aggregated without cache.
 
 ---
 
@@ -107,7 +107,7 @@ Aggregates workspace-wide coverage (no path filter).
 - **zeroCoverageFilesLimit** — When set with **coveredLinesCutoff**, include up to this many files with covered lines ≤ cutoff in **zeroCoverageFiles**.
 - **coveredLinesCutoff** — Used with zeroCoverageFilesLimit: files with covered lines ≤ this go into zeroCoverageFiles.
 
-**Behavior:** When a valid prewarm cache exists at `{workspaceRoot}/.eyecov/coverage-cache.json`, returns the pre-aggregated project totals from the cache (no resolver calls; zeroCoverageFiles not from cache). Otherwise uses the first configured coverage format that has data: discovers paths, resolves coverage for each, and returns aggregate stats plus that format as detectedFormat and cache state; when options are set, response can include zeroCoverageFiles.
+**Behavior:** When a valid prewarm cache exists at `{workspaceRoot}/.eyecov/coverage-cache.json`, returns the pre-aggregated project totals from the cache (no resolver calls; zeroCoverageFiles not from cache). That cache may be `partial` during prewarm and `full` once the crawl finishes. Otherwise uses the first configured coverage format that has data: discovers paths, resolves coverage for each, and returns aggregate stats plus that format as detectedFormat and cache state; when options are set, response can include zeroCoverageFiles.
 
 **Response:**
 
@@ -119,12 +119,12 @@ Aggregates workspace-wide coverage (no path filter).
   "missingCoverageFiles": 22,
   "staleCoverageFiles": 0,
   "detectedFormat": "phpunit-html",
-  "cacheState": "full",
+  "cacheState": "partial",
   "zeroCoverageFiles": []
 }
 ```
 
-- **cacheState:** `"full"` when the response was served from the prewarm cache; `"on-demand"` when aggregated on demand (no cache or cache invalid).
+- **cacheState:** `"full"` when the response was served from a complete prewarm cache, `"partial"` when the cache was still warming, and `"on-demand"` when aggregated on demand (no cache or cache invalid).
 - **detectedFormat:** The format that was used (from cache or first in config order that had coverage data).
 - **zeroCoverageFiles:** Present when zeroCoverageFilesLimit (and optionally coveredLinesCutoff) were passed; files with covered lines ≤ cutoff, up to the limit.
 
@@ -139,14 +139,14 @@ Recommends **where to add tests first** using coverage data only: files with no 
 - **includeNoCoverage** (boolean, default `true`) — When true, files with no coverage are included as top priority. Set to `false` for "where to add tests except where coverage is zero" (same data, no extra I/O).
 - **limit** (number, default `20`) — Maximum number of items returned.
 
-**Behavior:** When a valid prewarm cache exists, scores over `cache.files` and (if `includeNoCoverage`) `cache.missingPaths`. Otherwise discovers paths via the first configured format, resolves coverage for each, builds file list and missing list, then scores. Returns items sorted by priority (missing-coverage first, then by composite score), capped by `limit`.
+**Behavior:** When a valid prewarm cache exists, scores over `cache.files` and (if `includeNoCoverage`) `cache.missingPaths`. The cache may be `partial` while prewarm is still in progress, so results can reflect the warmed subset rather than the whole workspace. Otherwise discovers paths via the first configured format, resolves coverage for each, builds file list and missing list, then scores. Returns items sorted by priority (missing-coverage first, then by composite score), capped by `limit`.
 
 **Response:**
 
 ```json
 {
   "scope": "project",
-  "cacheState": "full",
+  "cacheState": "partial",
   "items": [
     {
       "filePath": "app/Domain/SomeNewFile.php",
@@ -171,7 +171,7 @@ Recommends **where to add tests first** using coverage data only: files with no 
 ```
 
 - **scope:** `"project"` (workspace-wide in initial scope).
-- **cacheState:** `"full"` when from cache; `"on-demand"` when aggregated on the fly.
+- **cacheState:** `"full"` when from a complete cache, `"partial"` when from an in-progress cache, and `"on-demand"` when aggregated on the fly.
 - **items:** Sorted by priority (highest first). Files with no coverage have `priorityScore` 100, `lineCoveragePercent: null`, `uncoveredLines: 0`, and reason `"no coverage"`. Files with coverage have composite score (0–99), `lineCoveragePercent`, `uncoveredLines`, and explainable **reasons** (e.g. `"low coverage"` when &lt; 50%, `"many uncovered lines"` when ≥ 10 uncovered, `"fresh coverage available"` when from cache). When there is no coverage data, `items` is `[]`.
 
 ---
