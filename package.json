@@ -140,6 +140,7 @@
     "test:no-coverage": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
+    "report:from-vitest-lcov": "npm run test:coverage && node ./out/report.js --path coverage/lcov.info --workspace-root . --format lcov --sample-files 15",
     "test:mcp": "node scripts/verify-mcp-server.mjs",
     "compile:tests": "tsc -p tsconfig.test.json",
     "compile:all": "npm run compile && npm run compile:tests",

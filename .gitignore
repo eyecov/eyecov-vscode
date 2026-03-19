@@ -9,3 +9,5 @@ coverage
 eyecov-review-pack/
 .eyecov/coverage-cache.json
 *.zip
+!coverage-samples/phpunit-html/docs-derived/coverage-html/
+!coverage-samples/phpunit-html/docs-derived/coverage-html/*.html
