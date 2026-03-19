@@ -180,6 +180,18 @@ describe("runReportCli", () => {
     ]);
   });
 
+  it("returns 3 when --limit is not a positive integer", async () => {
+    const stderr = createWriter();
+
+    const exitCode = await runReportCli({
+      args: ["--diff", "main", "--limit", "0"],
+      stderr: stderr.stream,
+    });
+
+    expect(exitCode).toBe(3);
+    expect(stderr.read()).toContain("Invalid --limit value");
+  });
+
   it("returns 3 when --path is missing", async () => {
     const stderr = createWriter();
 

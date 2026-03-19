@@ -73,6 +73,7 @@ export async function runReportCli(
     getCoverageDiffImpl = getCoverageDiff,
   } = dependencies;
   let parsed: ReturnType<typeof parseArgs>;
+  let validatedLimit!: number;
 
   try {
     parsed = parseArgs({
@@ -193,8 +194,8 @@ export async function runReportCli(
 
     const limitValue =
       typeof parsed.values.limit === "string" ? parsed.values.limit : "";
-    const limit = Number(limitValue);
-    if (!Number.isInteger(limit) || limit <= 0) {
+    validatedLimit = Number(limitValue);
+    if (!Number.isInteger(validatedLimit) || validatedLimit <= 0) {
       stderr.write("Invalid --limit value; expected a positive integer.\n");
       return 3;
     }
@@ -221,9 +222,6 @@ export async function runReportCli(
         ? parsed.values["context-lines"]
         : "";
     const contextLines = Number(contextLinesValue);
-    const limitValue =
-      typeof parsed.values.limit === "string" ? parsed.values.limit : "";
-    const limit = Number(limitValue);
     const sampleFilesValue =
       typeof parsed.values["sample-files"] === "string"
         ? parsed.values["sample-files"]
@@ -253,7 +251,7 @@ export async function runReportCli(
         comparison,
         includeCoveredFiles,
         contextLines,
-        limit,
+        limit: validatedLimit,
       } satisfies CoverageDiffOptions);
 
       if (jsonOutput) {
