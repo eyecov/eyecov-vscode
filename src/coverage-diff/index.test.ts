@@ -315,7 +315,9 @@ describe("getCoverageDiff", () => {
             record: {
               sourcePath: filePath,
               coveredLines: new Set(),
-              uncoveredLines: new Set(fileName === "a-uncovered.ts" ? [2] : [1]),
+              uncoveredLines: new Set(
+                fileName === "a-uncovered.ts" ? [2] : [1],
+              ),
               uncoverableLines: new Set(),
               lineCoveragePercent: 0,
             },
@@ -335,4 +337,82 @@ describe("getCoverageDiff", () => {
     ]);
   });
 
+  it("does not double-count a file that appears in multiple workspace roots", async () => {
+    const sharedFile = {
+      repoRelativePath: "src/shared.ts",
+      absolutePath: "/repo/src/shared.ts",
+      diffStatus: "modified" as const,
+      changedLineRanges: [[5, 7]] as Array<[number, number]>,
+    };
+
+    let coverageCalls = 0;
+    const result = await getCoverageDiff(
+      {
+        workspaceRoots: ["/repo", "/repo"],
+        base: "main",
+      },
+      {
+        getGitDiffForRoot: async () => ({
+          baseRef: "main",
+          headRef: "HEAD",
+          comparisonMode: "merge-base" as const,
+          files: [sharedFile],
+        }),
+        getCoverageForFile: async (): Promise<ResolverCoverageResult> => {
+          coverageCalls += 1;
+          return {
+            record: {
+              sourcePath: "/repo/src/shared.ts",
+              coveredLines: new Set([5, 6]),
+              uncoveredLines: new Set(),
+              uncoverableLines: new Set(),
+              lineCoveragePercent: 100,
+            },
+          };
+        },
+      },
+    );
+
+    expect(result.filesChanged).toBe(1);
+    expect(result.filesResolved).toBe(1);
+    expect(coverageCalls).toBe(1);
+  });
+
+  it("processes same-named files independently when they come from different repos", async () => {
+    const result = await getCoverageDiff(
+      {
+        workspaceRoots: ["/repo-a", "/repo-b"],
+        base: "main",
+      },
+      {
+        getGitDiffForRoot: async (workspaceRoot) => ({
+          baseRef: "main",
+          headRef: "HEAD",
+          comparisonMode: "merge-base" as const,
+          files: [
+            {
+              repoRelativePath: "src/index.ts",
+              absolutePath: `${workspaceRoot}/src/index.ts`,
+              diffStatus: "modified" as const,
+              changedLineRanges: [[1, 2]] as Array<[number, number]>,
+            },
+          ],
+        }),
+        getCoverageForFile: async (
+          filePath,
+        ): Promise<ResolverCoverageResult> => ({
+          record: {
+            sourcePath: filePath,
+            coveredLines: new Set([1]),
+            uncoveredLines: new Set(),
+            uncoverableLines: new Set(),
+            lineCoveragePercent: 100,
+          },
+        }),
+      },
+    );
+
+    expect(result.filesChanged).toBe(2);
+    expect(result.filesResolved).toBe(2);
+  });
 });

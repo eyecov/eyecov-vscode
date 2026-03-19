@@ -1,11 +1,7 @@
 import { execFile } from "node:child_process";
 import path from "node:path";
 import { promisify } from "node:util";
-import type {
-  CoverageDiffOptions,
-  GitDiffFile,
-  GitDiffResult,
-} from "./index";
+import type { CoverageDiffOptions, GitDiffFile, GitDiffResult } from "./index";
 
 const execFileAsync = promisify(execFile);
 
@@ -49,7 +45,9 @@ function parseNameStatus(output: string): NameStatusEntry[] {
     });
 }
 
-function parsePatchRanges(output: string): Map<string, Array<[number, number]>> {
+function parsePatchRanges(
+  output: string,
+): Map<string, Array<[number, number]>> {
   const rangesByPath = new Map<string, Array<[number, number]>>();
   let currentPath: string | null = null;
 

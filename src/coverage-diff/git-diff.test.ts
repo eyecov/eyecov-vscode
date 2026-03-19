@@ -11,7 +11,9 @@ function createRepo(): string {
   const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "eyecov-git-diff-"));
   tempDirs.push(repoRoot);
   execFileSync("git", ["init", "-b", "main"], { cwd: repoRoot });
-  execFileSync("git", ["config", "user.name", "EyeCov Test"], { cwd: repoRoot });
+  execFileSync("git", ["config", "user.name", "EyeCov Test"], {
+    cwd: repoRoot,
+  });
   execFileSync("git", ["config", "user.email", "eyecov@example.test"], {
     cwd: repoRoot,
   });
@@ -88,8 +90,7 @@ describe("getGitDiffForRoot", () => {
     git(repoRoot, "mv", "src/old.ts", "src/new.ts");
     fs.writeFileSync(
       path.join(repoRoot, "src", "new.ts"),
-      ["alpha", "beta changed", "gamma", "delta", "epsilon"].join("\n") +
-        "\n",
+      ["alpha", "beta changed", "gamma", "delta", "epsilon"].join("\n") + "\n",
     );
     git(repoRoot, "add", ".");
     git(repoRoot, "commit", "-m", "rename");

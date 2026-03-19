@@ -180,98 +180,114 @@ export async function getCoverageDiff(
   let headRef = head;
   let comparisonMode = comparison;
 
+  // Collect files across all roots, deduplicating by absolutePath.
+  // First root wins — prevents double-counting when roots overlap or share a repo.
+  const seenAbsolutePaths = new Set<string>();
+  const dedupedFiles: Array<{ file: GitDiffFile; workspaceRoot: string }> = [];
+  let firstDiff = true;
+
   for (const workspaceRoot of options.workspaceRoots) {
     const diff = await getGitDiffForRoot(workspaceRoot, options);
-    baseRef = diff.baseRef;
-    headRef = diff.headRef;
-    comparisonMode = diff.comparisonMode;
-
+    if (firstDiff) {
+      baseRef = diff.baseRef;
+      headRef = diff.headRef;
+      comparisonMode = diff.comparisonMode;
+      firstDiff = false;
+    }
     for (const file of diff.files) {
-      summary.filesChanged += 1;
-
-      if (file.diffStatus === "unsupported") {
-        allItems.push({
-          filePath: file.repoRelativePath,
-          status: "unsupported",
-          reason: file.reason ?? "Unsupported diff shape.",
-        });
-        continue;
+      if (!seenAbsolutePaths.has(file.absolutePath)) {
+        seenAbsolutePaths.add(file.absolutePath);
+        dedupedFiles.push({ file, workspaceRoot });
       }
-
-      const coverage = await getCoverageForFile(file.absolutePath, workspaceRoot);
-      if (!coverage.record) {
-        if (coverage.rejectReason === "stale") {
-          summary.filesStale += 1;
-          allItems.push({
-            filePath: file.repoRelativePath,
-            status: "stale",
-            reason: "Coverage artifact is older than the source file.",
-          });
-          continue;
-        }
-
-        summary.filesMissingCoverage += 1;
-        allItems.push({
-          filePath: file.repoRelativePath,
-          status: "missing",
-          reason: "No configured coverage source resolved this file.",
-        });
-        continue;
-      }
-
-      const changedLines = expandChangedLines(file.changedLineRanges);
-      const coveredLines = new Set<number>();
-      const uncoveredLines = new Set<number>();
-      const uncoverableLines = new Set<number>();
-      const nonExecutableChangedLines = new Set<number>();
-
-      for (const line of changedLines) {
-        if (coverage.record.coveredLines.has(line)) {
-          coveredLines.add(line);
-        } else if (coverage.record.uncoveredLines.has(line)) {
-          uncoveredLines.add(line);
-        } else if (coverage.record.uncoverableLines.has(line)) {
-          uncoverableLines.add(line);
-        } else {
-          nonExecutableChangedLines.add(line);
-        }
-      }
-
-      const executableLineCount =
-        coveredLines.size + uncoveredLines.size + uncoverableLines.size;
-      const status: CoverageDiffItem["status"] =
-        uncoveredLines.size > 0 ? "uncovered" : "covered";
-
-      summary.filesResolved += 1;
-      summary.changedExecutableLines += executableLineCount;
-      summary.changedCoveredLines += coveredLines.size;
-      summary.changedUncoveredLines += uncoveredLines.size;
-      summary.changedUncoverableLines += uncoverableLines.size;
-      if (status === "uncovered") {
-        summary.filesUncovered += 1;
-      }
-
-      if (status === "covered" && !includeCoveredFiles) {
-        continue;
-      }
-
-      const uncoveredSorted = sortNumbers(uncoveredLines);
-      allItems.push({
-        filePath: file.repoRelativePath,
-        status,
-        changedLineRanges: file.changedLineRanges,
-        coveredLines: sortNumbers(coveredLines),
-        uncoveredLines: uncoveredSorted,
-        uncoverableLines: sortNumbers(uncoverableLines),
-        nonExecutableChangedLines: sortNumbers(nonExecutableChangedLines),
-        uncoveredRegions: collapseRegions(uncoveredSorted, contextLines),
-        lineCoveragePercent: coverage.record.lineCoveragePercent,
-      });
     }
   }
 
+  for (const { file, workspaceRoot } of dedupedFiles) {
+    summary.filesChanged += 1;
+
+    if (file.diffStatus === "unsupported") {
+      allItems.push({
+        filePath: file.repoRelativePath,
+        status: "unsupported",
+        reason: file.reason ?? "Unsupported diff shape.",
+      });
+      continue;
+    }
+
+    const coverage = await getCoverageForFile(file.absolutePath, workspaceRoot);
+    if (!coverage.record) {
+      if (coverage.rejectReason === "stale") {
+        summary.filesStale += 1;
+        allItems.push({
+          filePath: file.repoRelativePath,
+          status: "stale",
+          reason: "Coverage artifact is older than the source file.",
+        });
+        continue;
+      }
+
+      summary.filesMissingCoverage += 1;
+      allItems.push({
+        filePath: file.repoRelativePath,
+        status: "missing",
+        reason: "No configured coverage source resolved this file.",
+      });
+      continue;
+    }
+
+    const changedLines = expandChangedLines(file.changedLineRanges);
+    const coveredLines = new Set<number>();
+    const uncoveredLines = new Set<number>();
+    const uncoverableLines = new Set<number>();
+    const nonExecutableChangedLines = new Set<number>();
+
+    for (const line of changedLines) {
+      if (coverage.record.coveredLines.has(line)) {
+        coveredLines.add(line);
+      } else if (coverage.record.uncoveredLines.has(line)) {
+        uncoveredLines.add(line);
+      } else if (coverage.record.uncoverableLines.has(line)) {
+        uncoverableLines.add(line);
+      } else {
+        nonExecutableChangedLines.add(line);
+      }
+    }
+
+    const executableLineCount =
+      coveredLines.size + uncoveredLines.size + uncoverableLines.size;
+    const status: CoverageDiffItem["status"] =
+      uncoveredLines.size > 0 ? "uncovered" : "covered";
+
+    summary.filesResolved += 1;
+    summary.changedExecutableLines += executableLineCount;
+    summary.changedCoveredLines += coveredLines.size;
+    summary.changedUncoveredLines += uncoveredLines.size;
+    summary.changedUncoverableLines += uncoverableLines.size;
+    if (status === "uncovered") {
+      summary.filesUncovered += 1;
+    }
+
+    if (status === "covered" && !includeCoveredFiles) {
+      continue;
+    }
+
+    const uncoveredSorted = sortNumbers(uncoveredLines);
+    allItems.push({
+      filePath: file.repoRelativePath,
+      status,
+      changedLineRanges: file.changedLineRanges,
+      coveredLines: sortNumbers(coveredLines),
+      uncoveredLines: uncoveredSorted,
+      uncoverableLines: sortNumbers(uncoverableLines),
+      nonExecutableChangedLines: sortNumbers(nonExecutableChangedLines),
+      uncoveredRegions: collapseRegions(uncoveredSorted, contextLines),
+      lineCoveragePercent: coverage.record.lineCoveragePercent,
+    });
+  }
+
   allItems.sort((left, right) => {
-    const statusDifference = STATUS_ORDER[left.status] - STATUS_ORDER[right.status];
+    const statusDifference =
+      STATUS_ORDER[left.status] - STATUS_ORDER[right.status];
     if (statusDifference !== 0) {
       return statusDifference;
     }

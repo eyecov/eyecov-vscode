@@ -1,12 +1,9 @@
 import { z } from "zod";
-import { getCoverageDiff, type CoverageDiffResult } from "../coverage-diff";
+import { getCoverageDiff } from "../coverage-diff";
 
 export const COVERAGE_DIFF_INPUT_SCHEMA = z.object({
   base: z.string().describe("Base ref to diff against, such as main."),
-  head: z
-    .string()
-    .optional()
-    .describe("Optional head ref. Defaults to HEAD."),
+  head: z.string().optional().describe("Optional head ref. Defaults to HEAD."),
   comparison: z
     .enum(["merge-base", "direct"])
     .optional()
@@ -16,7 +13,9 @@ export const COVERAGE_DIFF_INPUT_SCHEMA = z.object({
     .boolean()
     .optional()
     .default(false)
-    .describe("Include files whose changed executable lines are fully covered."),
+    .describe(
+      "Include files whose changed executable lines are fully covered.",
+    ),
   contextLines: z
     .number()
     .int()
@@ -49,7 +48,13 @@ export const COVERAGE_DIFF_OUTPUT_SCHEMA = z.object({
   items: z.array(
     z.object({
       filePath: z.string(),
-      status: z.enum(["covered", "uncovered", "missing", "stale", "unsupported"]),
+      status: z.enum([
+        "covered",
+        "uncovered",
+        "missing",
+        "stale",
+        "unsupported",
+      ]),
       changedLineRanges: z.array(z.tuple([z.number(), z.number()])).optional(),
       coveredLines: z.array(z.number()).optional(),
       uncoveredLines: z.array(z.number()).optional(),
@@ -79,7 +84,9 @@ type ToolResponse = {
 export function createCoverageDiffToolHandler(dependencies: {
   getWorkspaceRoots: () => Promise<string[]>;
   getCoverageDiff?: typeof getCoverageDiff;
-}): (args: z.infer<typeof COVERAGE_DIFF_INPUT_SCHEMA>) => Promise<ToolResponse> {
+}): (
+  args: z.infer<typeof COVERAGE_DIFF_INPUT_SCHEMA>,
+) => Promise<ToolResponse> {
   const getCoverageDiffImpl = dependencies.getCoverageDiff ?? getCoverageDiff;
 
   return async (args) => {

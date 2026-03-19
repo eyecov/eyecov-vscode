@@ -134,7 +134,9 @@ describe("runReportCli", () => {
 
     expect(exitCode).toBe(0);
     expect(stderr.read()).toBe("");
-    expect(stdout.read()).toContain("Coverage diff against merge-base(main..HEAD)");
+    expect(stdout.read()).toContain(
+      "Coverage diff against merge-base(main..HEAD)",
+    );
     expect(stdout.read()).toContain("3 changed files");
     expect(stdout.read()).toContain("src/foo.ts");
     expect(stdout.read()).toContain("uncovered changed lines: 11");
