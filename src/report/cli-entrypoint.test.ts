@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import type { CoverageDiffResult } from "../coverage-diff";
 import { runReportCli } from "./cli-main";
 
 const tempDirs: string[] = [];
@@ -41,6 +42,106 @@ afterEach(() => {
 });
 
 describe("runReportCli", () => {
+  it("runs coverage diff in json mode without requiring --path", async () => {
+    const stdout = createWriter();
+    const stderr = createWriter();
+    const diffResult: CoverageDiffResult = {
+      baseRef: "main",
+      headRef: "HEAD",
+      comparisonMode: "merge-base",
+      filesChanged: 1,
+      filesResolved: 1,
+      filesUncovered: 1,
+      filesMissingCoverage: 0,
+      filesStale: 0,
+      changedExecutableLines: 2,
+      changedCoveredLines: 1,
+      changedUncoveredLines: 1,
+      changedUncoverableLines: 0,
+      items: [
+        {
+          filePath: "src/foo.ts",
+          status: "uncovered",
+          changedLineRanges: [[10, 12]],
+          coveredLines: [10],
+          uncoveredLines: [11],
+          uncoverableLines: [],
+          nonExecutableChangedLines: [],
+          uncoveredRegions: [],
+          lineCoveragePercent: 50,
+        },
+      ],
+    };
+
+    const exitCode = await runReportCli({
+      args: ["--diff", "main", "--json"],
+      stdout: stdout.stream,
+      stderr: stderr.stream,
+      getCoverageDiffImpl: async () => diffResult,
+    });
+
+    expect(exitCode).toBe(0);
+    expect(stderr.read()).toBe("");
+    expect(JSON.parse(stdout.read())).toMatchObject(diffResult);
+  });
+
+  it("renders human coverage diff output", async () => {
+    const stdout = createWriter();
+    const stderr = createWriter();
+
+    const exitCode = await runReportCli({
+      args: ["--diff", "main"],
+      stdout: stdout.stream,
+      stderr: stderr.stream,
+      getCoverageDiffImpl: async () => ({
+        baseRef: "main",
+        headRef: "HEAD",
+        comparisonMode: "merge-base",
+        filesChanged: 3,
+        filesResolved: 1,
+        filesUncovered: 1,
+        filesMissingCoverage: 1,
+        filesStale: 1,
+        changedExecutableLines: 2,
+        changedCoveredLines: 1,
+        changedUncoveredLines: 1,
+        changedUncoverableLines: 0,
+        items: [
+          {
+            filePath: "src/foo.ts",
+            status: "uncovered",
+            changedLineRanges: [[10, 12]],
+            coveredLines: [10],
+            uncoveredLines: [11],
+            uncoverableLines: [],
+            nonExecutableChangedLines: [],
+            uncoveredRegions: [],
+            lineCoveragePercent: 50,
+          },
+          {
+            filePath: "src/bar.ts",
+            status: "missing",
+            reason: "No configured coverage source resolved this file.",
+          },
+          {
+            filePath: "src/baz.ts",
+            status: "stale",
+            reason: "Coverage artifact is older than the source file.",
+          },
+        ],
+      }),
+    });
+
+    expect(exitCode).toBe(0);
+    expect(stderr.read()).toBe("");
+    expect(stdout.read()).toContain("Coverage diff against merge-base(main..HEAD)");
+    expect(stdout.read()).toContain("3 changed files");
+    expect(stdout.read()).toContain("src/foo.ts");
+    expect(stdout.read()).toContain("uncovered changed lines: 11");
+    expect(stdout.read()).toContain("src/bar.ts");
+    expect(stdout.read()).toContain("missing coverage");
+  });
+
   it("returns 3 when --path is missing", async () => {
     const stderr = createWriter();
 

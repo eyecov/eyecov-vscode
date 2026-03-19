@@ -2,6 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import {
+  getCoverageDiff,
+  type CoverageDiffComparisonMode,
+  type CoverageDiffOptions,
+} from "../coverage-diff";
+import { renderHumanCoverageDiff } from "../coverage-diff/reporter-human";
+import {
   SUPPORTED_FORMAT_TYPES,
   type CoverageFormatType,
 } from "../coverage-config";
@@ -20,6 +26,7 @@ export type MainDependencies = {
   stderr?: Pick<NodeJS.WriteStream, "write" | "isTTY">;
   detectCoverageFormatImpl?: typeof detectCoverageFormat;
   loadCoverageArtifactImpl?: typeof loadCoverageArtifact;
+  getCoverageDiffImpl?: typeof getCoverageDiff;
 };
 
 const SUPPORTED_FORMAT_OPTIONS = ["auto", ...SUPPORTED_FORMAT_TYPES] as const;
@@ -37,6 +44,12 @@ function isCoverageFormatType(value: string): value is CoverageFormatType {
 
 function isSupportedThemeOption(value: string): boolean {
   return (SUPPORTED_THEME_OPTIONS as readonly string[]).includes(value);
+}
+
+function isCoverageDiffComparisonMode(
+  value: string,
+): value is CoverageDiffComparisonMode {
+  return value === "merge-base" || value === "direct";
 }
 
 function createNoVerificationResult(): VerificationResult {
@@ -57,6 +70,7 @@ export async function runReportCli(
     stderr = process.stderr,
     detectCoverageFormatImpl = detectCoverageFormat,
     loadCoverageArtifactImpl = loadCoverageArtifact,
+    getCoverageDiffImpl = getCoverageDiff,
   } = dependencies;
   let parsed: ReturnType<typeof parseArgs>;
 
@@ -67,6 +81,24 @@ export async function runReportCli(
       options: {
         path: {
           type: "string",
+        },
+        diff: {
+          type: "string",
+        },
+        head: {
+          type: "string",
+        },
+        comparison: {
+          type: "string",
+          default: "merge-base",
+        },
+        "include-covered-files": {
+          type: "boolean",
+          default: false,
+        },
+        "context-lines": {
+          type: "string",
+          default: "2",
         },
         format: {
           type: "string",
@@ -99,7 +131,9 @@ export async function runReportCli(
       strict: true,
     });
 
-    if (!parsed.values.path) {
+    const diffValue =
+      typeof parsed.values.diff === "string" ? parsed.values.diff : "";
+    if (!diffValue && !parsed.values.path) {
       stderr.write("Missing required --path <artifact>\n");
       return 3;
     }
@@ -118,6 +152,17 @@ export async function runReportCli(
       return 3;
     }
 
+    const comparisonValue =
+      typeof parsed.values.comparison === "string"
+        ? parsed.values.comparison
+        : "";
+    if (!isCoverageDiffComparisonMode(comparisonValue)) {
+      stderr.write(
+        `Invalid --comparison value: ${String(parsed.values.comparison)}\n`,
+      );
+      return 3;
+    }
+
     const sampleFilesValue =
       typeof parsed.values["sample-files"] === "string"
         ? parsed.values["sample-files"]
@@ -126,6 +171,18 @@ export async function runReportCli(
     if (!Number.isInteger(sampleFiles) || sampleFiles < 0) {
       stderr.write(
         "Invalid --sample-files value; expected a non-negative integer.\n",
+      );
+      return 3;
+    }
+
+    const contextLinesValue =
+      typeof parsed.values["context-lines"] === "string"
+        ? parsed.values["context-lines"]
+        : "";
+    const contextLines = Number(contextLinesValue);
+    if (!Number.isInteger(contextLines) || contextLines < 0) {
+      stderr.write(
+        "Invalid --context-lines value; expected a non-negative integer.\n",
       );
       return 3;
     }
@@ -137,6 +194,21 @@ export async function runReportCli(
   }
 
   try {
+    const diffBase =
+      typeof parsed.values.diff === "string" ? parsed.values.diff : "";
+    const headRef =
+      typeof parsed.values.head === "string" ? parsed.values.head : "HEAD";
+    const comparison =
+      typeof parsed.values.comparison === "string" &&
+      isCoverageDiffComparisonMode(parsed.values.comparison)
+        ? parsed.values.comparison
+        : "merge-base";
+    const includeCoveredFiles = parsed.values["include-covered-files"] === true;
+    const contextLinesValue =
+      typeof parsed.values["context-lines"] === "string"
+        ? parsed.values["context-lines"]
+        : "";
+    const contextLines = Number(contextLinesValue);
     const sampleFilesValue =
       typeof parsed.values["sample-files"] === "string"
         ? parsed.values["sample-files"]
@@ -149,6 +221,34 @@ export async function runReportCli(
       return 3;
     }
 
+    const workspaceRootValue =
+      typeof parsed.values["workspace-root"] === "string"
+        ? parsed.values["workspace-root"]
+        : process.cwd();
+    const workspaceRoot = path.resolve(workspaceRootValue);
+    const verifyReportTotals = parsed.values["verify-report-totals"] === true;
+    const jsonOutput = parsed.values.json === true;
+    const noColor = parsed.values["no-color"] === true;
+
+    if (diffBase) {
+      const output = await getCoverageDiffImpl({
+        workspaceRoots: [workspaceRoot],
+        base: diffBase,
+        head: headRef,
+        comparison,
+        includeCoveredFiles,
+        contextLines,
+      } satisfies CoverageDiffOptions);
+
+      if (jsonOutput) {
+        stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+      } else {
+        stdout.write(renderHumanCoverageDiff(output));
+      }
+
+      return 0;
+    }
+
     const pathValue =
       typeof parsed.values.path === "string" ? parsed.values.path : "";
     const artifactPath = path.resolve(pathValue);
@@ -157,20 +257,12 @@ export async function runReportCli(
       return 1;
     }
 
-    const workspaceRootValue =
-      typeof parsed.values["workspace-root"] === "string"
-        ? parsed.values["workspace-root"]
-        : process.cwd();
-    const workspaceRoot = path.resolve(workspaceRootValue);
     const formatValue =
       typeof parsed.values.format === "string" ? parsed.values.format : "";
     const detectedFormat =
       formatValue === "auto"
         ? detectCoverageFormatImpl(artifactPath)
         : formatValue;
-    const verifyReportTotals = parsed.values["verify-report-totals"] === true;
-    const jsonOutput = parsed.values.json === true;
-    const noColor = parsed.values["no-color"] === true;
 
     if (!detectedFormat || !isCoverageFormatType(detectedFormat)) {
       stderr.write(
