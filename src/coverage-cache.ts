@@ -9,6 +9,11 @@ import type { CoverageRecord } from "./coverage-resolver";
 
 export const COVERAGE_CACHE_FILENAME = "coverage-cache.json";
 
+export interface ArtifactFingerprint {
+  mtime: number;
+  size: number;
+}
+
 export interface CoverageCacheFileEntry {
   filePath: string;
   lineCoveragePercent: number | null;
@@ -28,6 +33,10 @@ export interface CoverageCachePayload {
   files: CoverageCacheFileEntry[];
   /** Paths that were listed but had no resolved coverage. Omitted when not computed. */
   missingPaths?: string[];
+  /** Fingerprints of the coverage artifacts used to build this cache. */
+  globalFingerprint?: Record<string, ArtifactFingerprint>;
+  /** Whether this cache represents a full project crawl or a partial update. Default: "full" */
+  cacheState?: "partial" | "full";
 }
 
 export interface CoverageCacheWritten {
@@ -43,6 +52,10 @@ export interface CoverageCacheWritten {
   files: CoverageCacheFileEntry[];
   /** Paths that were listed but had no resolved coverage. Absent in old caches → treat as []. */
   missingPaths?: string[];
+  /** Fingerprints of the coverage artifacts used to build this cache. */
+  globalFingerprint?: Record<string, ArtifactFingerprint>;
+  /** Whether this cache represents a full project crawl or a partial update. Default: "full" */
+  cacheState?: "partial" | "full";
 }
 
 /**
@@ -63,7 +76,7 @@ export function writeCoverageCache(
     `${COVERAGE_CACHE_FILENAME}.${process.pid}.${Date.now()}.tmp`,
   );
   const written: CoverageCacheWritten = {
-    version: 1,
+    version: 2,
     generatedAt: new Date().toISOString(),
     workspaceRoot: payload.workspaceRoot,
     detectedFormat: payload.detectedFormat,
@@ -76,6 +89,10 @@ export function writeCoverageCache(
     ...(payload.missingPaths != null
       ? { missingPaths: payload.missingPaths }
       : {}),
+    ...(payload.globalFingerprint != null
+      ? { globalFingerprint: payload.globalFingerprint }
+      : {}),
+    cacheState: payload.cacheState ?? "full",
   };
   const serialized = JSON.stringify(written, null, 0);
   let fd: number | undefined;
@@ -111,6 +128,10 @@ export interface BuildCoverageCachePayloadOptions {
   totalPathCount: number;
   /** Full list of paths from the format; when provided, missingPaths = paths with no record. */
   paths?: string[];
+  /** Fingerprints of the coverage artifacts used to build this cache. */
+  globalFingerprint?: Record<string, ArtifactFingerprint>;
+  /** Whether this cache represents a full project crawl or a partial update. Default: "full" */
+  cacheState?: "partial" | "full";
 }
 
 /**
@@ -120,8 +141,15 @@ export interface BuildCoverageCachePayloadOptions {
 export function buildCoverageCachePayload(
   options: BuildCoverageCachePayloadOptions,
 ): CoverageCachePayload {
-  const { workspaceRoot, detectedFormat, records, totalPathCount, paths } =
-    options;
+  const {
+    workspaceRoot,
+    detectedFormat,
+    records,
+    totalPathCount,
+    paths,
+    globalFingerprint,
+    cacheState,
+  } = options;
   const coveredFiles = records.length;
   const missingCoverageFiles = totalPathCount - coveredFiles;
   const recordPathSet = new Set(records.map((r) => path.resolve(r.sourcePath)));
@@ -156,6 +184,8 @@ export function buildCoverageCachePayload(
     staleCoverageFiles: 0,
     files,
     ...(missingPaths != null ? { missingPaths } : {}),
+    ...(globalFingerprint != null ? { globalFingerprint } : {}),
+    cacheState: cacheState ?? "full",
   };
 }
 
@@ -184,7 +214,7 @@ export function readCoverageCache(
     return null;
   }
   const obj = raw as Record<string, unknown>;
-  if (obj.version !== 1) {
+  if (obj.version !== 2) {
     return null;
   }
   if (
@@ -201,6 +231,9 @@ export function readCoverageCache(
   const result = raw as CoverageCacheWritten;
   if (result.missingPaths == null) {
     result.missingPaths = [];
+  }
+  if (result.cacheState == null) {
+    result.cacheState = "full";
   }
   return result;
 }

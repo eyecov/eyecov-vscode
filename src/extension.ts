@@ -14,6 +14,7 @@ import {
   getPhpUnitHtmlDir,
   getPhpUnitHtmlSourceSegment,
   getCoverageArtifactPathsToWatch,
+  getCoverageArtifactPaths,
 } from "./coverage-config";
 import { listCoveredPathsFromFirstFormat } from "./coverage-aggregate";
 import { deleteCoverageCache } from "./coverage-cache";
@@ -885,6 +886,7 @@ export class CoverageExtension implements vscode.Disposable {
       for (const root of workspaceFolders) {
         const config = loadCoverageConfig(root);
         const listed = listCoveredPathsFromFirstFormat([root], config);
+        const artifactPaths = getCoverageArtifactPaths(config, root);
         this.log(
           `[prewarm] starting for ${root} (${listed.formatType}, ${listed.paths.length} path(s))`,
         );
@@ -892,7 +894,9 @@ export class CoverageExtension implements vscode.Disposable {
           listPaths: () => listed,
           getCoverage: (p) =>
             this.resolver!.getCoverage(p).then((r) => r.record),
+          artifactPaths,
           batchSize: 20,
+          log: (msg) => this.log(msg),
         })
           .then(() => {
             this.log(`[prewarm] completed for ${root}`);

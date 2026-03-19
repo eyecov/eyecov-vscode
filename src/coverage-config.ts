@@ -174,3 +174,24 @@ export function getCoverageArtifactPathsToWatch(
     relativePaths.map((relativePath) => path.resolve(root, relativePath)),
   );
 }
+
+/**
+ * Return absolute file paths for all coverage artifacts (one per format per root).
+ * For phpunit-html, includes the dashboard.html and index.html as proxies for the report.
+ */
+export function getCoverageArtifactPaths(
+  config: CoverageConfig,
+  workspaceRoot: string,
+): string[] {
+  const root = path.resolve(workspaceRoot);
+  const paths: string[] = [];
+  for (const f of config.formats) {
+    if (f.type === "phpunit-html") {
+      paths.push(path.join(root, f.path, "index.html"));
+      paths.push(path.join(root, f.path, "dashboard.html"));
+    } else {
+      paths.push(path.resolve(root, f.path));
+    }
+  }
+  return paths;
+}

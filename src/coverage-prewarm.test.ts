@@ -100,4 +100,59 @@ describe("coverage-prewarm", () => {
     const cache = readCoverageCache(tmpDir);
     expect(cache).toBeNull();
   });
+
+  it("skips indexing when fingerprints match the existing cache", async () => {
+    const artifactPath = path.join(tmpDir, "coverage/lcov.info");
+    fs.mkdirSync(path.dirname(artifactPath), { recursive: true });
+    fs.writeFileSync(artifactPath, "dummy-lcov");
+    const sourcePath = path.join(tmpDir, "src/index.ts");
+    const _config: CoverageConfig = {
+      formats: [{ type: "lcov", path: "coverage/lcov.info" }],
+    };
+    const listPaths = () => ({
+      paths: [sourcePath],
+      formatType: "lcov" as const,
+    });
+    let getCoverageCalls = 0;
+    const getCoverage = async (p: string): Promise<CoverageRecord | null> => {
+      getCoverageCalls++;
+      return {
+        sourcePath: p,
+        coveredLines: new Set([1]),
+        uncoveredLines: new Set([]),
+        uncoverableLines: new Set([]),
+        lineCoveragePercent: 100,
+      };
+    };
+
+    // First prewarm - should index
+    await prewarmCoverageForRoot(tmpDir, {
+      listPaths,
+      getCoverage,
+      artifactPaths: [artifactPath],
+    });
+    expect(getCoverageCalls).toBe(1);
+    const cache1 = readCoverageCache(tmpDir);
+    expect(cache1).not.toBeNull();
+    expect(cache1!.globalFingerprint).not.toBeUndefined();
+    expect(cache1!.globalFingerprint![artifactPath]).not.toBeUndefined();
+
+    // Second prewarm - should skip
+    await prewarmCoverageForRoot(tmpDir, {
+      listPaths,
+      getCoverage,
+      artifactPaths: [artifactPath],
+    });
+    expect(getCoverageCalls).toBe(1); // No more calls
+
+    // Update artifact - should re-index
+    const now = Date.now() / 1000;
+    fs.utimesSync(artifactPath, now + 10, now + 10);
+    await prewarmCoverageForRoot(tmpDir, {
+      listPaths,
+      getCoverage,
+      artifactPaths: [artifactPath],
+    });
+    expect(getCoverageCalls).toBe(2);
+  });
 });
