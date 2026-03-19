@@ -557,7 +557,7 @@ describe("coverage-aggregate", () => {
   describe("projectAggregateFromCache", () => {
     it("returns project response with cacheState full from cache top-level fields", () => {
       const cache = {
-        version: 1,
+        version: 2,
         generatedAt: "2025-03-14T12:00:00.000Z",
         workspaceRoot: "/project",
         detectedFormat: "phpunit-html",
@@ -577,13 +577,32 @@ describe("coverage-aggregate", () => {
       expect(response.detectedFormat).toBe("phpunit-html");
       expect(response.cacheState).toBe("full");
     });
+
+    it("preserves partial cache state from the cache payload", () => {
+      const cache = {
+        version: 2,
+        generatedAt: "2025-03-14T12:00:00.000Z",
+        workspaceRoot: "/project",
+        detectedFormat: "phpunit-html",
+        aggregateCoveragePercent: 100,
+        totalFiles: 2,
+        coveredFiles: 2,
+        missingCoverageFiles: 0,
+        staleCoverageFiles: 0,
+        cacheState: "partial" as const,
+        files: [],
+      };
+
+      const response = projectAggregateFromCache(cache);
+      expect(response.cacheState).toBe("partial");
+    });
   });
 
   describe("pathAggregateFromCache", () => {
     it("filters cache files by path prefix and returns path aggregate with cacheState full", () => {
       const workspaceRoot = path.join(os.tmpdir(), "eyecov-path-cache-test");
       const cache = {
-        version: 1,
+        version: 2,
         generatedAt: "2025-03-14T12:00:00.000Z",
         workspaceRoot,
         detectedFormat: "phpunit-html",
@@ -631,6 +650,45 @@ describe("coverage-aggregate", () => {
       expect(response.worstFiles).toHaveLength(2);
       expect(response.worstFiles[0].lineCoveragePercent).toBe(50);
       expect(response.worstFiles[1].lineCoveragePercent).toBe(100);
+    });
+
+    it("reports partial cache state and missing paths within the filtered prefix", () => {
+      const workspaceRoot = path.join(os.tmpdir(), "eyecov-path-cache-partial");
+      const cache = {
+        version: 2,
+        generatedAt: "2025-03-14T12:00:00.000Z",
+        workspaceRoot,
+        detectedFormat: "phpunit-html",
+        aggregateCoveragePercent: 100,
+        totalFiles: 2,
+        coveredFiles: 1,
+        missingCoverageFiles: 1,
+        staleCoverageFiles: 0,
+        cacheState: "partial" as const,
+        missingPaths: [path.join(workspaceRoot, "app/Domain/Missing.php")],
+        files: [
+          {
+            filePath: path.join(workspaceRoot, "app/Domain/Foo.php"),
+            lineCoveragePercent: 100,
+            coveredLines: 5,
+            uncoveredLines: 0,
+            uncoverableLines: 0,
+          },
+        ],
+      };
+
+      const response = pathAggregateFromCache(
+        cache,
+        workspaceRoot,
+        ["app/Domain"],
+        10,
+      );
+
+      expect(response.cacheState).toBe("partial");
+      expect(response.totalFiles).toBe(2);
+      expect(response.coveredFiles).toBe(1);
+      expect(response.missingCoverageFiles).toBe(1);
+      expect(response.aggregateCoveragePercent).toBe(100);
     });
   });
 });

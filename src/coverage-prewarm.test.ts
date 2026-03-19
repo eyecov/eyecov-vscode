@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { setTimeout as delay } from "node:timers/promises";
 import { prewarmCoverageForRoot } from "./coverage-prewarm";
 import { readCoverageCache } from "./coverage-cache";
 import type { CoverageRecord } from "./coverage-resolver";
@@ -192,5 +193,54 @@ describe("coverage-prewarm", () => {
 
     // Progress updates should be [0, 1, 2, 3]
     expect(progressUpdates).toEqual([0, 1, 2, 3]);
+  });
+
+  it("writes a partial cache after prioritized paths before finishing the crawl", async () => {
+    const pathA = path.join(tmpDir, "app/A.php");
+    const pathB = path.join(tmpDir, "app/B.php");
+    const pathC = path.join(tmpDir, "app/C.php");
+    const listPaths = () => ({
+      paths: [pathA, pathB, pathC],
+      formatType: "lcov" as const,
+    });
+
+    const getCoverage = async (p: string): Promise<CoverageRecord | null> => {
+      if (p === pathA) {
+        await delay(30);
+      }
+      return {
+        sourcePath: p,
+        coveredLines: new Set([1]),
+        uncoveredLines: new Set([]),
+        uncoverableLines: new Set([]),
+        lineCoveragePercent: 100,
+      };
+    };
+
+    const run = prewarmCoverageForRoot(tmpDir, {
+      listPaths,
+      getCoverage,
+      priorityPaths: [pathC, pathB],
+      batchSize: 1,
+    });
+
+    let partialCache = readCoverageCache(tmpDir);
+    for (let attempt = 0; attempt < 10 && partialCache == null; attempt++) {
+      await delay(5);
+      partialCache = readCoverageCache(tmpDir);
+    }
+    expect(partialCache).not.toBeNull();
+    expect(partialCache!.cacheState).toBe("partial");
+    expect(partialCache!.totalFiles).toBe(2);
+    expect(partialCache!.files.map((file) => file.filePath)).toEqual([
+      pathC,
+      pathB,
+    ]);
+
+    await run;
+    const finalCache = readCoverageCache(tmpDir);
+    expect(finalCache).not.toBeNull();
+    expect(finalCache!.cacheState).toBe("full");
+    expect(finalCache!.totalFiles).toBe(3);
   });
 });
