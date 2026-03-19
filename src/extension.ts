@@ -201,6 +201,7 @@ export class CoverageExtension implements vscode.Disposable {
   private fileWatcher: vscode.FileSystemWatcher | null = null;
   private disposables: vscode.Disposable[] = [];
   private statusBarCoverage: vscode.StatusBarItem;
+  private statusBarPrewarm: vscode.StatusBarItem;
   private currentCoverage: CoverageData | null = null;
   private workspaceFolder: string | undefined;
   private outputChannel: vscode.OutputChannel;
@@ -224,6 +225,11 @@ export class CoverageExtension implements vscode.Disposable {
     );
     this.statusBarCoverage.command = "eyecov.toggleCoverage";
     this.statusBarCoverage.tooltip = "EyeCov: Click to toggle coverage display";
+
+    this.statusBarPrewarm = this.trackDisposable(
+      vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99),
+    );
+    this.statusBarPrewarm.tooltip = "EyeCov: Coverage prewarm indexing progress";
   }
 
   private createDecorations(): CoverageDecorations {
@@ -887,25 +893,39 @@ export class CoverageExtension implements vscode.Disposable {
         const config = loadCoverageConfig(root);
         const listed = listCoveredPathsFromFirstFormat([root], config);
         const artifactPaths = getCoverageArtifactPaths(config, root);
+        const priorityPaths = vscode.window.visibleTextEditors.map(
+          (e) => e.document.uri.fsPath,
+        );
+
         this.log(
           `[prewarm] starting for ${root} (${listed.formatType}, ${listed.paths.length} path(s))`,
         );
+
         prewarmCoverageForRoot(root, {
           listPaths: () => listed,
           getCoverage: (p) =>
             this.resolver!.getCoverage(p).then((r) => r.record),
           artifactPaths,
+          priorityPaths,
           batchSize: 20,
           log: (msg) => this.log(msg),
+          onProgress: (current, total) => {
+            if (current < total) {
+              this.statusBarPrewarm.text = `$(sync~spin) EyeCov: Indexing (${current}/${total})...`;
+              this.statusBarPrewarm.show();
+            } else {
+              this.statusBarPrewarm.hide();
+            }
+          },
         })
           .then(() => {
             this.log(`[prewarm] completed for ${root}`);
+            this.statusBarPrewarm.hide();
           })
           .catch((err: unknown) => {
             const message = err instanceof Error ? err.message : String(err);
             this.log(`[prewarm] failed for ${root}: ${message}`);
-            // Cache will be built on-demand if prewarm fails.
-            console.error(`[EyeCov] prewarm error: ${message}`);
+            this.statusBarPrewarm.hide();
           });
       }
     }, delayMs);

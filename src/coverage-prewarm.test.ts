@@ -155,4 +155,42 @@ describe("coverage-prewarm", () => {
     });
     expect(getCoverageCalls).toBe(2);
   });
+
+  it("prioritizes specific paths and reports progress during crawl", async () => {
+    const pathA = path.join(tmpDir, "app/A.php");
+    const pathB = path.join(tmpDir, "app/B.php");
+    const pathC = path.join(tmpDir, "app/C.php");
+    const listPaths = () => ({
+      paths: [pathA, pathB, pathC],
+      formatType: "lcov" as const,
+    });
+    const order: string[] = [];
+    const getCoverage = async (p: string): Promise<CoverageRecord | null> => {
+      order.push(p);
+      return {
+        sourcePath: p,
+        coveredLines: new Set([1]),
+        uncoveredLines: new Set([]),
+        uncoverableLines: new Set([]),
+        lineCoveragePercent: 100,
+      };
+    };
+
+    const progressUpdates: number[] = [];
+    await prewarmCoverageForRoot(tmpDir, {
+      listPaths,
+      getCoverage,
+      priorityPaths: [pathC, pathB], // C and B first
+      batchSize: 1,
+      onProgress: (current) => progressUpdates.push(current),
+    });
+
+    // C and B should be first in order
+    expect(order[0]).toBe(pathC);
+    expect(order[1]).toBe(pathB);
+    expect(order[2]).toBe(pathA);
+
+    // Progress updates should be [0, 1, 2, 3]
+    expect(progressUpdates).toEqual([0, 1, 2, 3]);
+  });
 });
