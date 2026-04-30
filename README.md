@@ -69,15 +69,13 @@ Coverage appears directly in the editor.
 - uncovered lines
 - uncoverable and warning lines
 
-_(Add a screenshot at `images/coverage-lines.png` for best discoverability.)_
+![EyeCov line coverage in the editor](media/gutter-design.png)
 
 ### Gutter markers
 
 Enable gutter icons for fast scanning:
 
 - **Cmd+Shift+P** → **EyeCov: Toggle Gutter Coverage**, or set `eyecov.showGutterCoverage` to `true`
-
-_(Add a screenshot at `images/coverage-gutter.png` to show gutter + line highlight.)_
 
 ### Track coverage through edits (default on)
 
@@ -88,8 +86,6 @@ When you insert or delete lines, coverage highlighting stays aligned. Turn off w
 The current file coverage is shown in the editor status bar (e.g. `49.0% (25/51)`). Click to toggle coverage display.
 
 When background prewarm is enabled, EyeCov also shows a temporary indexing spinner such as `$(sync~spin) EyeCov: Indexing (12/240)...` while it builds or refreshes the on-disk cache.
-
-_(Add a screenshot at `images/coverage-statusbar.png` to show the status bar.)_
 
 ---
 
