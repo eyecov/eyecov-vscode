@@ -1,0 +1,14 @@
+/.claude export-ignore
+/.codegraph export-ignore
+/.cursor export-ignore
+/.specstory export-ignore
+/.vscode export-ignore
+/.vscode-test export-ignore
+/coverage export-ignore
+/node_modules export-ignore
+/out export-ignore
+/test-workspace export-ignore
+/*.vsix export-ignore
+/.DS_Store export-ignore
+/.covflux export-ignore
+/.eyecov export-ignore

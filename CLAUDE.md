@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+For the canonical repo instructions, start with [AGENTS.md](AGENTS.md). This file keeps Claude-specific context and older detailed notes.
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Commands
