@@ -229,7 +229,8 @@ export class CoverageExtension implements vscode.Disposable {
     this.statusBarPrewarm = this.trackDisposable(
       vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99),
     );
-    this.statusBarPrewarm.tooltip = "EyeCov: Coverage prewarm indexing progress";
+    this.statusBarPrewarm.tooltip =
+      "EyeCov: Coverage prewarm indexing progress";
   }
 
   private createDecorations(): CoverageDecorations {

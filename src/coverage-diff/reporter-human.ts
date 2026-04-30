@@ -24,7 +24,9 @@ export function renderHumanCoverageDiff(output: CoverageDiffResult): string {
     lines.push("", item.filePath);
     if (item.status === "uncovered") {
       if (item.changedLineRanges && item.changedLineRanges.length > 0) {
-        lines.push(`  changed lines: ${formatLineRanges(item.changedLineRanges)}`);
+        lines.push(
+          `  changed lines: ${formatLineRanges(item.changedLineRanges)}`,
+        );
       }
       lines.push(
         `  uncovered changed lines: ${item.uncoveredLines?.join(", ") ?? ""}`,

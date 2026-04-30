@@ -227,9 +227,9 @@ vi.mock("./coverage-cache", () => ({
   deleteCoverageCache: vi.fn(),
 }));
 
-const prewarmCoverageForRoot = vi.fn<
-  (...args: unknown[]) => Promise<void>
->(() => Promise.resolve());
+const prewarmCoverageForRoot = vi.fn<(...args: unknown[]) => Promise<void>>(
+  () => Promise.resolve(),
+);
 vi.mock("./coverage-prewarm", () => ({
   prewarmCoverageForRoot,
 }));
@@ -467,7 +467,9 @@ describe("CoverageExtension", () => {
         priorityPaths: ["/workspace/src/visible.ts"],
       }),
     );
-    expect(prewarmStatusBarItem.text).toBe("$(sync~spin) EyeCov: Indexing (1/3)...");
+    expect(prewarmStatusBarItem.text).toBe(
+      "$(sync~spin) EyeCov: Indexing (1/3)...",
+    );
     expect(prewarmStatusBarItem.show).toHaveBeenCalledTimes(1);
     expect(prewarmStatusBarItem.hide).toHaveBeenCalled();
 
