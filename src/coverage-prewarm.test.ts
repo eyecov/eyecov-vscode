@@ -102,6 +102,22 @@ describe("coverage-prewarm", () => {
     expect(cache).toBeNull();
   });
 
+  it("does not create .eyecov when there are no coverage paths to cache", async () => {
+    const progressUpdates: Array<[number, number]> = [];
+
+    await prewarmCoverageForRoot(tmpDir, {
+      listPaths: () => ({ paths: [], formatType: "lcov" }),
+      getCoverage: async () => {
+        throw new Error("getCoverage should not be called");
+      },
+      onProgress: (current, total) => progressUpdates.push([current, total]),
+    });
+
+    expect(readCoverageCache(tmpDir)).toBeNull();
+    expect(fs.existsSync(path.join(tmpDir, ".eyecov"))).toBe(false);
+    expect(progressUpdates).toEqual([[0, 0]]);
+  });
+
   it("skips indexing when fingerprints match the existing cache", async () => {
     const artifactPath = path.join(tmpDir, "coverage/lcov.info");
     fs.mkdirSync(path.dirname(artifactPath), { recursive: true });

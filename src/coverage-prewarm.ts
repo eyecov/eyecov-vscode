@@ -142,6 +142,11 @@ export async function prewarmCoverageForRoot(
   }
 
   const { paths: allPaths, formatType } = listPaths();
+  if (allPaths.length === 0) {
+    log?.(`[prewarm] skip: no coverage paths found for ${workspaceRoot}`);
+    onProgress?.(0, 0);
+    return;
+  }
 
   // Phase 2: Path Prioritization
   const allPathsByResolved = new Map(
