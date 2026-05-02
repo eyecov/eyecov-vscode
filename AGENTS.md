@@ -71,4 +71,4 @@ npx vsce ls
 
 Inspect the VSIX contents. It should contain compiled output, package metadata, README, license, logo, and runtime media. It should not contain source, private agent files, coverage samples, local editor settings, generated caches, or workspace fixtures.
 
-Marketplace publishing uses publisher `eyecov`.
+Marketplace publishing uses publisher `eyecov`. Publish the same VSIX to Open VSX too, then verify both listings.

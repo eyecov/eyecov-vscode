@@ -2,7 +2,7 @@
   "name": "eyecov-vscode",
   "displayName": "EyeCov",
   "description": "Display code coverage in VS Code editor",
-  "version": "0.2.30",
+  "version": "0.2.31",
   "publisher": "eyecov",
   "license": "MIT",
   "icon": "images/eyecov-logo-256.png",
