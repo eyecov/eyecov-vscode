@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.32 - 2026-06-04
+
+### Added
+
+- Add SimpleCov JSON support for Ruby `.resultset.json` coverage artifacts.
+- Add a repository map image for project orientation.
+
+### Changed
+
+- Keep the release package focused by excluding the repository map image from the VSIX.
+
 ## 0.2.29 - 2026-04-30
 
 First public GitHub release.

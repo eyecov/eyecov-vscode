@@ -41,6 +41,20 @@ export function detectCoverageFormat(
             value &&
             typeof value === "object" &&
             !Array.isArray(value) &&
+            "coverage" in value &&
+            typeof (value as { coverage?: unknown }).coverage === "object" &&
+            (value as { coverage?: unknown }).coverage !== null &&
+            !Array.isArray((value as { coverage?: unknown }).coverage),
+        )
+      ) {
+        return "simplecov-json";
+      }
+      if (
+        Object.values(parsed).some(
+          (value) =>
+            value &&
+            typeof value === "object" &&
+            !Array.isArray(value) &&
             ("statementMap" in value || "fnMap" in value),
         )
       ) {

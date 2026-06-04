@@ -28,7 +28,7 @@ describe("coverage-config", () => {
 
   describe("DEFAULT_CONFIG", () => {
     it("has existing defaults first, then prioritized new default paths", () => {
-      expect(DEFAULT_CONFIG.formats).toHaveLength(9);
+      expect(DEFAULT_CONFIG.formats).toHaveLength(10);
       expect(DEFAULT_CONFIG.formats[0]).toEqual({
         type: "phpunit-html",
         path: "coverage-html",
@@ -46,22 +46,26 @@ describe("coverage-config", () => {
         path: "coverage/lcov.info",
       });
       expect(DEFAULT_CONFIG.formats[4]).toEqual({
+        type: "simplecov-json",
+        path: "coverage/.resultset.json",
+      });
+      expect(DEFAULT_CONFIG.formats[5]).toEqual({
         type: "istanbul-json",
         path: "coverage/coverage-final.json",
       });
-      expect(DEFAULT_CONFIG.formats[5]).toEqual({
+      expect(DEFAULT_CONFIG.formats[6]).toEqual({
         type: "jacoco",
         path: "target/site/jacoco/jacoco.xml",
       });
-      expect(DEFAULT_CONFIG.formats[6]).toEqual({
+      expect(DEFAULT_CONFIG.formats[7]).toEqual({
         type: "jacoco",
         path: "build/reports/jacoco/test/jacocoTestReport.xml",
       });
-      expect(DEFAULT_CONFIG.formats[7]).toEqual({
+      expect(DEFAULT_CONFIG.formats[8]).toEqual({
         type: "go-coverprofile",
         path: "coverage.out",
       });
-      expect(DEFAULT_CONFIG.formats[8]).toEqual({
+      expect(DEFAULT_CONFIG.formats[9]).toEqual({
         type: "coveragepy-json",
         path: "coverage.json",
       });
@@ -225,6 +229,7 @@ describe("coverage-config", () => {
         JSON.stringify({
           formats: [
             { type: "istanbul-json", path: "coverage/coverage-final.json" },
+            { type: "simplecov-json", path: "coverage/.resultset.json" },
             { type: "jacoco", path: "target/site/jacoco/jacoco.xml" },
             { type: "go-coverprofile", path: "coverage.out" },
             { type: "coveragepy-json", path: "coverage.json" },
@@ -237,6 +242,7 @@ describe("coverage-config", () => {
 
       expect(config.formats.map((entry) => entry.type)).toEqual([
         "istanbul-json",
+        "simplecov-json",
         "jacoco",
         "go-coverprofile",
         "coveragepy-json",
@@ -309,11 +315,12 @@ describe("coverage-config", () => {
       const config: CoverageConfig = DEFAULT_CONFIG;
       const roots = [workspaceRoot];
       const paths = getCoverageArtifactPathsToWatch(config, roots);
-      expect(paths).toHaveLength(8);
+      expect(paths).toHaveLength(9);
       expect(paths).toEqual([
         path.join(workspaceRoot, "coverage", "cobertura-coverage.xml"),
         path.join(workspaceRoot, "coverage", "clover.xml"),
         path.join(workspaceRoot, "coverage", "lcov.info"),
+        path.join(workspaceRoot, "coverage", ".resultset.json"),
         path.join(workspaceRoot, "coverage", "coverage-final.json"),
         path.join(workspaceRoot, "target", "site", "jacoco", "jacoco.xml"),
         path.join(
@@ -355,11 +362,12 @@ describe("coverage-config", () => {
         workspaceRoot,
         root2,
       ]);
-      expect(paths).toHaveLength(16);
+      expect(paths).toHaveLength(18);
       expect(paths).toEqual([
         path.join(workspaceRoot, "coverage", "cobertura-coverage.xml"),
         path.join(workspaceRoot, "coverage", "clover.xml"),
         path.join(workspaceRoot, "coverage", "lcov.info"),
+        path.join(workspaceRoot, "coverage", ".resultset.json"),
         path.join(workspaceRoot, "coverage", "coverage-final.json"),
         path.join(workspaceRoot, "target", "site", "jacoco", "jacoco.xml"),
         path.join(
@@ -375,6 +383,7 @@ describe("coverage-config", () => {
         path.join(root2, "coverage", "cobertura-coverage.xml"),
         path.join(root2, "coverage", "clover.xml"),
         path.join(root2, "coverage", "lcov.info"),
+        path.join(root2, "coverage", ".resultset.json"),
         path.join(root2, "coverage", "coverage-final.json"),
         path.join(root2, "target", "site", "jacoco", "jacoco.xml"),
         path.join(

@@ -14,6 +14,7 @@ import {
   JacocoAdapter,
   LcovAdapter,
   OpenCoverAdapter,
+  SimpleCovJsonAdapter,
   FixtureAdapter,
   createAdaptersFromConfig,
 } from "./coverage-resolver";
@@ -181,16 +182,17 @@ describe("CoverageResolver", () => {
 
   it("createAdaptersFromConfig returns adapters in config order", () => {
     const adapters = createAdaptersFromConfig(DEFAULT_CONFIG);
-    expect(adapters).toHaveLength(9);
+    expect(adapters).toHaveLength(10);
     expect(adapters[0]).toBeInstanceOf(PhpUnitHtmlAdapter);
     expect(adapters[1]).toBeInstanceOf(CoberturaAdapter);
     expect(adapters[2]).toBeInstanceOf(CloverAdapter);
     expect(adapters[3]).toBeInstanceOf(LcovAdapter);
-    expect(adapters[4]).toBeInstanceOf(IstanbulJsonAdapter);
-    expect(adapters[5]).toBeInstanceOf(JacocoAdapter);
+    expect(adapters[4]).toBeInstanceOf(SimpleCovJsonAdapter);
+    expect(adapters[5]).toBeInstanceOf(IstanbulJsonAdapter);
     expect(adapters[6]).toBeInstanceOf(JacocoAdapter);
-    expect(adapters[7]).toBeInstanceOf(GoCoverprofileAdapter);
-    expect(adapters[8]).toBeInstanceOf(CoveragePyJsonAdapter);
+    expect(adapters[7]).toBeInstanceOf(JacocoAdapter);
+    expect(adapters[8]).toBeInstanceOf(GoCoverprofileAdapter);
+    expect(adapters[9]).toBeInstanceOf(CoveragePyJsonAdapter);
   });
 
   it("createAdaptersFromConfig with only lcov returns single adapter", () => {

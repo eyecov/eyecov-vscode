@@ -245,6 +245,10 @@ describe("coverage-aggregate", () => {
       );
       fs.writeFileSync(path.join(workspaceRoot, "src", "foo.py"), "pass\n");
       fs.writeFileSync(
+        path.join(workspaceRoot, "src", "foo.rb"),
+        "class Foo\nend\n",
+      );
+      fs.writeFileSync(
         path.join(workspaceRoot, "src", "Foo.java"),
         "class Foo {}\n",
       );
@@ -266,6 +270,16 @@ describe("coverage-aggregate", () => {
             path: "src/foo.ts",
             statementMap: { "0": { start: { line: 1 } } },
             s: { "0": 1 },
+          },
+        }),
+      );
+      fs.writeFileSync(
+        path.join(workspaceRoot, "coverage", ".resultset.json"),
+        JSON.stringify({
+          RSpec: {
+            coverage: {
+              "src/foo.rb": { lines: [null, 1] },
+            },
           },
         }),
       );
@@ -301,6 +315,7 @@ describe("coverage-aggregate", () => {
         config: {
           formats: [
             { type: "istanbul-json", path: "coverage/coverage-final.json" },
+            { type: "simplecov-json", path: "coverage/.resultset.json" },
             { type: "go-coverprofile", path: "coverage.out" },
             { type: "coveragepy-json", path: "coverage.json" },
             { type: "jacoco", path: "target/site/jacoco/jacoco.xml" },
@@ -314,6 +329,7 @@ describe("coverage-aggregate", () => {
         path.resolve(workspaceRoot, "src", "Foo.java"),
         path.resolve(workspaceRoot, "src", "foo.go"),
         path.resolve(workspaceRoot, "src", "foo.py"),
+        path.resolve(workspaceRoot, "src", "foo.rb"),
         path.resolve(workspaceRoot, "src", "foo.ts"),
       ]);
     });

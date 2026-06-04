@@ -17,7 +17,7 @@ Resolves coverage for one file by path or basename.
 
 **Input:** `query` — file path or basename (e.g. `GetEmployeeAction.php` or `app/Domain/Workspace/Actions/GetEmployeeAction.php`).
 
-**Behavior:** Resolves like the extension using configured format order. Default order is PHPUnit HTML (`coverage-html`), Cobertura (`coverage/cobertura-coverage.xml`), Clover (`coverage/clover.xml`), then LCOV (`coverage/lcov.info`). Same resolver and adapters as the editor. `coverageHtmlPath` is omitted for non-HTML sources.
+**Behavior:** Resolves like the extension using configured format order. Default order is PHPUnit HTML (`coverage-html`), Cobertura (`coverage/cobertura-coverage.xml`), Clover (`coverage/clover.xml`), LCOV (`coverage/lcov.info`), SimpleCov JSON (`coverage/.resultset.json`), Istanbul JSON, JaCoCo, Go coverprofile, then coverage.py JSON. Same resolver and adapters as the editor. `coverageHtmlPath` is omitted for non-HTML sources.
 
 **Response:**
 
@@ -61,7 +61,7 @@ Aggregates coverage for one or more path/folder prefixes.
 - **zeroCoverageFilesLimit** — When set with **coveredLinesCutoff**, include up to this many files with covered lines ≤ cutoff in **zeroCoverageFiles**.
 - **coveredLinesCutoff** — Used with zeroCoverageFilesLimit: files with covered lines ≤ this go into zeroCoverageFiles (default 0 = only truly zero-coverage).
 
-**Behavior:** When a valid prewarm cache exists, filters the cache by path prefix(es) and returns aggregate stats and worst files from cache state. That cache may be `full` or `partial`; when partial, totals reflect only the indexed subset plus any cached missing paths under the requested prefix(es). `zeroCoverageFiles` is still on-demand only. Otherwise discovers all covered files under the given prefix(es) via configured formats (PHPUnit HTML, Cobertura, Clover, LCOV), resolves coverage for each, and returns aggregate stats, worst files, and (when options are set) zeroCoverageFiles.
+**Behavior:** When a valid prewarm cache exists, filters the cache by path prefix(es) and returns aggregate stats and worst files from cache state. That cache may be `full` or `partial`; when partial, totals reflect only the indexed subset plus any cached missing paths under the requested prefix(es). `zeroCoverageFiles` is still on-demand only. Otherwise discovers all covered files under the given prefix(es) via configured formats, resolves coverage for each, and returns aggregate stats, worst files, and (when options are set) zeroCoverageFiles.
 
 **Response:**
 

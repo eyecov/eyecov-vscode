@@ -21,6 +21,7 @@ import {
 import { parseJaCoCoXml } from "../coverage-formats/jacoco";
 import { parseLcov } from "../coverage-formats/lcov";
 import { parseOpenCoverXml } from "../coverage-formats/opencover";
+import { parseSimpleCovJson } from "../coverage-formats/simplecov-json";
 import {
   lineCoveragePercent,
   resolveCoverageSourcePath,
@@ -263,6 +264,48 @@ export async function loadSharedArtifact(
       records,
       warnings,
       reportTotals: toMetadataOrNull(parsed.totals),
+      derivedTotals: buildTotalsFromRecords(parsed.files),
+      hasUnresolvedEntries,
+    };
+  }
+
+  if (format === "simplecov-json") {
+    const warnings: string[] = [];
+    const records: CoverageRecord[] = [];
+    const parsed = parseSimpleCovJson(fs.readFileSync(artifactPath, "utf8"));
+    let hasUnresolvedEntries = false;
+
+    for (const entry of parsed.files) {
+      const resolved = path.isAbsolute(entry.sourcePath)
+        ? path.resolve(entry.sourcePath)
+        : resolveSharedSourcePath(workspaceRoot, entry.sourcePath);
+      if (!resolved || !fs.existsSync(resolved)) {
+        warnings.push(
+          `Skipped unresolved SimpleCov JSON source path: ${entry.sourcePath}`,
+        );
+        hasUnresolvedEntries = true;
+        continue;
+      }
+      if (isCoverageStale(resolved, artifactPath)) {
+        warnings.push(`Included stale SimpleCov JSON record for ${resolved}`);
+      }
+      records.push(
+        createCoverageRecord(
+          resolved,
+          entry.coveredLines,
+          entry.uncoveredLines,
+          "simplecov-json",
+        ),
+      );
+    }
+
+    return {
+      format,
+      artifactPath,
+      workspaceRoot,
+      records,
+      warnings,
+      reportTotals: buildTotalsFromRecords(parsed.files),
       derivedTotals: buildTotalsFromRecords(parsed.files),
       hasUnresolvedEntries,
     };

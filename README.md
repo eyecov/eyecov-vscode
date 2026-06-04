@@ -97,6 +97,7 @@ Currently supported (resolved in order):
 - **Cobertura XML** — default path `coverage/cobertura-coverage.xml`
 - **Clover XML** — default path `coverage/clover.xml`
 - **LCOV** — default path `coverage/lcov.info`
+- **SimpleCov JSON** — default path `coverage/.resultset.json`
 - **Istanbul/NYC JSON** — default path `coverage/coverage-final.json`
 - **JaCoCo XML** — default paths `target/site/jacoco/jacoco.xml`, `build/reports/jacoco/test/jacocoTestReport.xml`
 - **Go coverprofile** — default path `coverage.out`
@@ -115,6 +116,10 @@ phpunit --coverage-cobertura coverage/cobertura-coverage.xml
 
 ```bash
 phpunit --coverage-clover coverage/clover.xml
+```
+
+```bash
+bundle exec rake spec
 ```
 
 ```bash
@@ -187,6 +192,7 @@ Put `.eyecov.json` or `eyecov.json` in your workspace root:
     { "type": "cobertura", "path": "coverage/cobertura-coverage.xml" },
     { "type": "clover", "path": "coverage/clover.xml" },
     { "type": "lcov", "path": "coverage/lcov.info" },
+    { "type": "simplecov-json", "path": "coverage/.resultset.json" },
     { "type": "istanbul-json", "path": "coverage/coverage-final.json" },
     { "type": "jacoco", "path": "target/site/jacoco/jacoco.xml" },
     {

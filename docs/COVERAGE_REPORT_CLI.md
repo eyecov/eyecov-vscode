@@ -31,6 +31,7 @@ node out/report.js --path coverage/lcov.info
 node out/report.js --path coverage/cobertura-coverage.xml --verify-report-totals
 node out/report.js --path coverage/clover.xml --json
 node out/report.js --path coverage-html --verify-report-totals
+node out/report.js --path coverage/.resultset.json --format simplecov-json
 node out/report.js --path coverage/coverage-final.json --format istanbul-json
 node out/report.js --path target/site/jacoco/jacoco.xml --verify-report-totals
 ```
@@ -48,7 +49,7 @@ npm run report:verify -- --path coverage/lcov.info
 - `--path <artifact>`
   - Required.
   - Path to one coverage artifact file or one PHPUnit HTML directory.
-- `--format <auto|phpunit-html|cobertura|clover|lcov|istanbul-json|jacoco|go-coverprofile|coveragepy-json|opencover>`
+- `--format <auto|phpunit-html|cobertura|clover|lcov|simplecov-json|istanbul-json|jacoco|go-coverprofile|coveragepy-json|opencover>`
   - Optional.
   - Default: `auto`.
   - `auto` detects the format from the path and file contents.
@@ -75,6 +76,7 @@ npm run report:verify -- --path coverage/lcov.info
 - `cobertura`
 - `clover`
 - `lcov`
+- `simplecov-json`
 - `istanbul-json`
 - `jacoco`
 - `go-coverprofile`
@@ -116,6 +118,12 @@ unsupported instead of failing.
 ### `lcov`
 
 - Verification uses totals derived from parsed `DA:` records.
+
+### `simplecov-json`
+
+- Loads SimpleCov `.resultset.json` artifacts.
+- Merges all top-level suite entries.
+- Verification uses totals derived from normalized line coverage.
 
 ### `istanbul-json`
 
