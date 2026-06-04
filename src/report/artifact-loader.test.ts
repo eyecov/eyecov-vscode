@@ -229,6 +229,44 @@ describe("loadCoverageArtifact", () => {
     });
   });
 
+  it("loads SimpleCov JSON records and derives totals from line coverage", async () => {
+    const workspaceRoot = createWorkspace();
+    fs.mkdirSync(path.join(workspaceRoot, "app"), { recursive: true });
+    fs.writeFileSync(
+      path.join(workspaceRoot, "app", "user.rb"),
+      "class User\nend\n",
+    );
+    fs.writeFileSync(
+      path.join(workspaceRoot, ".resultset.json"),
+      JSON.stringify({
+        RSpec: {
+          coverage: {
+            "app/user.rb": {
+              lines: [null, 1, 0],
+              branches: {},
+            },
+          },
+          covered_percent: 100,
+        },
+      }),
+    );
+
+    const result = await loadCoverageArtifact({
+      artifactPath: path.join(workspaceRoot, ".resultset.json"),
+      format: "simplecov-json",
+      workspaceRoot,
+    });
+
+    expect(result.records).toHaveLength(1);
+    expect(result.records[0]?.sourceFormat).toBe("simplecov-json");
+    expect(result.reportTotals).toEqual({
+      coveredLines: 1,
+      executableLines: 2,
+      aggregateCoveragePercent: 50,
+    });
+    expect(result.derivedTotals).toEqual(result.reportTotals);
+  });
+
   it("loads Istanbul JSON records and leaves report totals unsupported", async () => {
     const workspaceRoot = createWorkspace();
     fs.mkdirSync(path.join(workspaceRoot, "src"), { recursive: true });

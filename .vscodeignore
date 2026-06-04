@@ -29,6 +29,7 @@ docs/**
 .cursorindexingignore
 file:/**
 images/eyecov-logo-2048.png
+images/eyecov-repo-map.png
 eyecov
 eyecov-logo.ans
 eyecov-logo.png

@@ -49,6 +49,7 @@ This flow should be asynchronous but avoid unnecessary work on repeated opens of
 - **`src/coverage-formats/cobertura/`** — Parser and adapter (`CoberturaAdapter`) for a single Cobertura XML artifact. Default path `coverage/cobertura-coverage.xml`.
 - **`src/coverage-formats/clover/`** — Parser and adapter (`CloverAdapter`) for a single Clover XML artifact. Default path `coverage/clover.xml`.
 - **`src/coverage-formats/lcov/`** — Parser, adapter (`LcovAdapter`); default path `coverage/lcov.info`.
+- **`src/coverage-formats/simplecov-json/`** — Parser and adapter (`SimpleCovJsonAdapter`) for Ruby SimpleCov `.resultset.json`. Default path `coverage/.resultset.json`.
 - **`src/coverage-formats/istanbul-json/`** — Parser and adapter (`IstanbulJsonAdapter`) for a single Istanbul/NYC JSON artifact. Default path `coverage/coverage-final.json`.
 - **`src/coverage-formats/jacoco/`** — Parser and adapter (`JacocoAdapter`) for a single JaCoCo XML artifact. Default paths `target/site/jacoco/jacoco.xml` and `build/reports/jacoco/test/jacocoTestReport.xml`.
 - **`src/coverage-formats/go-coverprofile/`** — Parser and adapter (`GoCoverprofileAdapter`) for a single Go coverprofile artifact. Default path `coverage.out`.
@@ -143,6 +144,10 @@ Rules: keep `findCoverageForFile` cheap; do heavy parsing in `read` after freshn
 ### `LcovAdapter` (implemented)
 
 **Location:** `src/coverage-formats/lcov/`. Default path `coverage/lcov.info`; overridden by config (`type: "lcov"`, `path`). Reads single lcov.info per workspace root; finds matching `SF:` record for the source path; returns `CoverageRecord`. Used for Vitest and other LCOV producers.
+
+### `SimpleCovJsonAdapter` (implemented)
+
+**Location:** `src/coverage-formats/simplecov-json/`. Default path `coverage/.resultset.json`; overridden by config (`type: "simplecov-json"`, `path`). Reads one Ruby SimpleCov resultset per workspace root, merges all top-level suite entries, supports both `{ lines: [...] }` and direct array line data, and returns line coverage only. Branch data is ignored for now. No covering-test data.
 
 ### `IstanbulJsonAdapter` (implemented)
 

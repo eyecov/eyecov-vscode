@@ -15,6 +15,7 @@ import { JacocoAdapter } from "./coverage-formats/jacoco";
 import { OpenCoverAdapter } from "./coverage-formats/opencover";
 import { PhpUnitHtmlAdapter } from "./coverage-formats/phpunit-html";
 import { LcovAdapter } from "./coverage-formats/lcov";
+import { SimpleCovJsonAdapter } from "./coverage-formats/simplecov-json";
 
 /** Why coverage was not returned (when record is null). */
 export type CoverageRejectReason = "no-artifact" | "stale";
@@ -123,6 +124,8 @@ export function createAdaptersFromConfig(
       adapters.push(new CloverAdapter({ path: entry.path }));
     } else if (entry.type === "lcov") {
       adapters.push(new LcovAdapter({ path: entry.path }));
+    } else if (entry.type === "simplecov-json") {
+      adapters.push(new SimpleCovJsonAdapter({ path: entry.path }));
     } else if (entry.type === "istanbul-json") {
       adapters.push(new IstanbulJsonAdapter({ path: entry.path }));
     } else if (entry.type === "go-coverprofile") {
@@ -147,4 +150,5 @@ export { IstanbulJsonAdapter } from "./coverage-formats/istanbul-json";
 export { JacocoAdapter } from "./coverage-formats/jacoco";
 export { LcovAdapter } from "./coverage-formats/lcov";
 export { OpenCoverAdapter } from "./coverage-formats/opencover";
+export { SimpleCovJsonAdapter } from "./coverage-formats/simplecov-json";
 export { FixtureAdapter } from "./coverage-formats/fixture";

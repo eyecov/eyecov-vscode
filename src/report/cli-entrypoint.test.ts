@@ -212,13 +212,13 @@ describe("runReportCli", () => {
     const stderr = createWriter();
 
     const exitCode = await runReportCli({
-      args: ["--path", artifactPath, "--format", "istanbul-json"],
+      args: ["--path", artifactPath, "--format", "simplecov-json"],
       stdout: stdout.stream,
       stderr: stderr.stream,
       loadCoverageArtifactImpl: async () => {
         throw new Error("not found");
       },
-      detectCoverageFormatImpl: () => "istanbul-json",
+      detectCoverageFormatImpl: () => "simplecov-json",
     });
 
     expect(exitCode).toBe(1);

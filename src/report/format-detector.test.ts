@@ -51,10 +51,11 @@ describe("detectCoverageFormat", () => {
     expect(detectCoverageFormat(cloverPath)).toBe("clover");
   });
 
-  it("detects go coverprofile, coverage.py JSON, and Istanbul JSON", () => {
+  it("detects go coverprofile, coverage.py JSON, SimpleCov JSON, and Istanbul JSON", () => {
     const dir = createTempDir();
     const goPath = path.join(dir, "coverage.out");
     const coveragePyPath = path.join(dir, "coverage.json");
+    const simpleCovPath = path.join(dir, ".resultset.json");
     const istanbulPath = path.join(dir, "coverage-final.json");
 
     fs.writeFileSync(goPath, "mode: set\nsrc/foo.go:1.1,1.2 1 1\n");
@@ -63,6 +64,16 @@ describe("detectCoverageFormat", () => {
       JSON.stringify({
         meta: { version: "7.0" },
         files: { "src/foo.py": { executed_lines: [1], missing_lines: [2] } },
+      }),
+    );
+    fs.writeFileSync(
+      simpleCovPath,
+      JSON.stringify({
+        RSpec: {
+          coverage: {
+            "app/user.rb": { lines: [null, 1, 0] },
+          },
+        },
       }),
     );
     fs.writeFileSync(
@@ -78,6 +89,7 @@ describe("detectCoverageFormat", () => {
 
     expect(detectCoverageFormat(goPath)).toBe("go-coverprofile");
     expect(detectCoverageFormat(coveragePyPath)).toBe("coveragepy-json");
+    expect(detectCoverageFormat(simpleCovPath)).toBe("simplecov-json");
     expect(detectCoverageFormat(istanbulPath)).toBe("istanbul-json");
   });
 
