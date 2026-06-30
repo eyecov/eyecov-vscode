@@ -152,7 +152,7 @@
     "@eslint/js": "^9.17.0",
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.105.0",
-    "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/coverage-v8": "^4.1.9",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.0",
     "esbuild": "^0.27.4",
@@ -162,7 +162,7 @@
     "typescript": "^5.0.0",
     "typescript-eslint": "^8.18.0",
     "vsce": "^2.15.0",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.9"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
