@@ -2,12 +2,14 @@ out
 node_modules
 .vscode-test
 coverage
+!test-workspace/coverage/
+!test-workspace/coverage/lcov.info
 *.vsix
 .specstory
 .DS_Store
 .claude/
 eyecov-review-pack/
-.eyecov/coverage-cache.json
+**/.eyecov/coverage-cache.json
 *.zip
 !coverage-samples/phpunit-html/docs-derived/coverage-html/
 !coverage-samples/phpunit-html/docs-derived/coverage-html/*.html

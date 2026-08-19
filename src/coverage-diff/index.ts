@@ -38,7 +38,7 @@ export interface CoverageDiffItem {
   reason?: string;
 }
 
-export interface CoverageDiffResult {
+export type CoverageDiffResult = {
   baseRef: string;
   headRef: string;
   comparisonMode: CoverageDiffComparisonMode;
@@ -52,7 +52,7 @@ export interface CoverageDiffResult {
   changedUncoveredLines: number;
   changedUncoverableLines: number;
   items: CoverageDiffItem[];
-}
+};
 
 export interface GitDiffFile {
   repoRelativePath: string;

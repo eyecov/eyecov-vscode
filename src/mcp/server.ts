@@ -562,7 +562,7 @@ async function main(): Promise<void> {
           worstFilesLimit,
         );
         return {
-          structuredContent: response as unknown as Record<string, unknown>,
+          structuredContent: response,
           content: [{ type: "text", text: JSON.stringify(response) }],
         };
       }
@@ -585,7 +585,7 @@ async function main(): Promise<void> {
         coveredLinesCutoff: args.coveredLinesCutoff,
       });
       return {
-        structuredContent: response as unknown as Record<string, unknown>,
+        structuredContent: response,
         content: [
           {
             type: "text",
@@ -660,7 +660,7 @@ async function main(): Promise<void> {
       if (cache) {
         const response = projectAggregateFromCache(cache);
         return {
-          structuredContent: response as unknown as Record<string, unknown>,
+          structuredContent: response,
           content: [{ type: "text", text: JSON.stringify(response) }],
         };
       }
@@ -678,7 +678,7 @@ async function main(): Promise<void> {
         coveredLinesCutoff: args.coveredLinesCutoff,
       });
       return {
-        structuredContent: response as unknown as Record<string, unknown>,
+        structuredContent: response,
         content: [
           {
             type: "text",
@@ -750,11 +750,11 @@ async function main(): Promise<void> {
         });
         const response = {
           scope: "project" as const,
-          cacheState: (cache.cacheState ?? "full") as "partial" | "full",
+          cacheState: cache.cacheState ?? "full",
           items,
         };
         return {
-          structuredContent: response as unknown as Record<string, unknown>,
+          structuredContent: response,
           content: [{ type: "text", text: JSON.stringify(response) }],
         };
       }
@@ -775,7 +775,7 @@ async function main(): Promise<void> {
           items: [],
         };
         return {
-          structuredContent: response as unknown as Record<string, unknown>,
+          structuredContent: response,
           content: [{ type: "text", text: JSON.stringify(response) }],
         };
       }
@@ -810,7 +810,7 @@ async function main(): Promise<void> {
         items,
       };
       return {
-        structuredContent: response as unknown as Record<string, unknown>,
+        structuredContent: response,
         content: [{ type: "text", text: JSON.stringify(response) }],
       };
     },

@@ -1,3 +1,4 @@
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { getCoverageDiff } from "../coverage-diff";
 
@@ -76,17 +77,12 @@ export const COVERAGE_DIFF_OUTPUT_SCHEMA = z.object({
   ),
 });
 
-type ToolResponse = {
-  structuredContent: Record<string, unknown>;
-  content: Array<{ type: "text"; text: string }>;
-};
-
 export function createCoverageDiffToolHandler(dependencies: {
   getWorkspaceRoots: () => Promise<string[]>;
   getCoverageDiff?: typeof getCoverageDiff;
 }): (
   args: z.infer<typeof COVERAGE_DIFF_INPUT_SCHEMA>,
-) => Promise<ToolResponse> {
+) => Promise<CallToolResult> {
   const getCoverageDiffImpl = dependencies.getCoverageDiff ?? getCoverageDiff;
 
   return async (args) => {
@@ -102,7 +98,7 @@ export function createCoverageDiffToolHandler(dependencies: {
     });
 
     return {
-      structuredContent: response as unknown as Record<string, unknown>,
+      structuredContent: response,
       content: [{ type: "text", text: JSON.stringify(response) }],
     };
   };
