@@ -59,6 +59,12 @@ async function resetDemoEditorState(editor: vscode.TextEditor) {
 }
 
 suite("EyeCov Extension Test Suite", () => {
+  suiteSetup(async () => {
+    const extension = vscode.extensions.getExtension("eyecov.eyecov-vscode");
+    assert.ok(extension, "EyeCov extension should be installed");
+    await extension.activate();
+  });
+
   test("Extension should be present", () => {
     const ext = vscode.extensions.getExtension("eyecov.eyecov-vscode");
     assert.ok(ext, "EyeCov extension should be loaded");
