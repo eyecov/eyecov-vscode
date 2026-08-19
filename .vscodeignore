@@ -9,6 +9,7 @@ coverage/**
 coverage-samples/**
 test-workspace/**
 scripts/**
+tools/**
 .gitignore
 .prettierrc
 .prettierignore
@@ -16,6 +17,7 @@ scripts/**
 .nvmrc
 .vscode-test.mjs
 eslint.config.mjs
+oxlint.config.ts
 tsconfig.json
 tsconfig.test.json
 vitest.config.ts

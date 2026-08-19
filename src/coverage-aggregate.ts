@@ -274,7 +274,7 @@ export function listCoveredPathsFromFirstFormat(
 }
 
 /** Response shape for coverage_path tool (single or multiple path prefixes). */
-export interface PathAggregateResponse {
+export type PathAggregateResponse = {
   paths: string[];
   aggregateCoveragePercent: number | null;
   totalFiles: number;
@@ -285,7 +285,7 @@ export interface PathAggregateResponse {
   cacheState: "on-demand" | "partial" | "full";
   /** Present when options include zeroCoverageFilesLimit. */
   zeroCoverageFiles?: PathAggregateResult["zeroCoverageFiles"];
-}
+};
 
 export interface GetPathAggregateResponseOptions {
   workspaceRoots: string[];
@@ -343,7 +343,7 @@ export async function getPathAggregateResponse(
 }
 
 /** Response shape for coverage_project tool (workspace-wide). */
-export interface ProjectAggregateResponse {
+export type ProjectAggregateResponse = {
   aggregateCoveragePercent: number | null;
   totalFiles: number;
   coveredFiles: number;
@@ -353,7 +353,7 @@ export interface ProjectAggregateResponse {
   cacheState: "on-demand" | "partial" | "full";
   /** Present when options include zeroCoverageFilesLimit. */
   zeroCoverageFiles?: PathAggregateResult["zeroCoverageFiles"];
-}
+};
 
 export interface GetProjectAggregateResponseOptions {
   workspaceRoots: string[];
