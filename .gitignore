@@ -2,6 +2,8 @@ out
 node_modules
 .vscode-test
 coverage
+!test-workspace/coverage/
+!test-workspace/coverage/lcov.info
 *.vsix
 .specstory
 .DS_Store
